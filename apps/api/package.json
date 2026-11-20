@@ -2,8 +2,9 @@
   "name": "@darasa/api",
   "version": "1.0.50",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "typecheck": "bun check",
+    "docker": "docker build -t darasa-web ."
   },
   "dependencies": {
     "@elysia/cors": "^2.0.0-rc.1",

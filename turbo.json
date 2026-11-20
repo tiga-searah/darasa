@@ -17,6 +17,9 @@
 		"test": {
 			"dependsOn": ["^build"]
 		},
+		"docker": {
+			"cache": false
+		},
 		"dev": {
 			"cache": false,
 			"persistent": true

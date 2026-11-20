@@ -8,8 +8,9 @@
     "start": "turbo run start",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "check": "biome check .",
-    "check:fix": "biome check --write .",
+    "docker": "turbo run docker",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "format": "biome format --write ."
   },
   "devDependencies": {
