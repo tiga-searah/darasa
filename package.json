@@ -11,7 +11,8 @@
     "docker": "turbo run docker",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "db": "cd apps/api && bunx --bun drizzle-kit"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7",

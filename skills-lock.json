@@ -50,6 +50,11 @@
       "skillPath": "skills/taste-skill/SKILL.md",
       "computedHash": "b10eab0a9684cd09cf34c31ef04a3bf530a5f4404422f9c520d42372d670c7fc"
     },
+    "drizzle": {
+      "source": "../../node_modules/.bun/drizzle-kit@1.0.0-rc.5+3ead2efff8521eef/node_modules/drizzle-kit/skills",
+      "sourceType": "local",
+      "computedHash": "c91331769b0cf9a9f5592d9ea5cf0998fdfcd81c4ed1fb0d8784ada819a797e9"
+    },
     "elysiajs": {
       "source": "elysiajs/skills",
       "commit": "1466d85aa4f2a0fec91f71311e65bbfa91aa7dc5",

@@ -23,14 +23,23 @@ For more detailed information, refer to @PRD.md
 
 ## Repo Structure
 
-Repo is a monorepo with the following structure
+Repo is a monorepo with the following structure. The backend use features-based structure, each dir has `index.ts`, `model.ts`, and `service.ts`.
 
 ```
 darasa/
   apps/
-    api/        # elysiajs backend
-    web/        # react router framework frontend
-  packages/     # shared packages
+    api/                # elysiajs backend
+      database/
+        schema/         # drizzle schemas
+        index.ts        # drizzle entrypoint
+      modules/
+        <feature>/
+          index.ts      # elysia controller
+          model.ts      # typebox models
+          service.ts    # bussiness logic
+      index.ts          # elysia server entrypoint
+    web/                # react router framework frontend
+  packages/             # shared packages
   package.json
   turbo.json
 ```

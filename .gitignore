@@ -9,6 +9,7 @@ dist
 build
 *.tgz
 .turbo
+.drizzle
 
 # code coverage
 coverage
