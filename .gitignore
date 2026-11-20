@@ -1,0 +1,57 @@
+# dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# output
+out
+dist
+build
+*.tgz
+.turbo
+
+# code coverage
+coverage
+*.lcov
+
+# logs
+logs
+_.log
+report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+
+# dotenv environment variable files
+.env*
+!.env.example
+*.pem
+
+# caches
+.eslintcache
+.cache
+*.tsbuildinfo
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IntelliJ based IDEs
+.idea
+
+# Finder (MacOS) folder config
+.DS_Store
+
+# React Router
+/.react-router/
+
+# next.js
+/.next/
+
+# vercel
+.vercel
+
+**/*.trace
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+**/*.log
+**/*.bun

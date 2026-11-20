@@ -1,0 +1,27 @@
+{
+  "name": "darasa",
+  "private": true,
+  "packageManager": "bun@1.4.4",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "start": "turbo run start",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.7",
+    "@types/bun": "latest",
+    "turbo": "^2.11.11"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
