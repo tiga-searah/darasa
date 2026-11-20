@@ -1,6 +1,6 @@
 # dependencies
 node_modules
-/.pnp
+.pnp
 .pnp.js
 
 # output
@@ -41,10 +41,7 @@ yarn-error.log*
 .DS_Store
 
 # React Router
-/.react-router/
-
-# next.js
-/.next/
+.react-router
 
 # vercel
 .vercel
