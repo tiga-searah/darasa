@@ -1,11 +1,13 @@
 import gsap from "gsap";
 import {
 	Award,
+	CheckCircle2,
 	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
 	Compass,
 	Gem,
+	Info,
 	LayoutDashboard,
 	LogIn,
 	LogOut,
@@ -15,6 +17,7 @@ import {
 	ShieldAlert,
 	Store,
 	UserCheck,
+	X,
 } from "lucide-react";
 import {
 	type ReactNode,
@@ -26,6 +29,7 @@ import {
 	useState,
 } from "react";
 import { Link, NavLink, useLocation } from "react-router";
+import { ThemeToggle } from "~/components/theme-toggle";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Collapsible, CollapsibleTrigger } from "~/components/ui/collapsible";
@@ -175,8 +179,16 @@ function SmoothCollapsibleSection({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-	const { currentUser, switchDemoAccount, logout, claims, anomalies, places } =
-		useDarasa();
+	const {
+		currentUser,
+		switchDemoAccount,
+		logout,
+		claims,
+		anomalies,
+		places,
+		toast,
+		dismissToast,
+	} = useDarasa();
 	const location = useLocation();
 	const [collapsed, setCollapsed] = useState(false);
 	const [mobileOpen, setMobileOpen] = useState(false);
@@ -381,7 +393,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 													className={cn(
 														"px-2 py-0.5 tabular-nums",
 														isActive
-															? "border-white/30 bg-white/20 text-white"
+															? "border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground"
 															: "",
 													)}
 												>
@@ -776,6 +788,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 						</div>
 
 						<div className="flex items-center gap-2.5">
+							<ThemeToggle />
+
+							<Button
+								asChild
+								variant="secondary"
+								size="sm"
+								className="hidden md:inline-flex"
+							>
+								<Link to="/submit-place">
+									<PlusCircle className="size-4" aria-hidden="true" />
+									Tambah Tempat
+								</Link>
+							</Button>
+
 							<Button
 								asChild
 								variant="outline"
@@ -815,6 +841,38 @@ export function AppShell({ children }: { children: ReactNode }) {
 						{children}
 					</div>
 				</main>
+
+				{toast ? (
+					<div
+						aria-live="polite"
+						className="pointer-events-none fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 rounded-[12px] border border-border bg-card px-4 py-3 text-sm shadow-lg"
+					>
+						<div className="pointer-events-auto flex w-full items-center gap-2.5">
+							{toast.tone === "success" ? (
+								<CheckCircle2
+									className="size-4 shrink-0 text-primary"
+									aria-hidden="true"
+								/>
+							) : (
+								<Info
+									className="size-4 shrink-0 text-primary"
+									aria-hidden="true"
+								/>
+							)}
+							<p role="status" className="flex-1 font-medium text-foreground">
+								{toast.message}
+							</p>
+							<button
+								type="button"
+								onClick={dismissToast}
+								aria-label="Tutup notifikasi"
+								className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] text-muted-foreground hover:bg-background hover:text-foreground"
+							>
+								<X className="size-4" aria-hidden="true" />
+							</button>
+						</div>
+					</div>
+				) : null}
 
 				<footer className="border-t border-border bg-card">
 					<div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-5 text-xs text-muted-foreground sm:px-6 lg:px-8 xl:px-12">

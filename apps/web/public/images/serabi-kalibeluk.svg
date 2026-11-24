@@ -1,9 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
   <rect width="800" height="500" fill="#FFF6DF"/>
-  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#EFE1B7" stroke-width="2"/>
-  <circle cx="344" cy="240" r="82" fill="#F5BE42"/>
-  <circle cx="456" cy="240" r="82" fill="#16865B" opacity="0.9"/>
-  <circle cx="344" cy="240" r="52" fill="#FFF6DF"/>
-  <circle cx="456" cy="240" r="52" fill="#E8F4EE"/>
-  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Jajanan &amp; Serabi Khas Batang</text>
+  <circle cx="150" cy="120" r="88" fill="#FCECE9"/>
+  <circle cx="660" cy="360" r="96" fill="#E8F4EE"/>
+  <ellipse cx="400" cy="252" rx="196" ry="132" fill="#FFFFFF" stroke="#EAD9AA" stroke-width="3"/>
+  <!-- Serabi pair with pandan & palm sugar -->
+  <circle cx="338" cy="248" r="78" fill="#F5BE42"/>
+  <circle cx="338" cy="248" r="56" fill="#FFFDF6"/>
+  <circle cx="322" cy="238" r="6" fill="#E3C795"/>
+  <circle cx="352" cy="256" r="5" fill="#E3C795"/>
+  <circle cx="342" cy="228" r="4" fill="#E3C795"/>
+  <circle cx="462" cy="248" r="78" fill="#16865B"/>
+  <circle cx="462" cy="248" r="56" fill="#E8F4EE"/>
+  <circle cx="448" cy="236" r="6" fill="#9BD1B7"/>
+  <circle cx="476" cy="256" r="5" fill="#9BD1B7"/>
+  <rect x="236" y="420" width="328" height="36" rx="18" fill="#FFFFFF" stroke="#DCE5DF"/>
+  <text x="400" y="443" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Jajanan &amp; Serabi Khas Batang</text>
 </svg>

@@ -1,10 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
   <rect width="800" height="500" fill="#FCECE9"/>
-  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#F0D0C9" stroke-width="2"/>
-  <path d="M272 222H528C528 292 470 338 400 338C330 338 272 292 272 222Z" fill="#16865B"/>
-  <ellipse cx="400" cy="222" rx="128" ry="26" fill="#FFF6DF" stroke="#116B48" stroke-width="4"/>
-  <circle cx="364" cy="220" r="14" fill="#F5BE42"/>
-  <circle cx="410" cy="224" r="12" fill="#E84B3C"/>
-  <circle cx="444" cy="218" r="10" fill="#16865B"/>
-  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Soto &amp; Kuliner Hangat Limpung</text>
+  <circle cx="640" cy="110" r="88" fill="#FFF6DF"/>
+  <ellipse cx="400" cy="356" rx="158" ry="26" fill="#E9D6D0"/>
+  <!-- Ceramic soto bowl -->
+  <path d="M244 218H556C556 306 486 358 400 358C314 358 244 306 244 218Z" fill="#16865B"/>
+  <path d="M268 272H532" stroke="#116B48" stroke-width="5"/>
+  <ellipse cx="400" cy="218" rx="156" ry="34" fill="#FFFFFF" stroke="#116B48" stroke-width="4"/>
+  <ellipse cx="400" cy="218" rx="134" ry="24" fill="#F5BE42" opacity="0.45"/>
+  <circle cx="354" cy="216" r="14" fill="#8D5A3B"/>
+  <circle cx="402" cy="222" r="14" fill="#E84B3C"/>
+  <circle cx="446" cy="214" r="12" fill="#16865B"/>
+  <!-- Steam -->
+  <path d="M364 166C358 148 374 138 368 122" stroke="#116B48" stroke-width="3.5" stroke-linecap="round" opacity="0.5"/>
+  <path d="M428 164C422 146 438 136 432 120" stroke="#116B48" stroke-width="3.5" stroke-linecap="round" opacity="0.5"/>
+  <rect x="236" y="420" width="328" height="36" rx="18" fill="#FFFFFF" stroke="#DCE5DF"/>
+  <text x="400" y="443" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Soto &amp; Kuliner Hangat Limpung</text>
 </svg>

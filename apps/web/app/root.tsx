@@ -10,6 +10,7 @@ import {
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { DarasaProvider } from "~/context/darasa-store";
+import { THEME_COLOR_LIGHT, THEME_INIT_SCRIPT } from "~/lib/theme";
 import type { Route } from "./+types/root";
 import "./app.css";
 
@@ -32,7 +33,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
-				<meta name="theme-color" content="#16865B" />
+				<meta
+					name="theme-color"
+					content={THEME_COLOR_LIGHT}
+					suppressHydrationWarning
+				/>
+				<meta
+					name="color-scheme"
+					content="light dark"
+					suppressHydrationWarning
+				/>
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Synchronous inline script prevents dark/light FOUC before first paint */}
+				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<Meta />
 				<Links />
 			</head>

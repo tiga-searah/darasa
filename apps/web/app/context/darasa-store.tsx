@@ -52,6 +52,12 @@ export interface PlaceWithMetrics extends CulinaryPlace {
 	hiddenGemScore: number;
 }
 
+export interface ToastNotification {
+	id: number;
+	message: string;
+	tone: "success" | "info";
+}
+
 interface DarasaContextValue {
 	hydrated: boolean;
 	currentUser: UserAccount;
@@ -59,6 +65,9 @@ interface DarasaContextValue {
 	places: PlaceWithMetrics[];
 	claims: BusinessClaim[];
 	anomalies: AnomalyFlag[];
+	toast: ToastNotification | null;
+	notify: (message: string, tone?: "success" | "info") => void;
+	dismissToast: () => void;
 	loginWithCredentials: (
 		email: string,
 		password: string,
@@ -149,6 +158,24 @@ const DEFAULT_STATE: PersistedState = {
 export function DarasaProvider({ children }: { children: ReactNode }) {
 	const [state, setState] = useState<PersistedState>(DEFAULT_STATE);
 	const [hydrated, setHydrated] = useState(false);
+	const [toast, setToast] = useState<ToastNotification | null>(null);
+
+	const notify = useCallback(
+		(message: string, tone: "success" | "info" = "success") => {
+			setToast({ id: Date.now(), message, tone });
+		},
+		[],
+	);
+
+	const dismissToast = useCallback(() => {
+		setToast(null);
+	}, []);
+
+	useEffect(() => {
+		if (!toast) return;
+		const timer = window.setTimeout(() => setToast(null), 4200);
+		return () => window.clearTimeout(timer);
+	}, [toast]);
 
 	useEffect(() => {
 		try {
@@ -346,9 +373,10 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				...prev,
 				places: [newPlace, ...prev.places],
 			}));
+			notify(`Tempat "${newPlace.name}" berhasil ditambahkan ke direktori!`);
 			return newPlace;
 		},
-		[currentUser],
+		[currentUser, notify],
 	);
 
 	const submitReview: DarasaContextValue["submitReview"] = useCallback(
@@ -378,9 +406,10 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					reviews: [newReview, ...prev.reviews],
 				};
 			});
+			notify("Ulasan dan rating Anda berhasil disimpan.");
 			return newReview;
 		},
-		[currentUser],
+		[currentUser, notify],
 	);
 
 	const submitClaim: DarasaContextValue["submitClaim"] = useCallback(
@@ -410,9 +439,10 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				...prev,
 				claims: [claim, ...prev.claims],
 			}));
+			notify(`Pengajuan klaim "${claim.placeName}" berhasil dikirim.`);
 			return claim;
 		},
-		[currentUser, state.places],
+		[currentUser, state.places, notify],
 	);
 
 	const reviewClaim = useCallback(
@@ -469,19 +499,29 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					accounts: nextAccounts,
 				};
 			});
+			notify(
+				decision === "approved"
+					? "Klaim profil usaha telah disetujui."
+					: "Klaim profil usaha telah ditolak.",
+				decision === "approved" ? "success" : "info",
+			);
 		},
-		[],
+		[notify],
 	);
 
 	const updatePlaceProfile: DarasaContextValue["updatePlaceProfile"] =
-		useCallback((placeId, updates) => {
-			setState((prev) => ({
-				...prev,
-				places: prev.places.map((p) =>
-					p.id === placeId ? { ...p, ...updates } : p,
-				),
-			}));
-		}, []);
+		useCallback(
+			(placeId, updates) => {
+				setState((prev) => ({
+					...prev,
+					places: prev.places.map((p) =>
+						p.id === placeId ? { ...p, ...updates } : p,
+					),
+				}));
+				notify("Profil usaha berhasil diperbarui.");
+			},
+			[notify],
+		);
 
 	const replyToReview = useCallback(
 		(reviewId: string, message: string) => {
@@ -499,8 +539,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					r.id === reviewId ? { ...r, ownerReply: reply } : r,
 				),
 			}));
+			notify("Balasan ulasan berhasil dikirim.");
 		},
-		[currentUser.name],
+		[currentUser.name, notify],
 	);
 
 	const setPlaceVerification = useCallback(
@@ -519,8 +560,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 						: p,
 				),
 			}));
+			notify("Status verifikasi tempat diperbarui.");
 		},
-		[],
+		[notify],
 	);
 
 	const resolveAnomalyFlag = useCallback(
@@ -532,8 +574,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					[flagId]: resolution,
 				},
 			}));
+			notify("Status peninjauan anomali Z-Score disimpan.", "info");
 		},
-		[],
+		[notify],
 	);
 
 	const resetPrototypeData = useCallback(() => {
@@ -543,7 +586,8 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 		} catch {
 			// Ignore
 		}
-	}, []);
+		notify("Data prototipe dikembalikan ke kondisi awal.", "info");
+	}, [notify]);
 
 	const value = useMemo<DarasaContextValue>(
 		() => ({
@@ -553,6 +597,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			places,
 			claims: state.claims,
 			anomalies,
+			toast,
+			notify,
+			dismissToast,
 			loginWithCredentials,
 			registerAccount,
 			switchDemoAccount,
@@ -574,6 +621,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			places,
 			state.claims,
 			anomalies,
+			toast,
+			notify,
+			dismissToast,
 			loginWithCredentials,
 			registerAccount,
 			switchDemoAccount,

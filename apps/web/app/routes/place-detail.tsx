@@ -6,6 +6,7 @@ import {
 	Gem,
 	ImagePlus,
 	MapPin,
+	Maximize2,
 	MessageSquarePlus,
 	Phone,
 	Star,
@@ -49,8 +50,10 @@ export default function PlaceDetailPage() {
 	const place = places.find((p) => p.slug === slug);
 
 	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+	const [lightboxOpen, setLightboxOpen] = useState(false);
 	const [reviewModalOpen, setReviewModalOpen] = useState(false);
 	const [rating, setRating] = useState(5);
+	const [hoverRating, setHoverRating] = useState<number | null>(null);
 	const [comment, setComment] = useState("");
 	const [photoPreview, setPhotoPreview] = useState<string>("");
 	const [formError, setFormError] = useState<string | null>(null);
@@ -156,15 +159,70 @@ export default function PlaceDetailPage() {
 					className="lg:col-span-7 space-y-3"
 				>
 					<Card className="overflow-hidden">
-						<img
-							src={activePhoto}
-							alt={`Foto utama ${place.name}`}
-							width={800}
-							height={500}
-							fetchPriority="high"
-							className="aspect-[16/10] w-full object-cover"
-						/>
+						<button
+							type="button"
+							onClick={() => setLightboxOpen(true)}
+							aria-label={`Perbesar foto ${place.name}`}
+							className="group relative block w-full overflow-hidden text-left"
+						>
+							<img
+								src={activePhoto}
+								alt={`Foto utama ${place.name}`}
+								width={800}
+								height={500}
+								fetchPriority="high"
+								className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+							/>
+							<span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm border border-border">
+								<Maximize2
+									className="size-3.5 text-primary"
+									aria-hidden="true"
+								/>
+								Perbesar foto
+							</span>
+						</button>
 					</Card>
+
+					<Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+						<DialogContent className="max-w-3xl p-4 sm:p-6">
+							<DialogHeader>
+								<DialogTitle>{place.name}</DialogTitle>
+								<DialogDescription>
+									Foto ke-{activePhotoIndex + 1} dari {photos.length} ·{" "}
+									{place.district}, Kabupaten Batang
+								</DialogDescription>
+							</DialogHeader>
+							<div className="overflow-hidden rounded-[10px] border border-border bg-background">
+								<img
+									src={activePhoto}
+									alt={`Foto ukuran penuh ${place.name}`}
+									className="max-h-[70vh] w-full object-contain"
+								/>
+							</div>
+							{photos.length > 1 ? (
+								<div className="flex flex-wrap gap-2">
+									{photos.map((src, idx) => (
+										<button
+											key={src}
+											type="button"
+											onClick={() => setActivePhotoIndex(idx)}
+											className={`overflow-hidden rounded-[8px] border-2 ${
+												idx === activePhotoIndex
+													? "border-primary"
+													: "border-border"
+											}`}
+										>
+											<img
+												src={src}
+												alt={`Pilih foto ${idx + 1}`}
+												className="h-14 w-20 object-cover"
+											/>
+										</button>
+									))}
+								</div>
+							) : null}
+						</DialogContent>
+					</Dialog>
 
 					{photos.length > 1 ? (
 						<div className="flex flex-wrap gap-2">
@@ -350,6 +408,74 @@ export default function PlaceDetailPage() {
 			{/* Map & Reviews Split */}
 			<div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
 				<section className="lg:col-span-7 space-y-4">
+					<Card className="p-5 space-y-4">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<h2 className="text-base font-bold text-foreground">
+								Rincian Skor &amp; Distribusi Rating
+							</h2>
+							<span className="text-xs text-muted-foreground">
+								{place.reviewCount > 0
+									? `Rata-rata ${place.averageRating.toFixed(1)} dari ${place.reviewCount} ulasan`
+									: "Belum ada ulasan tercatat"}
+							</span>
+						</div>
+
+						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<div className="space-y-1.5 rounded-[10px] border border-border bg-background p-3.5 text-xs">
+								<p className="font-semibold text-foreground">
+									Transparansi Perhitungan Darasa
+								</p>
+								<p className="text-muted-foreground">
+									Explore Score:{" "}
+									<strong className="text-foreground tabular-nums">
+										{place.exploreScore.toFixed(2)}
+									</strong>{" "}
+									(rating + log jumlah ulasan + bonus verifikasi)
+								</p>
+								<p className="text-muted-foreground">
+									Hidden Gem Score:{" "}
+									<strong className="text-foreground tabular-nums">
+										{place.hiddenGemEligible
+											? place.hiddenGemScore.toFixed(2)
+											: "Belum memenuhi syarat"}
+									</strong>{" "}
+									(rating tinggi dengan ulasan masih sedikit)
+								</p>
+							</div>
+
+							<div className="space-y-1.5">
+								{[5, 4, 3, 2, 1].map((star) => {
+									const count = place.reviews.filter(
+										(r) => r.rating === star,
+									).length;
+									const pct =
+										place.reviewCount > 0
+											? Math.round((count / place.reviewCount) * 100)
+											: 0;
+									return (
+										<div
+											key={star}
+											className="flex items-center gap-2.5 text-xs"
+										>
+											<span className="w-12 font-semibold text-foreground tabular-nums">
+												{star} bin.
+											</span>
+											<div className="h-2 flex-1 overflow-hidden rounded-full border border-border bg-background">
+												<div
+													style={{ width: `${pct}%` }}
+													className="h-full bg-primary transition-[width] duration-300"
+												/>
+											</div>
+											<span className="w-6 text-right text-muted-foreground tabular-nums">
+												{count}
+											</span>
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					</Card>
+
 					<div className="flex flex-wrap items-center justify-between gap-2">
 						<h2 className="text-xl font-bold text-foreground">
 							Ulasan Komunitas ({place.reviews.length})
@@ -472,29 +598,54 @@ export default function PlaceDetailPage() {
 							</div>
 						) : null}
 
-						<fieldset className="space-y-2">
+						<fieldset
+							className="space-y-2"
+							onMouseLeave={() => setHoverRating(null)}
+						>
 							<legend className="text-sm font-semibold text-foreground">
-								Pilih Rating (1 sampai 5 bintang)
+								Berikan Rating Bintang
 							</legend>
-							<div className="flex flex-wrap gap-2">
-								{[1, 2, 3, 4, 5].map((value) => (
-									<Button
-										key={value}
-										variant={rating === value ? "secondary" : "outline"}
-										onClick={() => setRating(value)}
-										aria-pressed={rating === value}
-									>
-										<Star
-											className={`size-4 ${
-												value <= rating
-													? "fill-accent-yellow text-yellow-text"
-													: "text-muted-foreground"
-											}`}
-											aria-hidden="true"
-										/>
-										<span className="tabular-nums">{value}</span>
-									</Button>
-								))}
+							<div className="flex flex-wrap items-center gap-1.5">
+								{[1, 2, 3, 4, 5].map((value) => {
+									const activeLimit = hoverRating ?? rating;
+									const isFilled = value <= activeLimit;
+									return (
+										<label
+											key={value}
+											onMouseEnter={() => setHoverRating(value)}
+											className="inline-flex size-11 items-center justify-center rounded-[8px] transition-transform duration-150 hover:scale-110 active:scale-95 focus-within:outline-2 focus-within:outline-ring"
+										>
+											<input
+												type="radio"
+												name="rating"
+												value={value}
+												checked={rating === value}
+												onChange={() => setRating(value)}
+												aria-label={`${value} bintang`}
+												className="visually-hidden"
+											/>
+											<Star
+												className={`size-8 transition-colors duration-150 ${
+													isFilled
+														? "fill-accent-yellow text-accent-yellow"
+														: "text-border hover:text-accent-yellow/70"
+												}`}
+												aria-hidden="true"
+											/>
+										</label>
+									);
+								})}
+								<span className="ml-2 text-sm font-medium text-muted-foreground">
+									{
+										[
+											"Kurang Memuaskan",
+											"Cukup",
+											"Enak",
+											"Direkomendasikan",
+											"Sangat Memuaskan",
+										][(hoverRating ?? rating) - 1]
+									}
+								</span>
 							</div>
 						</fieldset>
 

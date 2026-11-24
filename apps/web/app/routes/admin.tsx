@@ -53,6 +53,9 @@ export default function AdminVerificationPage() {
 	} = useDarasa();
 
 	const [claimNotes, setClaimNotes] = useState<Record<string, string>>({});
+	const [activeTab, setActiveTab] = useState<"claims" | "places" | "anomalies">(
+		"claims",
+	);
 
 	if (currentUser.role !== "admin") {
 		return (
@@ -80,6 +83,7 @@ export default function AdminVerificationPage() {
 	}
 
 	const pendingClaims = claims.filter((c) => c.status === "pending").length;
+	const pendingPlaces = places.filter((p) => p.isPendingModeration).length;
 	const openAnomalies = anomalies.filter((a) => a.resolution === "open").length;
 
 	return (
@@ -101,7 +105,65 @@ export default function AdminVerificationPage() {
 				</Button>
 			</Card>
 
-			<Tabs defaultValue="claims">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+				<button
+					type="button"
+					onClick={() => setActiveTab("claims")}
+					className={`rounded-[12px] border bg-card p-5 text-left transition-colors ${
+						activeTab === "claims"
+							? "border-primary bg-primary-soft/50"
+							: "border-border hover:border-primary/40"
+					}`}
+				>
+					<p className="text-xs font-medium text-muted-foreground">
+						Antrean Klaim Usaha
+					</p>
+					<p className="mt-1 text-2xl font-bold text-foreground tabular-nums">
+						{pendingClaims} menunggu
+					</p>
+				</button>
+
+				<button
+					type="button"
+					onClick={() => setActiveTab("places")}
+					className={`rounded-[12px] border bg-card p-5 text-left transition-colors ${
+						activeTab === "places"
+							? "border-primary bg-primary-soft/50"
+							: "border-border hover:border-primary/40"
+					}`}
+				>
+					<p className="text-xs font-medium text-muted-foreground">
+						Moderasi Tempat Baru
+					</p>
+					<p className="mt-1 text-2xl font-bold text-foreground tabular-nums">
+						{pendingPlaces} belum diperiksa
+					</p>
+				</button>
+
+				<button
+					type="button"
+					onClick={() => setActiveTab("anomalies")}
+					className={`rounded-[12px] border bg-card p-5 text-left transition-colors ${
+						activeTab === "anomalies"
+							? "border-primary bg-primary-soft/50"
+							: "border-border hover:border-primary/40"
+					}`}
+				>
+					<p className="text-xs font-medium text-muted-foreground">
+						Indikasi Anomali Z-Score
+					</p>
+					<p className="mt-1 text-2xl font-bold text-foreground tabular-nums">
+						{openAnomalies} terbuka
+					</p>
+				</button>
+			</div>
+
+			<Tabs
+				value={activeTab}
+				onValueChange={(val) =>
+					setActiveTab(val as "claims" | "places" | "anomalies")
+				}
+			>
 				<TabsList aria-label="Kategori peninjauan admin">
 					<TabsTrigger value="claims">
 						<ShieldCheck className="size-4" aria-hidden="true" />

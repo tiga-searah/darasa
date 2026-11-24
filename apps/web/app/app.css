@@ -2,33 +2,367 @@
 
 :root {
 	--radius: 0.5rem;
-	--background: #f4f5f1;
-	--foreground: #202522;
-	--card: #ffffff;
-	--card-foreground: #202522;
-	--popover: #ffffff;
-	--popover-foreground: #202522;
-	--primary: #16865b;
-	--primary-foreground: #ffffff;
-	--secondary: #e8f4ee;
-	--secondary-foreground: #116b48;
-	--muted: #eef0eb;
-	--muted-foreground: #5a625d;
-	--accent: #fff6df;
-	--accent-foreground: #7a5400;
-	--destructive: #c83224;
-	--destructive-foreground: #ffffff;
-	--border: #e4e8e5;
-	--input: #d5dcd7;
-	--ring: #16865b;
-	--sidebar: #ffffff;
-	--sidebar-foreground: #202522;
-	--sidebar-primary: #16865b;
-	--sidebar-primary-foreground: #ffffff;
-	--sidebar-accent: #e8f4ee;
-	--sidebar-accent-foreground: #116b48;
-	--sidebar-border: #e4e8e5;
-	--sidebar-ring: #16865b;
+	color-scheme: light dark;
+
+	/* Raw light & dark color tokens */
+	--background-light: #f4f5f1;
+	--background-dark: #111513;
+
+	--foreground-light: #202522;
+	--foreground-dark: #eef2ef;
+
+	--card-light: #ffffff;
+	--card-dark: #181d1a;
+
+	--popover-light: #ffffff;
+	--popover-dark: #1e2420;
+
+	--primary-light: #16865b;
+	--primary-dark: #34c287;
+
+	--primary-foreground-light: #ffffff;
+	--primary-foreground-dark: #081c13;
+
+	--primary-hover-light: #116b48;
+	--primary-hover-dark: #52d69f;
+
+	--primary-soft-light: #e8f4ee;
+	--primary-soft-dark: #163326;
+
+	--secondary-light: #e8f4ee;
+	--secondary-dark: #163326;
+
+	--secondary-foreground-light: #116b48;
+	--secondary-foreground-dark: #6ee2b0;
+
+	--muted-light: #eef0eb;
+	--muted-dark: #222925;
+
+	--muted-foreground-light: #5a625d;
+	--muted-foreground-dark: #b0bab4;
+
+	--accent-light: #fff6df;
+	--accent-dark: #2f2611;
+
+	--accent-foreground-light: #7a5400;
+	--accent-foreground-dark: #f7c95c;
+
+	--destructive-light: #c83224;
+	--destructive-dark: #c83224;
+
+	--destructive-hover-light: #a8271b;
+	--destructive-hover-dark: #a8271b;
+
+	--destructive-foreground-light: #ffffff;
+	--destructive-foreground-dark: #ffffff;
+
+	--secondary-red-light: #e84b3c;
+	--secondary-red-dark: #f26b5e;
+
+	--red-soft-light: #fcece9;
+	--red-soft-dark: #381b19;
+
+	--red-text-light: #b42318;
+	--red-text-dark: #f89288;
+
+	--accent-yellow-light: #f5be42;
+	--accent-yellow-dark: #f5be42;
+
+	--yellow-soft-light: #fff6df;
+	--yellow-soft-dark: #2f2611;
+
+	--yellow-text-light: #7a5400;
+	--yellow-text-dark: #f7c95c;
+
+	--border-light: #e4e8e5;
+	--border-dark: #2c3630;
+
+	--input-light: #89948e;
+	--input-dark: #627268;
+
+	--ring-light: #16865b;
+	--ring-dark: #34c287;
+
+	--text-secondary-light: #5a625d;
+	--text-secondary-dark: #b0bab4;
+
+	--text-muted-light: #636b66;
+	--text-muted-dark: #95a19a;
+
+	--surface-light: #ffffff;
+	--surface-dark-mode: #181d1a;
+
+	--card-hover-border-light: #c8d2cc;
+	--card-hover-border-dark: #45544b;
+
+	--card-hover-shadow-light: 0 10px 26px -14px rgba(23, 26, 24, 0.16);
+	--card-hover-shadow-dark: 0 10px 28px -14px rgba(0, 0, 0, 0.55);
+
+	--scrollbar-track-light: #eef0eb;
+	--scrollbar-track-dark: #181d1a;
+	--scrollbar-thumb-light: #757e79;
+	--scrollbar-thumb-dark: #627268;
+
+	/* Base light defaults (fallback for browsers without light-dark()) */
+	--background: var(--background-light);
+	--foreground: var(--foreground-light);
+	--card: var(--card-light);
+	--card-foreground: var(--foreground-light);
+	--popover: var(--popover-light);
+	--popover-foreground: var(--foreground-light);
+	--primary: var(--primary-light);
+	--primary-foreground: var(--primary-foreground-light);
+	--primary-hover: var(--primary-hover-light);
+	--primary-soft: var(--primary-soft-light);
+	--secondary: var(--secondary-light);
+	--secondary-foreground: var(--secondary-foreground-light);
+	--muted: var(--muted-light);
+	--muted-foreground: var(--muted-foreground-light);
+	--accent: var(--accent-light);
+	--accent-foreground: var(--accent-foreground-light);
+	--destructive: var(--destructive-light);
+	--destructive-hover: var(--destructive-hover-light);
+	--destructive-foreground: var(--destructive-foreground-light);
+	--secondary-red: var(--secondary-red-light);
+	--red-soft: var(--red-soft-light);
+	--red-text: var(--red-text-light);
+	--accent-yellow: var(--accent-yellow-light);
+	--yellow-soft: var(--yellow-soft-light);
+	--yellow-text: var(--yellow-text-light);
+	--border: var(--border-light);
+	--input: var(--input-light);
+	--ring: var(--ring-light);
+	--sidebar: var(--card-light);
+	--sidebar-foreground: var(--foreground-light);
+	--sidebar-primary: var(--primary-light);
+	--sidebar-primary-foreground: var(--primary-foreground-light);
+	--sidebar-accent: var(--secondary-light);
+	--sidebar-accent-foreground: var(--secondary-foreground-light);
+	--sidebar-border: var(--border-light);
+	--sidebar-ring: var(--ring-light);
+	--text-primary: var(--foreground-light);
+	--text-secondary: var(--text-secondary-light);
+	--text-muted: var(--text-muted-light);
+	--surface: var(--surface-light);
+	--surface-dark: #171a18;
+	--card-hover-border: var(--card-hover-border-light);
+	--card-hover-shadow: var(--card-hover-shadow-light);
+	--scrollbar-track: var(--scrollbar-track-light);
+	--scrollbar-thumb: var(--scrollbar-thumb-light);
+
+	/* Fallback for browsers without light-dark() when OS prefers dark */
+	@media (prefers-color-scheme: dark) {
+		&:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+			--background: var(--background-dark);
+			--foreground: var(--foreground-dark);
+			--card: var(--card-dark);
+			--card-foreground: var(--foreground-dark);
+			--popover: var(--popover-dark);
+			--popover-foreground: var(--foreground-dark);
+			--primary: var(--primary-dark);
+			--primary-foreground: var(--primary-foreground-dark);
+			--primary-hover: var(--primary-hover-dark);
+			--primary-soft: var(--primary-soft-dark);
+			--secondary: var(--secondary-dark);
+			--secondary-foreground: var(--secondary-foreground-dark);
+			--muted: var(--muted-dark);
+			--muted-foreground: var(--muted-foreground-dark);
+			--accent: var(--accent-dark);
+			--accent-foreground: var(--accent-foreground-dark);
+			--destructive: var(--destructive-dark);
+			--destructive-hover: var(--destructive-hover-dark);
+			--destructive-foreground: var(--destructive-foreground-dark);
+			--secondary-red: var(--secondary-red-dark);
+			--red-soft: var(--red-soft-dark);
+			--red-text: var(--red-text-dark);
+			--accent-yellow: var(--accent-yellow-dark);
+			--yellow-soft: var(--yellow-soft-dark);
+			--yellow-text: var(--yellow-text-dark);
+			--border: var(--border-dark);
+			--input: var(--input-dark);
+			--ring: var(--ring-dark);
+			--sidebar: var(--card-dark);
+			--sidebar-foreground: var(--foreground-dark);
+			--sidebar-primary: var(--primary-dark);
+			--sidebar-primary-foreground: var(--primary-foreground-dark);
+			--sidebar-accent: var(--secondary-dark);
+			--sidebar-accent-foreground: var(--secondary-foreground-dark);
+			--sidebar-border: var(--border-dark);
+			--sidebar-ring: var(--ring-dark);
+			--text-primary: var(--foreground-dark);
+			--text-secondary: var(--text-secondary-dark);
+			--text-muted: var(--text-muted-dark);
+			--surface: var(--surface-dark-mode);
+			--card-hover-border: var(--card-hover-border-dark);
+			--card-hover-shadow: var(--card-hover-shadow-dark);
+			--scrollbar-track: var(--scrollbar-track-dark);
+			--scrollbar-thumb: var(--scrollbar-thumb-dark);
+		}
+	}
+
+	/* Reflect <meta name="color-scheme"> override back to CSS color-scheme */
+	&:has(> head > meta[name="color-scheme"][content="dark"]) {
+		color-scheme: dark;
+		--background: var(--background-dark);
+		--foreground: var(--foreground-dark);
+		--card: var(--card-dark);
+		--card-foreground: var(--foreground-dark);
+		--popover: var(--popover-dark);
+		--popover-foreground: var(--foreground-dark);
+		--primary: var(--primary-dark);
+		--primary-foreground: var(--primary-foreground-dark);
+		--primary-hover: var(--primary-hover-dark);
+		--primary-soft: var(--primary-soft-dark);
+		--secondary: var(--secondary-dark);
+		--secondary-foreground: var(--secondary-foreground-dark);
+		--muted: var(--muted-dark);
+		--muted-foreground: var(--muted-foreground-dark);
+		--accent: var(--accent-dark);
+		--accent-foreground: var(--accent-foreground-dark);
+		--destructive: var(--destructive-dark);
+		--destructive-hover: var(--destructive-hover-dark);
+		--destructive-foreground: var(--destructive-foreground-dark);
+		--secondary-red: var(--secondary-red-dark);
+		--red-soft: var(--red-soft-dark);
+		--red-text: var(--red-text-dark);
+		--accent-yellow: var(--accent-yellow-dark);
+		--yellow-soft: var(--yellow-soft-dark);
+		--yellow-text: var(--yellow-text-dark);
+		--border: var(--border-dark);
+		--input: var(--input-dark);
+		--ring: var(--ring-dark);
+		--sidebar: var(--card-dark);
+		--sidebar-foreground: var(--foreground-dark);
+		--sidebar-primary: var(--primary-dark);
+		--sidebar-primary-foreground: var(--primary-foreground-dark);
+		--sidebar-accent: var(--secondary-dark);
+		--sidebar-accent-foreground: var(--secondary-foreground-dark);
+		--sidebar-border: var(--border-dark);
+		--sidebar-ring: var(--ring-dark);
+		--text-primary: var(--foreground-dark);
+		--text-secondary: var(--text-secondary-dark);
+		--text-muted: var(--text-muted-dark);
+		--surface: var(--surface-dark-mode);
+		--card-hover-border: var(--card-hover-border-dark);
+		--card-hover-shadow: var(--card-hover-shadow-dark);
+		--scrollbar-track: var(--scrollbar-track-dark);
+		--scrollbar-thumb: var(--scrollbar-thumb-dark);
+	}
+
+	&:has(> head > meta[name="color-scheme"][content="light"]) {
+		color-scheme: light;
+	}
+
+	/* Modern CSS light-dark() automatically keys off computed color-scheme */
+	@supports (color: light-dark(white, black)) {
+		--background: light-dark(var(--background-light), var(--background-dark));
+		--foreground: light-dark(var(--foreground-light), var(--foreground-dark));
+		--card: light-dark(var(--card-light), var(--card-dark));
+		--card-foreground: light-dark(
+			var(--foreground-light),
+			var(--foreground-dark)
+		);
+		--popover: light-dark(var(--popover-light), var(--popover-dark));
+		--popover-foreground: light-dark(
+			var(--foreground-light),
+			var(--foreground-dark)
+		);
+		--primary: light-dark(var(--primary-light), var(--primary-dark));
+		--primary-foreground: light-dark(
+			var(--primary-foreground-light),
+			var(--primary-foreground-dark)
+		);
+		--primary-hover: light-dark(
+			var(--primary-hover-light),
+			var(--primary-hover-dark)
+		);
+		--primary-soft: light-dark(
+			var(--primary-soft-light),
+			var(--primary-soft-dark)
+		);
+		--secondary: light-dark(var(--secondary-light), var(--secondary-dark));
+		--secondary-foreground: light-dark(
+			var(--secondary-foreground-light),
+			var(--secondary-foreground-dark)
+		);
+		--muted: light-dark(var(--muted-light), var(--muted-dark));
+		--muted-foreground: light-dark(
+			var(--muted-foreground-light),
+			var(--muted-foreground-dark)
+		);
+		--accent: light-dark(var(--accent-light), var(--accent-dark));
+		--accent-foreground: light-dark(
+			var(--accent-foreground-light),
+			var(--accent-foreground-dark)
+		);
+		--destructive: light-dark(
+			var(--destructive-light),
+			var(--destructive-dark)
+		);
+		--destructive-hover: light-dark(
+			var(--destructive-hover-light),
+			var(--destructive-hover-dark)
+		);
+		--destructive-foreground: light-dark(
+			var(--destructive-foreground-light),
+			var(--destructive-foreground-dark)
+		);
+		--secondary-red: light-dark(
+			var(--secondary-red-light),
+			var(--secondary-red-dark)
+		);
+		--red-soft: light-dark(var(--red-soft-light), var(--red-soft-dark));
+		--red-text: light-dark(var(--red-text-light), var(--red-text-dark));
+		--accent-yellow: light-dark(
+			var(--accent-yellow-light),
+			var(--accent-yellow-dark)
+		);
+		--yellow-soft: light-dark(
+			var(--yellow-soft-light),
+			var(--yellow-soft-dark)
+		);
+		--yellow-text: light-dark(
+			var(--yellow-text-light),
+			var(--yellow-text-dark)
+		);
+		--border: light-dark(var(--border-light), var(--border-dark));
+		--input: light-dark(var(--input-light), var(--input-dark));
+		--ring: light-dark(var(--ring-light), var(--ring-dark));
+		--sidebar: light-dark(var(--card-light), var(--card-dark));
+		--sidebar-foreground: light-dark(
+			var(--foreground-light),
+			var(--foreground-dark)
+		);
+		--sidebar-primary: light-dark(var(--primary-light), var(--primary-dark));
+		--sidebar-primary-foreground: light-dark(
+			var(--primary-foreground-light),
+			var(--primary-foreground-dark)
+		);
+		--sidebar-accent: light-dark(var(--secondary-light), var(--secondary-dark));
+		--sidebar-accent-foreground: light-dark(
+			var(--secondary-foreground-light),
+			var(--secondary-foreground-dark)
+		);
+		--sidebar-border: light-dark(var(--border-light), var(--border-dark));
+		--sidebar-ring: light-dark(var(--ring-light), var(--ring-dark));
+		--text-primary: light-dark(var(--foreground-light), var(--foreground-dark));
+		--text-secondary: light-dark(
+			var(--text-secondary-light),
+			var(--text-secondary-dark)
+		);
+		--text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+		--surface: light-dark(var(--surface-light), var(--surface-dark-mode));
+		--scrollbar-track: light-dark(
+			var(--scrollbar-track-light),
+			var(--scrollbar-track-dark)
+		);
+		--scrollbar-thumb: light-dark(
+			var(--scrollbar-thumb-light),
+			var(--scrollbar-thumb-dark)
+		);
+	}
+
+	scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 @theme inline {
@@ -65,20 +399,20 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 
 	/* DESIGN.md Darasa design tokens */
-	--color-primary-hover: #116b48;
-	--color-primary-soft: #e8f4ee;
-	--color-secondary-red: #e84b3c;
-	--color-destructive-hover: #a8271b;
-	--color-red-soft: #fcece9;
-	--color-red-text: #b42318;
-	--color-accent-yellow: #f5be42;
-	--color-yellow-soft: #fff6df;
-	--color-yellow-text: #7a5400;
-	--color-text-primary: #202522;
-	--color-text-secondary: #5a625d;
-	--color-text-muted: #707873;
-	--color-surface: #ffffff;
-	--color-surface-dark: #171a18;
+	--color-primary-hover: var(--primary-hover);
+	--color-primary-soft: var(--primary-soft);
+	--color-secondary-red: var(--secondary-red);
+	--color-destructive-hover: var(--destructive-hover);
+	--color-red-soft: var(--red-soft);
+	--color-red-text: var(--red-text);
+	--color-accent-yellow: var(--accent-yellow);
+	--color-yellow-soft: var(--yellow-soft);
+	--color-yellow-text: var(--yellow-text);
+	--color-text-primary: var(--text-primary);
+	--color-text-secondary: var(--text-secondary);
+	--color-text-muted: var(--text-muted);
+	--color-surface: var(--surface);
+	--color-surface-dark: var(--surface-dark);
 
 	--radius-sm: calc(var(--radius) - 2px);
 	--radius-md: var(--radius);
@@ -95,9 +429,15 @@
 		font-family: var(--font-sans);
 		background-color: var(--background);
 		color: var(--foreground);
+		accent-color: var(--primary);
 		-webkit-font-smoothing: antialiased;
 		text-rendering: optimizeLegibility;
 		scroll-behavior: smooth;
+	}
+
+	::selection {
+		background-color: var(--primary-soft);
+		color: var(--foreground);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -163,14 +503,44 @@
 	}
 }
 
+/* Theme toggle state visibility driven by CSS without JS/hydration mismatch */
+.theme-when-light {
+	display: inline-flex;
+}
+
+.theme-when-dark {
+	display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not(:has(> head > meta[name="color-scheme"][content="light"]))
+		.theme-when-light {
+		display: none;
+	}
+
+	:root:not(:has(> head > meta[name="color-scheme"][content="light"]))
+		.theme-when-dark {
+		display: inline-flex;
+	}
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"])
+	.theme-when-light {
+	display: none;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]) .theme-when-dark {
+	display: inline-flex;
+}
+
 /* Skip link utility */
 .skip-link {
 	position: fixed;
 	inset-block-start: -48px;
 	inset-inline-start: 16px;
 	z-index: 100;
-	background-color: var(--color-surface-dark);
-	color: #ffffff;
+	background-color: var(--foreground);
+	color: var(--background);
 	padding: 10px 16px;
 	border-radius: 8px;
 	font-size: 14px;
@@ -196,8 +566,8 @@
 }
 
 .darasa-card-interactive:hover {
-	border-color: #c8d2cc;
-	box-shadow: 0 10px 26px -14px rgba(23, 26, 24, 0.16);
+	border-color: var(--card-hover-border);
+	box-shadow: var(--card-hover-shadow);
 	transform: translateY(-2px);
 }
 

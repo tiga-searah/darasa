@@ -1,10 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
   <rect width="800" height="500" fill="#F4F5F1"/>
-  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#E4E8E5" stroke-width="2"/>
-  <circle cx="400" cy="236" r="118" fill="#E8F4EE" stroke="#16865B" stroke-width="3"/>
-  <circle cx="368" cy="222" r="24" fill="#707873"/>
-  <circle cx="428" cy="224" r="24" fill="#707873"/>
-  <circle cx="398" cy="264" r="22" fill="#E84B3C"/>
-  <path d="M332 192C368 176 432 176 468 192" stroke="#F5BE42" stroke-width="8" stroke-linecap="round"/>
-  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Bakso &amp; Mie Kawasan Subah</text>
+  <circle cx="136" cy="110" r="82" fill="#E8F4EE"/>
+  <circle cx="670" cy="360" r="88" fill="#FFF6DF"/>
+  <circle cx="400" cy="240" r="154" fill="#FFFFFF" stroke="#DCE5DF" stroke-width="3"/>
+  <circle cx="400" cy="240" r="128" fill="#FFF6DF"/>
+  <!-- Noodles & meatballs -->
+  <path d="M312 222C348 196 452 196 488 222" stroke="#F5BE42" stroke-width="10" stroke-linecap="round"/>
+  <path d="M322 252C362 276 438 276 478 252" stroke="#F5BE42" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="356" cy="222" r="28" fill="#7D685E"/>
+  <circle cx="436" cy="224" r="28" fill="#7D685E"/>
+  <circle cx="396" cy="268" r="24" fill="#E84B3C"/>
+  <circle cx="332" cy="272" r="12" fill="#16865B"/>
+  <circle cx="464" cy="268" r="12" fill="#16865B"/>
+  <rect x="236" y="420" width="328" height="36" rx="18" fill="#FFFFFF" stroke="#DCE5DF"/>
+  <text x="400" y="443" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Bakso &amp; Mie Kawasan Subah</text>
 </svg>

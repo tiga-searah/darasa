@@ -1,10 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
-  <rect width="800" height="500" fill="#EEF4EC"/>
-  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#D8E3D5" stroke-width="2"/>
-  <path d="M180 330L310 190L410 284L500 206L620 330H180Z" fill="#E8F4EE"/>
-  <rect x="332" y="182" width="120" height="106" rx="22" fill="#202522"/>
-  <path d="M452 204H478C491 204 500 214 500 227C500 240 491 250 478 250H452" stroke="#202522" stroke-width="10"/>
-  <path d="M366 160C366 146 378 140 378 128" stroke="#16865B" stroke-width="6" stroke-linecap="round"/>
-  <path d="M402 160C402 146 414 140 414 128" stroke="#16865B" stroke-width="6" stroke-linecap="round"/>
-  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Kopi &amp; Kafe Lereng Bandar</text>
+  <defs>
+    <linearGradient id="bg-bandar" x1="0" y1="0" x2="0" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E8F4EE"/>
+      <stop offset="1" stop-color="#F6F7F2"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg-bandar)"/>
+  <!-- Tea plantation hills in Bandar -->
+  <path d="M0 320Q180 210 380 290T800 260V500H0V320Z" fill="#CBE5D8"/>
+  <path d="M0 356Q240 278 460 338T800 316V500H0V356Z" fill="#16865B" opacity="0.22"/>
+  <!-- Coffee cup & saucer -->
+  <ellipse cx="400" cy="322" rx="142" ry="30" fill="#FFFFFF" stroke="#D2E2D8" stroke-width="3"/>
+  <path d="M324 190H476V276C476 306 442 322 400 322C358 322 324 306 324 276V190Z" fill="#202522"/>
+  <path d="M476 208H504C519 208 530 220 530 236C530 252 519 264 504 264H476" stroke="#202522" stroke-width="11" stroke-linecap="round"/>
+  <ellipse cx="400" cy="190" rx="76" ry="18" fill="#8C5835"/>
+  <!-- Aroma lines -->
+  <path d="M366 154C360 138 378 128 372 110" stroke="#16865B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M402 146C396 130 414 120 408 102" stroke="#16865B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M438 154C432 138 450 128 444 110" stroke="#16865B" stroke-width="4" stroke-linecap="round"/>
+  <rect x="236" y="420" width="328" height="36" rx="18" fill="#FFFFFF" stroke="#DCE5DF"/>
+  <text x="400" y="443" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Kopi &amp; Kafe Lereng Bandar</text>
 </svg>

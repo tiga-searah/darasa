@@ -1,11 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
-  <rect width="800" height="500" fill="#E8F4EE"/>
-  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#D2E4DA" stroke-width="2"/>
-  <circle cx="400" cy="240" r="142" fill="#F4F5F1" stroke="#16865B" stroke-width="3"/>
-  <circle cx="400" cy="240" r="110" fill="#FFF6DF"/>
-  <path d="M332 252C332 214 362 184 400 184C438 184 468 214 468 252H332Z" fill="#16865B"/>
-  <ellipse cx="400" cy="264" rx="84" ry="26" fill="#F5BE42"/>
-  <circle cx="372" cy="258" r="10" fill="#E84B3C"/>
-  <circle cx="422" cy="262" r="8" fill="#116B48"/>
-  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Kuliner Tradisional Batang</text>
+  <defs>
+    <linearGradient id="bg-megono" x1="0" y1="0" x2="800" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E8F4EE"/>
+      <stop offset="1" stop-color="#F6F7F2"/>
+    </linearGradient>
+    <radialGradient id="plate-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#171A18" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#171A18" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg-megono)"/>
+  <circle cx="670" cy="88" r="96" fill="#DCEEE4"/>
+  <circle cx="110" cy="410" r="80" fill="#FFF6DF"/>
+  <ellipse cx="400" cy="272" rx="188" ry="158" fill="url(#plate-shadow)"/>
+  <circle cx="400" cy="248" r="158" fill="#FFFFFF" stroke="#D5E3DB" stroke-width="3"/>
+  <circle cx="400" cy="248" r="126" fill="#F4F5F1" stroke="#E4E8E5" stroke-width="2"/>
+  <!-- Banana leaf base -->
+  <path d="M292 258C312 184 488 184 508 258C480 318 320 318 292 258Z" fill="#16865B"/>
+  <path d="M312 258C350 232 450 232 488 258" stroke="#249D6E" stroke-width="3" stroke-linecap="round"/>
+  <!-- Warm rice + megono mound -->
+  <ellipse cx="384" cy="244" rx="58" ry="42" fill="#FFFDF8"/>
+  <ellipse cx="430" cy="250" rx="44" ry="30" fill="#D59B38"/>
+  <!-- Sambal & kecombrang accents -->
+  <circle cx="348" cy="274" r="16" fill="#E84B3C"/>
+  <circle cx="458" cy="230" r="12" fill="#F5BE42"/>
+  <rect x="330" y="294" width="64" height="22" rx="8" fill="#E8A948" stroke="#C98324" stroke-width="2"/>
+  <!-- Steam wisps -->
+  <path d="M368 158C364 142 378 134 374 118" stroke="#16865B" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <path d="M402 152C398 136 412 128 408 112" stroke="#16865B" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <path d="M434 160C430 144 444 136 440 120" stroke="#16865B" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <rect x="236" y="420" width="328" height="36" rx="18" fill="#FFFFFF" stroke="#DCE5DF"/>
+  <text x="400" y="443" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Kuliner Tradisional Khas Batang</text>
 </svg>

@@ -55,6 +55,7 @@ export default function OwnerDashboardPage() {
 	const [description, setDescription] = useState("");
 	const [savedNotice, setSavedNotice] = useState<string | null>(null);
 	const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+	const [reviewFilter, setReviewFilter] = useState<"all" | "unanswered">("all");
 
 	const nameId = useId();
 	const addrId = useId();
@@ -113,6 +114,13 @@ export default function OwnerDashboardPage() {
 		star,
 		count: ownedPlace.reviews.filter((r) => r.rating === star).length,
 	}));
+	const unansweredCount = ownedPlace.reviews.filter(
+		(r) => !r.ownerReply,
+	).length;
+	const displayedReviews =
+		reviewFilter === "unanswered"
+			? ownedPlace.reviews.filter((r) => !r.ownerReply)
+			: ownedPlace.reviews;
 
 	const handleProfileSave = (e: FormEvent) => {
 		e.preventDefault();
@@ -318,71 +326,99 @@ export default function OwnerDashboardPage() {
 					</Card>
 
 					<Card className="p-6 space-y-4">
-						<h2 className="text-lg font-bold text-foreground">
-							Balas Ulasan Pengunjung ({ownedPlace.reviews.length})
-						</h2>
-						<ul className="space-y-4">
-							{ownedPlace.reviews.map((rev) => (
-								<li
-									key={rev.id}
-									className="rounded-[10px] border border-border bg-background p-4 space-y-3"
+						<div className="flex flex-wrap items-center justify-between gap-3">
+							<h2 className="text-lg font-bold text-foreground">
+								Balas Ulasan Pengunjung ({displayedReviews.length})
+							</h2>
+							<div className="flex items-center gap-2">
+								<Button
+									size="sm"
+									variant={reviewFilter === "all" ? "secondary" : "outline"}
+									onClick={() => setReviewFilter("all")}
 								>
-									<div className="flex items-center justify-between gap-2">
-										<p className="text-sm font-semibold text-foreground">
-											{rev.authorName}
-										</p>
-										<Badge variant="yellow">
-											<Star
-												className="size-3.5 fill-accent-yellow text-yellow-text"
-												aria-hidden="true"
-											/>
-											<span className="tabular-nums">{rev.rating}/5</span>
-										</Badge>
-									</div>
-									<p className="text-sm text-foreground">{rev.comment}</p>
+									Semua ({ownedPlace.reviews.length})
+								</Button>
+								<Button
+									size="sm"
+									variant={
+										reviewFilter === "unanswered" ? "secondary" : "outline"
+									}
+									onClick={() => setReviewFilter("unanswered")}
+								>
+									Belum Dibalas ({unansweredCount})
+								</Button>
+							</div>
+						</div>
 
-									{rev.ownerReply ? (
-										<div className="rounded-[8px] border border-primary/25 bg-primary-soft px-3.5 py-2.5 space-y-1">
-											<p className="text-xs font-semibold text-primary-hover">
-												Balasan Anda
+						{displayedReviews.length === 0 ? (
+							<div className="rounded-[10px] border border-border bg-background p-6 text-center text-sm text-muted-foreground">
+								Semua ulasan pengunjung sudah Anda balas. Kerja bagus menjaga
+								komunikasi dengan pelanggan!
+							</div>
+						) : (
+							<ul className="space-y-4">
+								{displayedReviews.map((rev) => (
+									<li
+										key={rev.id}
+										className="rounded-[10px] border border-border bg-background p-4 space-y-3"
+									>
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-semibold text-foreground">
+												{rev.authorName}
 											</p>
-											<p className="text-sm text-foreground">
-												{rev.ownerReply.message}
-											</p>
-										</div>
-									) : (
-										<div className="flex flex-col sm:flex-row gap-2">
-											<label className="sr-only" htmlFor={`reply-${rev.id}`}>
-												Balas ulasan {rev.authorName}
-											</label>
-											<Input
-												id={`reply-${rev.id}`}
-												type="text"
-												value={replyDrafts[rev.id] ?? ""}
-												onChange={(e) =>
-													setReplyDrafts((prev) => ({
-														...prev,
-														[rev.id]: e.target.value,
-													}))
-												}
-												placeholder="Tulis balasan sopan untuk pelanggan..."
-												className="flex-1"
-											/>
-											<Button
-												variant="secondary"
-												onClick={() => handleReplySubmit(rev.id)}
-											>
-												<MessageSquareReply
-													className="size-4"
+											<Badge variant="yellow">
+												<Star
+													className="size-3.5 fill-accent-yellow text-yellow-text"
 													aria-hidden="true"
 												/>
-												Kirim Balasan
-											</Button>
+												<span className="tabular-nums">{rev.rating}/5</span>
+											</Badge>
 										</div>
-									)}
-								</li>
-							))}
-						</ul>
+										<p className="text-sm text-foreground">{rev.comment}</p>
+
+										{rev.ownerReply ? (
+											<div className="rounded-[8px] border border-primary/25 bg-primary-soft px-3.5 py-2.5 space-y-1">
+												<p className="text-xs font-semibold text-primary-hover">
+													Balasan Anda
+												</p>
+												<p className="text-sm text-foreground">
+													{rev.ownerReply.message}
+												</p>
+											</div>
+										) : (
+											<div className="flex flex-col sm:flex-row gap-2">
+												<label className="sr-only" htmlFor={`reply-${rev.id}`}>
+													Balas ulasan {rev.authorName}
+												</label>
+												<Input
+													id={`reply-${rev.id}`}
+													type="text"
+													value={replyDrafts[rev.id] ?? ""}
+													onChange={(e) =>
+														setReplyDrafts((prev) => ({
+															...prev,
+															[rev.id]: e.target.value,
+														}))
+													}
+													placeholder="Tulis balasan sopan untuk pelanggan..."
+													className="flex-1"
+												/>
+												<Button
+													variant="secondary"
+													onClick={() => handleReplySubmit(rev.id)}
+												>
+													<MessageSquareReply
+														className="size-4"
+														aria-hidden="true"
+													/>
+													Kirim Balasan
+												</Button>
+											</div>
+										)}
+									</li>
+								))}
+							</ul>
+						)}
 					</Card>
 				</section>
 			</div>

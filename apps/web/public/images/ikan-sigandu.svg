@@ -1,11 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
-  <rect width="800" height="500" fill="#E6F2EE"/>
-  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#CBE0D7" stroke-width="2"/>
-  <path d="M120 328C210 296 290 348 390 320C490 292 580 340 680 314" stroke="#16865B" stroke-width="8" stroke-linecap="round"/>
-  <path d="M160 356C250 330 330 374 420 350C510 326 590 364 650 344" stroke="#94CBB4" stroke-width="5" stroke-linecap="round"/>
-  <ellipse cx="400" cy="222" rx="126" ry="58" fill="#FFF6DF" stroke="#F5BE42" stroke-width="3"/>
-  <path d="M312 222C344 186 418 186 462 222C418 258 344 258 312 222Z" fill="#E84B3C"/>
-  <path d="M460 222L496 196V248L460 222Z" fill="#E84B3C"/>
-  <circle cx="348" cy="214" r="6" fill="#FFFFFF"/>
-  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Sajian Pesisir Sigandu &amp; Klidang</text>
+  <defs>
+    <linearGradient id="bg-pesisir" x1="0" y1="0" x2="0" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF6DF"/>
+      <stop offset="0.55" stop-color="#E8F4EE"/>
+      <stop offset="1" stop-color="#D7ECE2"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg-pesisir)"/>
+  <circle cx="640" cy="110" r="56" fill="#F5BE42" opacity="0.85"/>
+  <!-- Coastal waves -->
+  <path d="M0 340C120 310 220 364 360 336C500 308 640 356 800 326V500H0V340Z" fill="#CBE5D8"/>
+  <path d="M0 374C150 350 280 396 440 368C600 340 700 382 800 358" stroke="#16865B" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+  <!-- Serving platter -->
+  <ellipse cx="400" cy="236" rx="196" ry="96" fill="#FFFFFF" stroke="#D2E2D8" stroke-width="3"/>
+  <ellipse cx="400" cy="236" rx="164" ry="74" fill="#FFFDF8" stroke="#F5BE42" stroke-width="2"/>
+  <!-- Grilled fish -->
+  <path d="M276 236C318 190 426 188 486 236C426 284 318 282 276 236Z" fill="#C95537"/>
+  <path d="M482 236L528 202V270L482 236Z" fill="#B24227"/>
+  <path d="M336 218L348 254M368 212L380 260M400 214L412 258M432 220L442 252" stroke="#F5BE42" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="312" cy="228" r="6" fill="#FFFFFF"/>
+  <!-- Lime & sambal -->
+  <circle cx="298" cy="276" r="18" fill="#16865B"/>
+  <circle cx="298" cy="276" r="12" fill="#A9DFC4"/>
+  <circle cx="496" cy="276" r="16" fill="#E84B3C"/>
+  <rect x="236" y="420" width="328" height="36" rx="18" fill="#FFFFFF" stroke="#DCE5DF"/>
+  <text x="400" y="443" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Sajian Pesisir Sigandu &amp; Klidang</text>
 </svg>
