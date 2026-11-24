@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
+  <rect width="800" height="500" fill="#E6F2EE"/>
+  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#CBE0D7" stroke-width="2"/>
+  <path d="M120 328C210 296 290 348 390 320C490 292 580 340 680 314" stroke="#16865B" stroke-width="8" stroke-linecap="round"/>
+  <path d="M160 356C250 330 330 374 420 350C510 326 590 364 650 344" stroke="#94CBB4" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="400" cy="222" rx="126" ry="58" fill="#FFF6DF" stroke="#F5BE42" stroke-width="3"/>
+  <path d="M312 222C344 186 418 186 462 222C418 258 344 258 312 222Z" fill="#E84B3C"/>
+  <path d="M460 222L496 196V248L460 222Z" fill="#E84B3C"/>
+  <circle cx="348" cy="214" r="6" fill="#FFFFFF"/>
+  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Sajian Pesisir Sigandu &amp; Klidang</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
+  <rect width="800" height="500" fill="#FCECE9"/>
+  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#F0D0C9" stroke-width="2"/>
+  <path d="M272 222H528C528 292 470 338 400 338C330 338 272 292 272 222Z" fill="#16865B"/>
+  <ellipse cx="400" cy="222" rx="128" ry="26" fill="#FFF6DF" stroke="#116B48" stroke-width="4"/>
+  <circle cx="364" cy="220" r="14" fill="#F5BE42"/>
+  <circle cx="410" cy="224" r="12" fill="#E84B3C"/>
+  <circle cx="444" cy="218" r="10" fill="#16865B"/>
+  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Soto &amp; Kuliner Hangat Limpung</text>
+</svg>

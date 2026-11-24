@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" fill="none">
+  <rect width="800" height="500" fill="#E8F4EE"/>
+  <rect x="48" y="48" width="704" height="404" rx="28" fill="#FFFFFF" stroke="#D2E4DA" stroke-width="2"/>
+  <circle cx="400" cy="240" r="142" fill="#F4F5F1" stroke="#16865B" stroke-width="3"/>
+  <circle cx="400" cy="240" r="110" fill="#FFF6DF"/>
+  <path d="M332 252C332 214 362 184 400 184C438 184 468 214 468 252H332Z" fill="#16865B"/>
+  <ellipse cx="400" cy="264" rx="84" ry="26" fill="#F5BE42"/>
+  <circle cx="372" cy="258" r="10" fill="#E84B3C"/>
+  <circle cx="422" cy="262" r="8" fill="#116B48"/>
+  <text x="400" y="416" text-anchor="middle" fill="#202522" font-family="system-ui, sans-serif" font-size="22" font-weight="700">Kuliner Tradisional Batang</text>
+</svg>
