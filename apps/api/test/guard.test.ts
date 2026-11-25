@@ -236,10 +236,13 @@ describe("sliding session expiry", () => {
 	test("a session already pinned to the cap is not rewritten", async () => {
 		const cookie = await registerAndLogin();
 		const row = await sessionRowFor(cookie);
-		const pinned = new Date(Date.now() + 5 * DAY);
+		// One clock read: two Date.now() calls could straddle a millisecond and make
+		// createdAt + 180d land after `pinned`, which would legitimately renew.
+		const now = Date.now();
+		const pinned = new Date(now + 5 * DAY);
 		await db
 			.update(schema.sessions)
-			.set({ createdAt: new Date(Date.now() - 175 * DAY), expiresAt: pinned })
+			.set({ createdAt: new Date(now - 175 * DAY), expiresAt: pinned })
 			.where(eq(schema.sessions.id, row!.id));
 
 		const res = await freshApp().handle(
