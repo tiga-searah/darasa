@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { db } from "../src/database";
 import { schema } from "../src/database/schema";
 import { cookieOf, freshApp, json, resetDb } from "./helpers";
@@ -155,5 +155,41 @@ describe("login and session", () => {
 			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		expect(me.status).toBe(401);
+	});
+});
+
+describe("malformed request bodies", () => {
+	beforeEach(resetDb);
+
+	test("malformed JSON body returns 400 without logging", async () => {
+		const logged = spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const res = await app().handle(
+				new Request("http://test/api/auth/login", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: "{",
+				}),
+			);
+			expect(res.status).toBe(400);
+			expect(await json(res)).toEqual({
+				error: { code: "VALIDATION_ERROR", message: "Malformed request body" },
+			});
+			expect(logged).not.toHaveBeenCalled();
+		} finally {
+			logged.mockRestore();
+		}
+	});
+
+	test("unsupported content type returns 415 VALIDATION_ERROR", async () => {
+		const res = await app().handle(
+			new Request("http://test/api/auth/login", {
+				method: "POST",
+				headers: { "content-type": "text/plain" },
+				body: "hi",
+			}),
+		);
+		expect(res.status).toBe(415);
+		expect((await json(res)).error.code).toBe("VALIDATION_ERROR");
 	});
 });

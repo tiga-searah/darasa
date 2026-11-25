@@ -23,19 +23,27 @@ const tokenFrom = (
 };
 
 export const authRoutes = new Elysia({ prefix: "/auth" })
-	.post("/register", { body: RegisterBody }, async ({ body, cookie, set }) => {
-		const user = await registerUser(body);
-		const { token, expiresAt } = await createSession(user.id);
-		setSessionCookie(cookie[SESSION_COOKIE], token, expiresAt);
-		set.status = 201;
-		return { data: publicUser(user) };
-	})
-	.post("/login", { body: LoginBody }, async ({ body, cookie }) => {
-		const user = await authenticate(body);
-		const { token, expiresAt } = await createSession(user.id);
-		setSessionCookie(cookie[SESSION_COOKIE], token, expiresAt);
-		return { data: publicUser(user) };
-	})
+	.post(
+		"/register",
+		{ body: RegisterBody, response: { 201: t.Object({ data: UserResponse }) } },
+		async ({ body, cookie, set }) => {
+			const user = await registerUser(body);
+			const { token, expiresAt } = await createSession(user.id);
+			setSessionCookie(cookie[SESSION_COOKIE], token, expiresAt);
+			set.status = 201;
+			return { data: publicUser(user) };
+		},
+	)
+	.post(
+		"/login",
+		{ body: LoginBody, response: { 200: t.Object({ data: UserResponse }) } },
+		async ({ body, cookie }) => {
+			const user = await authenticate(body);
+			const { token, expiresAt } = await createSession(user.id);
+			setSessionCookie(cookie[SESSION_COOKIE], token, expiresAt);
+			return { data: publicUser(user) };
+		},
+	)
 	.post("/logout", async ({ cookie }) => {
 		const token = tokenFrom(cookie);
 		if (token) await destroySession(token);
