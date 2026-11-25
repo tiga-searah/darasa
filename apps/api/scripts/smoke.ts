@@ -126,7 +126,47 @@ try {
 		fail("spoof commit", `expected 415, got ${spoofCommit.status}`);
 	STEPS.push("ok   HTML masquerading as image -> 415");
 
-	// 7. logout then me
+	// 7. claim evidence goes to the private bucket from the first byte
+	const PDF = new TextEncoder().encode("%PDF-1.7 smoke claim document");
+	const claim = await call("/api/media/uploads", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({
+			purpose: "claim_document",
+			mime: "application/pdf",
+			sizeBytes: PDF.length,
+		}),
+	});
+	const claimBody = (await claim.json()) as {
+		data: { id: string; uploadUrl: string };
+	};
+	if (claim.status !== 201)
+		fail("claim presign", `${claim.status} ${JSON.stringify(claimBody)}`);
+	if (!claimBody.data.uploadUrl.includes("/darasa-private/claims/tmp/"))
+		fail("claim bucket", claimBody.data.uploadUrl);
+	STEPS.push("ok   claim presign -> private bucket claims/tmp/ key");
+
+	const claimPut = await fetch(claimBody.data.uploadUrl, {
+		method: "PUT",
+		body: PDF,
+		headers: { "Content-Type": "application/pdf" },
+	});
+	if (!claimPut.ok) fail("claim PUT", `${claimPut.status}`);
+	const claimCommit = await call(`/api/media/${claimBody.data.id}/commit`, {
+		method: "POST",
+	});
+	const claimDone = (await claimCommit.json()) as {
+		data: { url: string };
+	};
+	if (claimCommit.status !== 200)
+		fail("claim commit", `${claimCommit.status} ${JSON.stringify(claimDone)}`);
+	// A private object must never be readable unauthenticated: drop the signature.
+	const claimPath = new URL(claimDone.data.url).pathname;
+	const leaked = await fetch(`http://localhost:9000${claimPath}`);
+	if (leaked.status === 200) fail("claim leak", `unsigned GET ${claimPath}`);
+	STEPS.push("ok   claim commit -> 200, presigned URL, bucket not public");
+
+	// 8. logout then me
 	const out = await call("/api/auth/logout", { method: "POST" });
 	if (out.status !== 204) fail("logout", `${out.status}`);
 	const me = await call("/api/auth/me");

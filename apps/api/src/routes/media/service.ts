@@ -68,7 +68,13 @@ export async function beginUpload(
 	if (sizeBytes > limit) throw tooLarge(limit);
 
 	const id = crypto.randomUUID();
-	const key = `tmp/${userId}/${id}.${EXTENSIONS[mime as Mime]}`;
+	const ext = EXTENSIONS[mime as Mime];
+	// Claim evidence must never sit in the public bucket, not even while pending:
+	// the presigned PUT URL is public-bucket and lands in logs/history.
+	const key =
+		purpose === "claim_document"
+			? `claims/tmp/${userId}/${id}.${ext}`
+			: `tmp/${userId}/${id}.${ext}`;
 	await db.insert(schema.media).values({
 		id,
 		ownerId: userId,
@@ -151,29 +157,43 @@ export async function commitUpload(
 
 	return {
 		id: input.id,
-		url: await mediaUrl(storage, finalKey, row.isPrivate),
+		url: await mediaUrl(storage, finalKey, row.isPrivate, true),
 		mime: sniffed,
 		sizeBytes: bytes.length,
 	};
 }
 
 /**
- * Privacy comes from the row, never from the key: a pending claim lives under
- * `tmp/` (public bucket) and would otherwise get a permanent public URL.
+ * A public URL is only safe for a `ready` row: `commit` is what re-writes the
+ * object with a server-sniffed Content-Type, so a pending object may hold
+ * browser-chosen `text/html`. Privacy also comes from the row, never the key.
  */
-const mediaUrl = (storage: Storage, key: string, isPrivate: boolean) =>
-	isPrivate
+const mediaUrl = (
+	storage: Storage,
+	key: string,
+	isPrivate: boolean,
+	ready: boolean,
+) =>
+	isPrivate || !ready
 		? storage.presignGet(key, UPLOAD_EXPIRES_IN)
 		: (storage.publicUrl(key) ?? storage.presignGet(key, UPLOAD_EXPIRES_IN));
 
 /** 404 rather than 403 for strangers: an id must not confirm that media exists. */
 export async function getMediaUrl(
 	storage: Storage,
-	input: { userId: string; id: string },
+	input: { userId: string; isAdmin: boolean; id: string },
 ) {
 	const row = await db.query.media.findFirst({ where: { id: input.id } });
-	if (!row || row.ownerId !== input.userId) throw notFound("Media");
-	return { url: await mediaUrl(storage, row.key, row.isPrivate) };
+	if (!row || (!input.isAdmin && row.ownerId !== input.userId))
+		throw notFound("Media");
+	return {
+		url: await mediaUrl(
+			storage,
+			row.key,
+			row.isPrivate,
+			row.status === "ready",
+		),
+	};
 }
 
 export async function deleteUpload(

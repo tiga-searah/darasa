@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 import { db } from "../src/database";
+import type { Storage } from "../src/lib/ports";
 import { memoryStorage } from "../src/lib/storage";
 import { cookieOf, freshApp, json, resetDb } from "./helpers";
 
@@ -69,6 +71,32 @@ describe("POST /media/uploads", () => {
 			sizeBytes: 6 * 1024 * 1024,
 		});
 		expect(res.status).toBe(413);
+	});
+
+	test("routes pending claim documents into the private prefix", async () => {
+		const cookie = await login();
+		const claim = await presign(cookie, {
+			purpose: "claim_document",
+			mime: "application/pdf",
+			sizeBytes: 100,
+		});
+		const claimId = (await json(claim)).data.id;
+		const claimRow = await db.query.media.findFirst({
+			where: { id: claimId },
+		});
+		// Private bucket from the first byte: the presigned PUT URL is logged.
+		expect(claimRow!.key).toStartWith("claims/tmp/");
+
+		const photo = await presign(cookie, {
+			purpose: "place_photo",
+			mime: "image/png",
+			sizeBytes: 12,
+		});
+		const photoId = (await json(photo)).data.id;
+		const photoRow = await db.query.media.findFirst({
+			where: { id: photoId },
+		});
+		expect(photoRow!.key).toStartWith("tmp/");
 	});
 
 	test("requires a session", async () => {
@@ -337,6 +365,88 @@ describe("POST /media/:id/commit", () => {
 
 describe("GET /media/:id/url", () => {
 	beforeEach(resetDb);
+
+	async function placeUpload(cookie: string, storage: Storage) {
+		const app = freshApp({ storage });
+		const created = await app.handle(
+			new Request("http://test/api/media/uploads", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					purpose: "place_photo",
+					mime: "image/png",
+					sizeBytes: 12,
+				}),
+			}),
+		);
+		const { id } = (await json(created)).data;
+		const row = await db.query.media.findFirst({ where: { id } });
+		return { app, id, key: row!.key };
+	}
+
+	test("pending media gets a presigned URL, ready media the public one", async () => {
+		const storage = memoryStorage();
+		const cookie = await login();
+		const { app, id, key } = await placeUpload(cookie, storage);
+
+		const pending = await app.handle(
+			new Request(`http://test/api/media/${id}/url`, { headers: { cookie } }),
+		);
+		// A never-sniffed object may hold browser-chosen `text/html`; no permanent URL.
+		expect((await json(pending)).data.url).toContain("presigned=1");
+
+		await storage.put(key, PNG, "image/png");
+		const commit = await app.handle(
+			new Request(`http://test/api/media/${id}/commit`, {
+				method: "POST",
+				headers: { cookie },
+			}),
+		);
+		expect(commit.status).toBe(200);
+
+		const ready = await app.handle(
+			new Request(`http://test/api/media/${id}/url`, { headers: { cookie } }),
+		);
+		const url = (await json(ready)).data.url;
+		expect(url).not.toContain("presigned=1");
+		expect(url).toStartWith("memory://places/");
+	});
+
+	test("admin can read another user's media, a plain user cannot", async () => {
+		const storage = memoryStorage();
+		const ownerCookie = await login();
+		const { app, id } = await placeUpload(ownerCookie, storage);
+
+		const stranger = await freshApp().handle(
+			new Request("http://test/api/auth/register", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					name: "Bee",
+					email: "admin@b.test",
+					password: "min8chars",
+				}),
+			}),
+		);
+		const strangerCookie = cookieOf(stranger)!;
+		const denied = await app.handle(
+			new Request(`http://test/api/media/${id}/url`, {
+				headers: { cookie: strangerCookie },
+			}),
+		);
+		expect(denied.status).toBe(404);
+
+		await db.execute(
+			sql`UPDATE "users" SET "role" = 'admin' WHERE "email" = 'admin@b.test'`,
+		);
+		const allowed = await app.handle(
+			new Request(`http://test/api/media/${id}/url`, {
+				headers: { cookie: strangerCookie },
+			}),
+		);
+		expect(allowed.status).toBe(200);
+		expect((await json(allowed)).data.url).toStartWith("memory://");
+	});
 
 	test("404 for a stranger, presigned URL for the owner", async () => {
 		const cookie = await login();

@@ -46,7 +46,7 @@ export const errorPlugin = new Elysia({ name: "errors", as: "plugin" }).onError(
 		if (error instanceof ElysiaStatus) {
 			set.status = error.status;
 			return {
-				error: { code: "VALIDATION_ERROR", message: error.response },
+				error: { code: "VALIDATION_ERROR", message: String(error.response) },
 			};
 		}
 

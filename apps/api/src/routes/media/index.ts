@@ -63,12 +63,16 @@ export const mediaRoutes = new Elysia({ prefix: "/media" }).group("", (app) =>
 				params: t.Object({ id: t.String({ format: "uuid" }) }),
 				response: { 200: t.Object({ data: UrlResponse }) },
 			},
-			async (ctx) => ({
-				data: await getMediaUrl(storageFrom(ctx), {
-					userId: (ctx.sessionUser as SessionUser).id,
-					id: ctx.params.id,
-				}),
-			}),
+			async (ctx) => {
+				const user = ctx.sessionUser as SessionUser;
+				return {
+					data: await getMediaUrl(storageFrom(ctx), {
+						userId: user.id,
+						isAdmin: user.role === "admin",
+						id: ctx.params.id,
+					}),
+				};
+			},
 		)
 		.delete(
 			"/:id",
