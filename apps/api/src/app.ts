@@ -5,6 +5,7 @@ import { env } from "./env";
 import type { GoogleClient, Storage } from "./lib/ports";
 import { errorPlugin } from "./plugins/errors";
 import { authRoutes } from "./routes/auth";
+import { mediaRoutes } from "./routes/media";
 
 export type AppDeps = {
 	storage?: Storage;
@@ -23,4 +24,5 @@ export const createApp = (deps: AppDeps = {}) =>
 		.use(errorPlugin)
 		.decorate("deps", deps)
 		.get("/health", () => ({ data: { ok: true } }))
-		.use(authRoutes);
+		.use(authRoutes)
+		.use(mediaRoutes);

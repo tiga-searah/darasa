@@ -42,6 +42,36 @@ export const conflict = (message: string, fields?: Record<string, string>) =>
 export const hashPassword = (plain: string) =>
 	Bun.password.hash(plain, { algorithm: "argon2id" });
 
+export type SniffedMime =
+	| "image/jpeg"
+	| "image/png"
+	| "image/webp"
+	| "application/pdf";
+
+const startsWith = (bytes: Uint8Array, offset: number, prefix: string) => {
+	for (let i = 0; i < prefix.length; i++) {
+		if (bytes[offset + i] !== prefix.charCodeAt(i)) return false;
+	}
+	return true;
+};
+
+/**
+ * Magic-byte check for the only four types we accept. The client's declared MIME
+ * is a hint; this is the fact. Anything unrecognised (HTML, SVG, empty, truncated)
+ * returns null, so a presigned PUT cannot smuggle a script into the public bucket.
+ */
+export const sniffMime = (bytes: Uint8Array): SniffedMime | null => {
+	// JPEG/PNG/WEBP all need 12 bytes to be sure; PDF needs only its 4-byte prefix.
+	if (bytes.length >= 4 && startsWith(bytes, 0, "%PDF"))
+		return "application/pdf";
+	if (bytes.length < 12) return null;
+	if (startsWith(bytes, 0, "\xff\xd8\xff")) return "image/jpeg";
+	if (startsWith(bytes, 0, "\x89PNG\r\n\x1a\n")) return "image/png";
+	if (startsWith(bytes, 0, "RIFF") && startsWith(bytes, 8, "WEBP"))
+		return "image/webp";
+	return null;
+};
+
 /** A corrupt stored hash must fail the login, never 500 the request. */
 export const verifyPassword = async (
 	plain: string,
