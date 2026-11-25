@@ -17,8 +17,8 @@ Base path `/api`. Everything is Elysia + Eden Treaty: each route declares TypeBo
 | Session token       | 32 random bytes base64url; only `sha256(token)` stored in `sessions.token_hash`                                                                                                   |
 | Roles               | `user`, `owner`, `admin`. `owner` is granted on first approved claim; **per-place authority always comes from an approved `business_claims` row**, never from the role flag alone |
 | Money/rating        | rating is `smallint 1..5`; aggregates are `double precision`                                                                                                                      |
-| OAuth               | Google via `arctic@3` (`Google` client, PKCE + state). Handshake state is a DB row, not a cookie                                                                                  |
-| Object storage      | RustFS (S3 API). AWS SDK v3 with `forcePathStyle: true`, `endpoint` = RustFS S3 port                                                                                              |
+| OAuth               | Google via `arctic@3` (`Google` client, PKCE + state). Handshake state is an HttpOnly cookie scoped `Path=/api/auth`, 10-minute TTL, single use                                   |
+| Object storage      | RustFS (S3 API) via `Bun.S3Client` — native, zero dependencies, path-style                                                                                                        |
 
 Error codes: `VALIDATION_ERROR` (422, with `fields`), `UNAUTHENTICATED` (401),
 `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `RATE_LIMITED` (429),
@@ -160,14 +160,14 @@ A flag never hides or deletes a review; only `PATCH /admin/reviews/:id` can.
 Two ways in, one session model. Password and Google both end at the same
 `sessions` row + `darasa_session` cookie, so every downstream guard is identical.
 
-| Method | Path                     | Auth    |
-| ------ | ------------------------ | ------- |
-| POST   | `/auth/register`         | public  |
-| POST   | `/auth/login`            | public  |
-| GET    | `/auth/google`           | public  |
-| GET    | `/auth/google/callback`  | public  |
-| POST   | `/auth/logout`           | session |
-| GET    | `/auth/me`               | session |
+| Method | Path                     | Auth                                     |
+| ------ | ------------------------ | ---------------------------------------- |
+| POST   | `/auth/register`         | public                                   |
+| POST   | `/auth/login`            | public                                   |
+| GET    | `/auth/google`           | public                                   |
+| GET    | `/auth/google/callback`  | public                                   |
+| POST   | `/auth/logout`           | session                                  |
+| GET    | `/auth/me`               | session                                  |
 | DELETE | `/auth/sessions`         | session (planned, not in this milestone) |
 | DELETE | `/auth/providers/google` | session (planned, not in this milestone) |
 
