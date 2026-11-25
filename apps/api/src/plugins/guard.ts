@@ -1,0 +1,39 @@
+import { Elysia } from "elysia";
+import { resolveSession, SESSION_COOKIE, type SessionUser } from "../lib/session";
+import { ApiError } from "../utils";
+
+const tokenFrom = (cookie: Record<string, { value?: unknown }>) => {
+	const value = cookie[SESSION_COOKIE]?.value;
+	return typeof value === "string" && value.length > 0 ? value : null;
+};
+
+/**
+ * One plugin per guard: Elysia dedupes plugins by `name`, so sharing a single
+ * instance between groups would silently drop the shared hooks.
+ */
+const sessionPlugin = (name: string) =>
+	new Elysia({ name })
+		.derive("plugin", async ({ cookie }) => {
+			const token = tokenFrom(cookie as Record<string, { value?: unknown }>);
+			const resolved = token ? await resolveSession(token) : null;
+			// Runtime stays `null` so onBeforeHandle below can reject it; the cast only
+			// spares every consumer a non-null assertion. Safe because the guard always
+			// throws before a handler runs with a null session.
+			return { sessionUser: (resolved?.user ?? null) as SessionUser };
+		})
+		.onBeforeHandle("plugin", ({ sessionUser }) => {
+			if (!sessionUser)
+				throw new ApiError("UNAUTHENTICATED", 401, "Sign in required");
+		});
+
+/** Resolves the session cookie once per request and rejects anonymous requests. */
+export const requireAuth = sessionPlugin("require-auth");
+
+/** `requireAuth` plus a role check. */
+export const requireAdmin = sessionPlugin("require-admin").onBeforeHandle(
+	"plugin",
+	({ sessionUser }) => {
+		if (sessionUser?.role !== "admin")
+			throw new ApiError("FORBIDDEN", 403, "Administrator access required");
+	},
+);
