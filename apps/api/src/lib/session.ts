@@ -72,18 +72,23 @@ export async function resolveSession(token: string): Promise<{
 	const remaining = row.expiresAt.getTime() - now;
 	if (remaining > SESSION_RENEW_BELOW_MS) return session;
 
-	const expiresAt = new Date(
+	const next = new Date(
 		Math.min(
 			now + SESSION_IDLE_MS,
 			row.createdAt.getTime() + SESSION_ABSOLUTE_MS,
 		),
 	);
+	// Past the cap the idle window is pinned to `createdAt + 180d`, so the computed
+	// expiry stops moving. Rewriting the same value would turn every request in the
+	// session's last 29 days into a write and re-send a Set-Cookie for nothing.
+	if (next.getTime() <= row.expiresAt.getTime()) return session;
+
 	await db
 		.update(schema.sessions)
-		.set({ expiresAt })
+		.set({ expiresAt: next })
 		.where(eq(schema.sessions.id, row.id));
 	// Same token, only the deadline moves: the client's cookie stays valid.
-	return { ...session, expiresAt, renewedToken: token };
+	return { ...session, expiresAt: next, renewedToken: token };
 }
 
 export async function destroySession(token: string): Promise<void> {

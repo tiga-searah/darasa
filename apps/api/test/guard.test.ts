@@ -232,4 +232,40 @@ describe("sliding session expiry", () => {
 			Date.now() + 29 * DAY,
 		);
 	});
+
+	test("a session already pinned to the cap is not rewritten", async () => {
+		const cookie = await registerAndLogin();
+		const row = await sessionRowFor(cookie);
+		const pinned = new Date(Date.now() + 5 * DAY);
+		await db
+			.update(schema.sessions)
+			.set({ createdAt: new Date(Date.now() - 175 * DAY), expiresAt: pinned })
+			.where(eq(schema.sessions.id, row!.id));
+
+		const res = await freshApp().handle(
+			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+		);
+		expect(res.headers.get("set-cookie")).toBeNull();
+
+		const after = await sessionRowFor(cookie);
+		expect(after!.expiresAt.getTime()).toBe(pinned.getTime());
+	});
+
+	test("/auth/me slides the cookie and reports the new expiry", async () => {
+		const cookie = await registerAndLogin();
+		const row = await sessionRowFor(cookie);
+		await db
+			.update(schema.sessions)
+			.set({ expiresAt: new Date(Date.now() + 29 * DAY) })
+			.where(eq(schema.sessions.id, row!.id));
+
+		const res = await freshApp().handle(
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
+		);
+		expect(res.headers.get("set-cookie")).toContain("darasa_session=");
+		const body = await json(res);
+		expect(new Date(body.data.session.expiresAt).getTime()).toBeGreaterThan(
+			Date.now() + 29.9 * DAY,
+		);
+	});
 });
