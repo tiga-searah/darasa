@@ -89,7 +89,8 @@ export function memoryStorage(): Storage {
 	const objects = new Map<string, { bytes: Uint8Array; type: string }>();
 	return {
 		presignPut: async (key) => `memory://${key}?sig=test`,
-		presignGet: async (key) => `memory://${key}?sig=test`,
+		// Distinct from `publicUrl` so a test can prove a private read is signed.
+		presignGet: async (key) => `memory://${key}?sig=test&presigned=1`,
 		put: async (key, bytes, contentType) => {
 			objects.set(key, { bytes, type: contentType });
 		},

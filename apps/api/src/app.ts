@@ -2,7 +2,9 @@ import { cors } from "@elysia/cors";
 import { openapi } from "@elysia/openapi";
 import { Elysia } from "elysia";
 import { env } from "./env";
+import { googleClient } from "./lib/google";
 import type { GoogleClient, Storage } from "./lib/ports";
+import { s3Storage } from "./lib/storage";
 import { errorPlugin } from "./plugins/errors";
 import { authRoutes } from "./routes/auth";
 import { mediaRoutes } from "./routes/media";
@@ -12,8 +14,19 @@ export type AppDeps = {
 	google?: GoogleClient;
 };
 
-export const createApp = (deps: AppDeps = {}) =>
-	new Elysia({ prefix: "/api" })
+export const createApp = (deps: AppDeps = {}) => {
+	// `s3Storage()` is lazy (no client until a key is used) so building it here is
+	// free; resolving once also stops a fresh adapter — and a fresh 500 — per request.
+	// `googleClient()` throws when unconfigured, so it stays behind a getter: only a
+	// Google auth request pays for it, and a test that injects a client never does.
+	const resolved: AppDeps = {
+		storage: deps.storage ?? s3Storage(),
+		get google() {
+			return deps.google ?? googleClient();
+		},
+	};
+
+	return new Elysia({ prefix: "/api" })
 		.use(cors({ origin: env.webAppUrl, credentials: true }))
 		.use(
 			openapi({
@@ -22,7 +35,8 @@ export const createApp = (deps: AppDeps = {}) =>
 			}),
 		)
 		.use(errorPlugin)
-		.decorate("deps", deps)
+		.decorate("deps", resolved)
 		.get("/health", () => ({ data: { ok: true } }))
 		.use(authRoutes)
 		.use(mediaRoutes);
+};

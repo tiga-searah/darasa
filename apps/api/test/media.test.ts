@@ -145,13 +145,21 @@ describe("POST /media/:id/commit", () => {
 		expect(after!.status).toBe("pending");
 	});
 
-	test("rejects an object bigger than the limit with 413 and deletes it", async () => {
-		const storage = memoryStorage();
+	test("rejects an object bigger than the limit with 413 without reading it", async () => {
+		const base = memoryStorage();
+		let reads = 0;
+		const storage: typeof base = {
+			...base,
+			get: (key) => {
+				reads += 1;
+				return base.get(key);
+			},
+		};
 		const { app, cookie, id } = await uploaded(storage);
 		const row = await db.query.media.findFirst({ where: { id } });
 		const big = new Uint8Array(5 * 1024 * 1024 + 1);
 		big.set(PNG);
-		await storage.put(row!.key, big, "image/png");
+		await base.put(row!.key, big, "image/png");
 
 		const res = await app.handle(
 			new Request(`http://test/api/media/${id}/commit`, {
@@ -160,6 +168,43 @@ describe("POST /media/:id/commit", () => {
 			}),
 		);
 		expect(res.status).toBe(413);
+		// `stat` carries the size: a multi-GB object must never be buffered first.
+		expect(reads).toBe(0);
+		expect(await base.stat(row!.key)).toBeNull();
+		const after = await db.query.media.findFirst({ where: { id } });
+		expect(after!.status).toBe("pending");
+	});
+
+	test("rejects a 5-byte PDF stub with 415", async () => {
+		const storage = memoryStorage();
+		const cookie = await login();
+		const app = freshApp({ storage });
+		const created = await app.handle(
+			new Request("http://test/api/media/uploads", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					purpose: "claim_document",
+					mime: "application/pdf",
+					sizeBytes: 100,
+				}),
+			}),
+		);
+		const { id } = (await json(created)).data;
+		const row = await db.query.media.findFirst({ where: { id } });
+		await storage.put(
+			row!.key,
+			new TextEncoder().encode("%PDF-"),
+			"application/pdf",
+		);
+
+		const res = await app.handle(
+			new Request(`http://test/api/media/${id}/commit`, {
+				method: "POST",
+				headers: { cookie },
+			}),
+		);
+		expect(res.status).toBe(415);
 		expect(await storage.stat(row!.key)).toBeNull();
 		const after = await db.query.media.findFirst({ where: { id } });
 		expect(after!.status).toBe("pending");
@@ -317,7 +362,10 @@ describe("GET /media/:id/url", () => {
 			new Request(`http://test/api/media/${id}/url`, { headers: { cookie } }),
 		);
 		expect(owner.status).toBe(200);
-		expect((await json(owner)).data.url).toContain("memory://");
+		const url = (await json(owner)).data.url;
+		// Still pending, so the key is `tmp/...` in the public bucket. Privacy must
+		// come from the row: a bare public URL here would be permanent and anonymous.
+		expect(url).toContain("sig=test&presigned=1");
 
 		const stranger = await freshApp({ storage: memoryStorage() }).handle(
 			new Request("http://test/api/auth/register", {

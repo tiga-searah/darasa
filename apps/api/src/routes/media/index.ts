@@ -1,7 +1,6 @@
 import { Elysia, t } from "elysia";
 import type { Storage } from "../../lib/ports";
 import type { SessionUser } from "../../lib/session";
-import { s3Storage } from "../../lib/storage";
 import { requireAuth } from "../../plugins/guard";
 import {
 	CommitResponse,
@@ -16,9 +15,15 @@ import {
 	getMediaUrl,
 } from "./service";
 
-/** `deps` is decorated on the root app; the child plugin cannot see that type. */
-const storageFrom = (ctx: unknown): Storage =>
-	(ctx as { deps?: { storage?: Storage } }).deps?.storage ?? s3Storage();
+/**
+ * `deps` is decorated on the root app and resolved there, so the child plugin only
+ * has to read it; a per-request fallback would rebuild the S3 adapter every time.
+ */
+const storageFrom = (ctx: unknown): Storage => {
+	const storage = (ctx as { deps?: { storage?: Storage } }).deps?.storage;
+	if (!storage) throw new Error("Storage dependency is missing");
+	return storage;
+};
 
 export const mediaRoutes = new Elysia({ prefix: "/media" }).group("", (app) =>
 	app
