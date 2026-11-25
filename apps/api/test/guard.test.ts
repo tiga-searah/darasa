@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { Elysia } from "elysia";
 import { db } from "../src/database";
 import { schema } from "../src/database/schema";
@@ -146,5 +147,89 @@ describe("guard instances are independent", () => {
 		);
 		expect(res.status).toBe(401);
 		expect((await json(res)).error.code).toBe("UNAUTHENTICATED");
+	});
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+
+async function sessionRowFor(cookie: string) {
+	const token = cookie.split("=")[1];
+	const hash = new Bun.CryptoHasher("sha256").update(token).digest("hex");
+	return db.query.sessions.findFirst({ where: { tokenHash: hash } });
+}
+
+describe("sliding session expiry", () => {
+	beforeEach(resetDb);
+
+	test("a fresh session is not rewritten", async () => {
+		const cookie = await registerAndLogin();
+		const before = await sessionRowFor(cookie);
+		const res = await freshApp().handle(
+			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+		);
+		expect(res.headers.get("set-cookie")).toBeNull();
+		const after = await sessionRowFor(cookie);
+		expect(after!.expiresAt.getTime()).toBe(before!.expiresAt.getTime());
+	});
+
+	test("a session with 29 days left is pushed back to 30", async () => {
+		const cookie = await registerAndLogin();
+		const row = await sessionRowFor(cookie);
+		const almost = new Date(Date.now() + 29 * DAY);
+		await db
+			.update(schema.sessions)
+			.set({ expiresAt: almost })
+			.where(eq(schema.sessions.id, row!.id));
+
+		const res = await freshApp().handle(
+			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+		);
+		expect(res.headers.get("set-cookie")).toContain("darasa_session=");
+
+		const after = await sessionRowFor(cookie);
+		expect(after!.expiresAt.getTime()).toBeGreaterThan(Date.now() + 29.9 * DAY);
+	});
+
+	test("never slides past createdAt + 180 days", async () => {
+		const cookie = await registerAndLogin();
+		const row = await sessionRowFor(cookie);
+		const old = new Date(Date.now() - 175 * DAY);
+		await db
+			.update(schema.sessions)
+			.set({ createdAt: old, expiresAt: new Date(Date.now() + 1 * DAY) })
+			.where(eq(schema.sessions.id, row!.id));
+
+		await freshApp().handle(
+			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+		);
+		const after = await sessionRowFor(cookie);
+		const capped = old.getTime() + 180 * DAY;
+		expect(Math.abs(after!.expiresAt.getTime() - capped)).toBeLessThan(10_000);
+	});
+
+	test("an expired session is deleted and returns 401", async () => {
+		const cookie = await registerAndLogin();
+		const row = await sessionRowFor(cookie);
+		await db
+			.update(schema.sessions)
+			.set({ expiresAt: new Date(Date.now() - 1000) })
+			.where(eq(schema.sessions.id, row!.id));
+
+		const res = await freshApp().handle(
+			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+		);
+		expect(res.status).toBe(401);
+		expect(await sessionRowFor(cookie)).toBeUndefined();
+	});
+
+	test("/auth/me reports expiresAt", async () => {
+		const cookie = await registerAndLogin();
+		const res = await freshApp().handle(
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
+		);
+		const body = await json(res);
+		expect(new Date(body.data.session.expiresAt).getTime()).toBeGreaterThan(
+			Date.now() + 29 * DAY,
+		);
 	});
 });

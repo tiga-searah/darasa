@@ -1,8 +1,9 @@
-import { Elysia } from "elysia";
+import { type Cookie, Elysia } from "elysia";
 import {
 	resolveSession,
 	SESSION_COOKIE,
 	type SessionUser,
+	setSessionCookie,
 } from "../lib/session";
 import { ApiError } from "../utils";
 
@@ -18,8 +19,17 @@ const tokenFrom = (cookie: Record<string, { value?: unknown }>) => {
 const sessionPlugin = (name: string) =>
 	new Elysia({ name })
 		.derive("plugin", async ({ cookie }) => {
-			const token = tokenFrom(cookie as Record<string, { value?: unknown }>);
+			const cookies = cookie as Record<string, Cookie>;
+			const token = tokenFrom(cookies);
 			const resolved = token ? await resolveSession(token) : null;
+			// Keep the browser's Max-Age in step with the slid expiry. Emitting a
+			// Set-Cookie from derive is verified to reach the response.
+			if (resolved?.renewedToken)
+				setSessionCookie(
+					cookies[SESSION_COOKIE],
+					resolved.renewedToken,
+					resolved.expiresAt,
+				);
 			// Runtime stays `null` so onBeforeHandle below can reject it; the cast only
 			// spares every consumer a non-null assertion. Safe because the guard always
 			// throws before a handler runs with a null session.

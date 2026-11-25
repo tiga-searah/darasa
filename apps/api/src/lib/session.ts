@@ -8,6 +8,9 @@ export const SESSION_COOKIE = "darasa_session";
 export const SESSION_IDLE_MS = 30 * 24 * 60 * 60 * 1000;
 export const SESSION_ABSOLUTE_MS = 180 * 24 * 60 * 60 * 1000;
 
+/** Renew once less than this much idle time is left, so the hot path stays read-only. */
+const SESSION_RENEW_BELOW_MS = SESSION_IDLE_MS - 24 * 60 * 60 * 1000;
+
 export type SessionUser = {
 	id: string;
 	name: string;
@@ -33,16 +36,26 @@ export async function createSession(
 	return { token, expiresAt };
 }
 
-export async function resolveSession(
-	token: string,
-): Promise<{ user: SessionUser; expiresAt: Date } | null> {
+export async function resolveSession(token: string): Promise<{
+	user: SessionUser;
+	expiresAt: Date;
+	renewedToken?: string;
+} | null> {
 	const row = await db.query.sessions.findFirst({
 		where: { tokenHash: tokenHashOf(token) },
 		with: { user: true },
 	});
-	if (!row?.user || row.expiresAt <= new Date()) return null;
+	const now = Date.now();
+	if (!row || row.expiresAt.getTime() <= now) {
+		if (row)
+			await db.delete(schema.sessions).where(eq(schema.sessions.id, row.id));
+		return null;
+	}
+	// Relation typing allows null; a session whose user vanished is dead.
+	if (!row.user) return null;
+
 	const user = row.user;
-	return {
+	const session = {
 		user: {
 			id: user.id,
 			name: user.name,
@@ -53,6 +66,24 @@ export async function resolveSession(
 		},
 		expiresAt: row.expiresAt,
 	};
+
+	// Only write when the idle window has actually shrunk; a fresh session costs
+	// no UPDATE, which keeps the hot path read-only.
+	const remaining = row.expiresAt.getTime() - now;
+	if (remaining > SESSION_RENEW_BELOW_MS) return session;
+
+	const expiresAt = new Date(
+		Math.min(
+			now + SESSION_IDLE_MS,
+			row.createdAt.getTime() + SESSION_ABSOLUTE_MS,
+		),
+	);
+	await db
+		.update(schema.sessions)
+		.set({ expiresAt })
+		.where(eq(schema.sessions.id, row.id));
+	// Same token, only the deadline moves: the client's cookie stays valid.
+	return { ...session, expiresAt, renewedToken: token };
 }
 
 export async function destroySession(token: string): Promise<void> {

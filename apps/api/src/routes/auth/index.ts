@@ -58,6 +58,12 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
 			if (!token) throw unauthenticated();
 			const session = await resolveSession(token);
 			if (!session) throw unauthenticated();
+			if (session.renewedToken)
+				setSessionCookie(
+					cookie[SESSION_COOKIE],
+					session.renewedToken,
+					session.expiresAt,
+				);
 			const user = await db.query.users.findFirst({
 				where: { id: session.user.id },
 			});
