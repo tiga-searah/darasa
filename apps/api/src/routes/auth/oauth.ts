@@ -68,6 +68,8 @@ const clearHandshake = (cookie: Cookie): void => {
 type GoogleClaims = {
 	sub: string;
 	email?: string;
+	/** Absent/false must fail closed: an unverified address cannot own an account. */
+	email_verified?: boolean;
 	name?: string;
 	picture?: string;
 };
@@ -115,12 +117,18 @@ export const oauthRoutes = new Elysia()
 			// endpoint over TLS, never through the browser.
 			const claims = decodeIdToken(tokens.idToken()) as GoogleClaims;
 			const email = claims.email?.toLowerCase();
-			if (!claims.sub || !email) throw new Error("incomplete claims");
+			// `email_verified` gates account linking by email: an unverified address
+			// could belong to someone else, and linking it would be a takeover.
+			if (!claims.sub || !email || claims.email_verified !== true)
+				throw new Error("incomplete claims");
 
 			const userId = await upsertUser(claims.sub, email, claims);
 			const { token, expiresAt } = await createSession(userId);
 			setSessionCookie(cookie[SESSION_COOKIE], token, expiresAt);
-		} catch {
+		} catch (error) {
+			// The browser must not see this, but the operator must: a database outage
+			// otherwise looks identical to a bad authorization code.
+			console.error("oauth callback failed", error);
 			return redirect(`${env.webAppUrl}/login?error=oauth_exchange`, 302);
 		}
 

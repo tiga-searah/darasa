@@ -23,7 +23,8 @@ async function registerAndLogin() {
 	return cookieOf(res)!;
 }
 
-describe("requireAuth", () => {
+/** `/auth/me` resolves the session inline, so this pins the session contract, not the guard plugin. */
+describe("GET /auth/me session resolution", () => {
 	beforeEach(resetDb);
 
 	test("401 without a cookie", async () => {
