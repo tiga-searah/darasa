@@ -27,9 +27,7 @@ describe("requireAuth", () => {
 	beforeEach(resetDb);
 
 	test("401 without a cookie", async () => {
-		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me"),
-		);
+		const res = await freshApp().handle(new Request("http://test/api/auth/me"));
 		expect(res.status).toBe(401);
 		expect((await json(res)).error.code).toBe("UNAUTHENTICATED");
 	});
@@ -37,7 +35,7 @@ describe("requireAuth", () => {
 	test("exposes sessionUser with a live cookie", async () => {
 		const cookie = await registerAndLogin();
 		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		expect(res.status).toBe(200);
 		expect((await json(res)).data.email).toBe("g@b.test");
@@ -45,7 +43,7 @@ describe("requireAuth", () => {
 
 	test("401 for a forged token", async () => {
 		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me", {
+			new Request("http://test/api/auth/me", {
 				headers: { cookie: "darasa_session=forged" },
 			}),
 		);
@@ -56,27 +54,37 @@ describe("requireAuth", () => {
 		const cookie = await registerAndLogin();
 		await resetDb(); // truncates users + sessions, cookie still present client-side
 		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		expect(res.status).toBe(401);
 		expect((await json(res)).error.code).toBe("UNAUTHENTICATED");
 	});
 });
 
+/** No admin-protected route ships yet, so the guard is mounted locally. */
+const adminOnlyApp = () =>
+	new Elysia({ prefix: "/api" })
+		.use(errorPlugin)
+		.group("/admin-only", (g) =>
+			g
+				.use(requireAdmin)
+				.get("/me", ({ sessionUser }) => ({ data: sessionUser })),
+		);
+
 describe("requireAdmin", () => {
 	beforeEach(resetDb);
 
 	test("401 without a cookie", async () => {
-		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/admin"),
+		const res = await adminOnlyApp().handle(
+			new Request("http://test/api/admin-only/me"),
 		);
 		expect(res.status).toBe(401);
 	});
 
 	test("403 for a signed-in non-admin", async () => {
 		const cookie = await registerAndLogin();
-		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/admin", { headers: { cookie } }),
+		const res = await adminOnlyApp().handle(
+			new Request("http://test/api/admin-only/me", { headers: { cookie } }),
 		);
 		expect(res.status).toBe(403);
 		expect((await json(res)).error.code).toBe("FORBIDDEN");
@@ -85,8 +93,8 @@ describe("requireAdmin", () => {
 	test("200 for an admin", async () => {
 		const cookie = await registerAndLogin();
 		await db.update(schema.users).set({ role: "admin" });
-		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/admin", { headers: { cookie } }),
+		const res = await adminOnlyApp().handle(
+			new Request("http://test/api/admin-only/me", { headers: { cookie } }),
 		);
 		expect(res.status).toBe(200);
 		expect((await json(res)).data.role).toBe("admin");
@@ -165,7 +173,7 @@ describe("sliding session expiry", () => {
 		const cookie = await registerAndLogin();
 		const before = await sessionRowFor(cookie);
 		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		expect(res.headers.get("set-cookie")).toBeNull();
 		const after = await sessionRowFor(cookie);
@@ -182,7 +190,7 @@ describe("sliding session expiry", () => {
 			.where(eq(schema.sessions.id, row!.id));
 
 		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		expect(res.headers.get("set-cookie")).toContain("darasa_session=");
 
@@ -200,7 +208,7 @@ describe("sliding session expiry", () => {
 			.where(eq(schema.sessions.id, row!.id));
 
 		await freshApp().handle(
-			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		const after = await sessionRowFor(cookie);
 		const capped = old.getTime() + 180 * DAY;
@@ -216,7 +224,7 @@ describe("sliding session expiry", () => {
 			.where(eq(schema.sessions.id, row!.id));
 
 		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		expect(res.status).toBe(401);
 		expect(await sessionRowFor(cookie)).toBeUndefined();
@@ -246,7 +254,7 @@ describe("sliding session expiry", () => {
 			.where(eq(schema.sessions.id, row!.id));
 
 		const res = await freshApp().handle(
-			new Request("http://test/api/_probe/me", { headers: { cookie } }),
+			new Request("http://test/api/auth/me", { headers: { cookie } }),
 		);
 		expect(res.headers.get("set-cookie")).toBeNull();
 

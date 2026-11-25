@@ -4,7 +4,6 @@ import { Elysia } from "elysia";
 import { env } from "./env";
 import type { GoogleClient, Storage } from "./lib/ports";
 import { errorPlugin } from "./plugins/errors";
-import { requireAdmin, requireAuth } from "./plugins/guard";
 import { authRoutes } from "./routes/auth";
 
 export type AppDeps = {
@@ -24,12 +23,4 @@ export const createApp = (deps: AppDeps = {}) =>
 		.use(errorPlugin)
 		.decorate("deps", deps)
 		.get("/health", () => ({ data: { ok: true } }))
-		.use(authRoutes)
-		// ponytail: temporary guard probes, exercised by test/guard.test.ts. Delete in Task 5.
-		.group("/_probe", (g) =>
-			g
-				.use(requireAuth)
-				.get("/me", ({ sessionUser }) => ({ data: sessionUser }))
-				.use(requireAdmin)
-				.get("/admin", ({ sessionUser }) => ({ data: sessionUser })),
-		);
+		.use(authRoutes);

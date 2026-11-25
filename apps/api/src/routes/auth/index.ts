@@ -10,6 +10,7 @@ import {
 } from "../../lib/session";
 import { ApiError } from "../../utils";
 import { LoginBody, RegisterBody, UserResponse } from "./model";
+import { oauthRoutes } from "./oauth";
 import { authenticate, publicUser, registerUser } from "./service";
 
 const unauthenticated = () =>
@@ -23,6 +24,7 @@ const tokenFrom = (
 };
 
 export const authRoutes = new Elysia({ prefix: "/auth" })
+	.use(oauthRoutes)
 	.post(
 		"/register",
 		{ body: RegisterBody, response: { 201: t.Object({ data: UserResponse }) } },
@@ -31,7 +33,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
 			const { token, expiresAt } = await createSession(user.id);
 			setSessionCookie(cookie[SESSION_COOKIE], token, expiresAt);
 			set.status = 201;
-			return { data: publicUser(user) };
+			return { data: await publicUser(user) };
 		},
 	)
 	.post(
@@ -41,7 +43,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
 			const user = await authenticate(body);
 			const { token, expiresAt } = await createSession(user.id);
 			setSessionCookie(cookie[SESSION_COOKIE], token, expiresAt);
-			return { data: publicUser(user) };
+			return { data: await publicUser(user) };
 		},
 	)
 	.post("/logout", async ({ cookie }) => {
@@ -68,6 +70,6 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
 				where: { id: session.user.id },
 			});
 			if (!user) throw unauthenticated();
-			return { data: publicUser(user, session) };
+			return { data: await publicUser(user, session) };
 		},
 	);

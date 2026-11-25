@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import { ApiError, hashPassword, verifyPassword } from "../../utils";
@@ -10,7 +11,11 @@ const DUMMY_HASH = await Bun.password.hash(crypto.randomUUID(), {
 });
 
 /** Anything that must be public: no hash, ever. */
-export function publicUser(user: UserRow, session?: { expiresAt: Date }) {
+export async function publicUser(user: UserRow, session?: { expiresAt: Date }) {
+	const linked = await db
+		.select({ provider: schema.oauthAccounts.provider })
+		.from(schema.oauthAccounts)
+		.where(eq(schema.oauthAccounts.userId, user.id));
 	return {
 		id: user.id,
 		name: user.name,
@@ -18,7 +23,7 @@ export function publicUser(user: UserRow, session?: { expiresAt: Date }) {
 		role: user.role,
 		avatarUrl: user.avatarUrl,
 		hasPassword: user.passwordHash !== null,
-		linkedProviders: [] as string[],
+		linkedProviders: linked.map((row) => row.provider),
 		createdAt: user.createdAt,
 		...(session ? { session: { expiresAt: session.expiresAt } } : {}),
 	};
