@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { freshApp, json, resetDb } from "./helpers";
 
 describe("app shell", () => {
@@ -38,5 +38,37 @@ describe("app shell", () => {
 		expect(await json(res)).toEqual({
 			error: { code: "CONFLICT", message: "Already reviewed" },
 		});
+	});
+
+	test("malformed JSON body returns 400 without logging", async () => {
+		const logged = spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const res = await freshApp().handle(
+				new Request("http://test/api/echo", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: "{",
+				}),
+			);
+			expect(res.status).toBe(400);
+			expect(await json(res)).toEqual({
+				error: { code: "VALIDATION_ERROR", message: "Malformed request body" },
+			});
+			expect(logged).not.toHaveBeenCalled();
+		} finally {
+			logged.mockRestore();
+		}
+	});
+
+	test("unsupported content type returns 415 VALIDATION_ERROR", async () => {
+		const res = await freshApp().handle(
+			new Request("http://test/api/echo", {
+				method: "POST",
+				headers: { "content-type": "text/plain" },
+				body: "hello",
+			}),
+		);
+		expect(res.status).toBe(415);
+		expect((await json(res)).error.code).toBe("VALIDATION_ERROR");
 	});
 });

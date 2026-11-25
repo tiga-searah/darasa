@@ -1,4 +1,10 @@
-import { Elysia, NotFound, ValidationError } from "elysia";
+import {
+	Elysia,
+	ElysiaStatus,
+	NotFound,
+	ParseError,
+	ValidationError,
+} from "elysia";
 import { ApiError } from "../utils";
 
 export const errorPlugin = new Elysia({ name: "errors", as: "plugin" }).onError(
@@ -28,6 +34,20 @@ export const errorPlugin = new Elysia({ name: "errors", as: "plugin" }).onError(
 		if (error instanceof NotFound) {
 			set.status = 404;
 			return { error: { code: "NOT_FOUND", message: "Route not found" } };
+		}
+
+		if (error instanceof ParseError) {
+			set.status = 400;
+			return {
+				error: { code: "VALIDATION_ERROR", message: "Malformed request body" },
+			};
+		}
+
+		if (error instanceof ElysiaStatus) {
+			set.status = error.status;
+			return {
+				error: { code: "VALIDATION_ERROR", message: error.response },
+			};
 		}
 
 		console.error(error);

@@ -8,7 +8,8 @@ export type ApiErrorCode =
 	| "PAYLOAD_TOO_LARGE"
 	| "UNSUPPORTED_MEDIA_TYPE"
 	| "OAUTH_ONLY_ACCOUNT"
-	| "LAST_CREDENTIAL";
+	| "LAST_CREDENTIAL"
+	| "INTERNAL_ERROR";
 
 export class ApiError extends Error {
 	readonly code: ApiErrorCode;
