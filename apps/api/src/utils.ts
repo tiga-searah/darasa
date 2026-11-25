@@ -38,3 +38,19 @@ export const forbidden = (what: string) =>
 
 export const conflict = (message: string, fields?: Record<string, string>) =>
 	new ApiError("CONFLICT", 409, message, fields);
+
+export const hashPassword = (plain: string) =>
+	Bun.password.hash(plain, { algorithm: "argon2id" });
+
+/** A corrupt stored hash must fail the login, never 500 the request. */
+export const verifyPassword = async (
+	plain: string,
+	hash: string | null,
+): Promise<boolean> => {
+	if (hash === null) return false;
+	try {
+		return await Bun.password.verify(plain, hash);
+	} catch {
+		return false;
+	}
+};
