@@ -1,5 +1,9 @@
 import { Elysia } from "elysia";
-import { resolveSession, SESSION_COOKIE, type SessionUser } from "../lib/session";
+import {
+	resolveSession,
+	SESSION_COOKIE,
+	type SessionUser,
+} from "../lib/session";
 import { ApiError } from "../utils";
 
 const tokenFrom = (cookie: Record<string, { value?: unknown }>) => {
@@ -8,8 +12,8 @@ const tokenFrom = (cookie: Record<string, { value?: unknown }>) => {
 };
 
 /**
- * One plugin per guard: Elysia dedupes plugins by `name`, so sharing a single
- * instance between groups would silently drop the shared hooks.
+ * Never reuse or mutate a guard instance — one fresh instance per export.
+ * Remounting a mutated instance silently drops the hooks added after its first mount.
  */
 const sessionPlugin = (name: string) =>
 	new Elysia({ name })
@@ -22,7 +26,7 @@ const sessionPlugin = (name: string) =>
 			return { sessionUser: (resolved?.user ?? null) as SessionUser };
 		})
 		.onBeforeHandle("plugin", ({ sessionUser }) => {
-			if (!sessionUser)
+			if (sessionUser === null)
 				throw new ApiError("UNAUTHENTICATED", 401, "Sign in required");
 		});
 
@@ -33,7 +37,7 @@ export const requireAuth = sessionPlugin("require-auth");
 export const requireAdmin = sessionPlugin("require-admin").onBeforeHandle(
 	"plugin",
 	({ sessionUser }) => {
-		if (sessionUser?.role !== "admin")
+		if (sessionUser.role !== "admin")
 			throw new ApiError("FORBIDDEN", 403, "Administrator access required");
 	},
 );
