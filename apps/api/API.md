@@ -22,7 +22,7 @@ Base path `/api`. Everything is Elysia + Eden Treaty: each route declares TypeBo
 
 Error codes: `VALIDATION_ERROR` (422, with `fields`), `UNAUTHENTICATED` (401),
 `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `RATE_LIMITED` (429),
-`PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415).
+`PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `INTERNAL_ERROR` (500).
 
 ## 2. ERD
 
@@ -168,8 +168,8 @@ Two ways in, one session model. Password and Google both end at the same
 | GET    | `/auth/google/callback`  | public  |
 | POST   | `/auth/logout`           | session |
 | GET    | `/auth/me`               | session |
-| DELETE | `/auth/sessions`         | session |
-| DELETE | `/auth/providers/google` | session |
+| DELETE | `/auth/sessions`         | session (planned, not in this milestone) |
+| DELETE | `/auth/providers/google` | session (planned, not in this milestone) |
 
 **POST /auth/register**
 
@@ -233,8 +233,9 @@ to the web app with `?error=oauth_denied|oauth_state|oauth_exchange`.
 
 **POST /auth/logout** — deletes the session row, clears cookie → `204`.
 
-**DELETE /auth/sessions** — "sign out everywhere": deletes all sessions for the
-user except the current one → `{ "data": { "revoked": 3 } }`.
+**DELETE /auth/sessions** — planned, not in this milestone. "Sign out
+everywhere": deletes all sessions for the user except the current one →
+`{ "data": { "revoked": 3 } }`.
 
 **GET /auth/me** — session user, plus `hasPassword`, `linkedProviders`
 (`["google"]`), and `session: { expiresAt }`, so the UI can warn before an idle
@@ -334,8 +335,9 @@ Account-linking rules:
   password account** links to that account (Google has verified the email).
 - A password account cannot be silently created for an email that already has a
   Google account with a different `sub` — it links by email, one user row.
-- Unlinking the last credential (`DELETE /auth/providers/google`) is rejected
-  with `409 LAST_CREDENTIAL` when `password_hash IS NULL`.
+- Unlinking the last credential (`DELETE /auth/providers/google`) is planned, not
+  in this milestone; it will be rejected with `409 LAST_CREDENTIAL` when
+  `password_hash IS NULL`.
 
 ### Media (RustFS)
 
@@ -350,14 +352,17 @@ Buckets:
 | `darasa-private` | private            | claim evidence (NIB, permits, IDs) — presigned |
 
 Keys are server-chosen, never client-chosen:
-`tmp/{userId}/{mediaId}.{ext}` while pending →
-`places/{placeId}/{mediaId}.{ext}`, `reviews/{reviewId}/{mediaId}.{ext}`,
-`claims/{claimId}/{mediaId}.{ext}` once attached.
+`tmp/{userId}/{mediaId}.{ext}` while a photo is pending (public bucket),
+`claims/tmp/{userId}/{mediaId}.{ext}` while a claim document is pending (private
+bucket from the first byte), → `places/{userId}/{mediaId}.{ext}`,
+`reviews/{userId}/{mediaId}.{ext}`, `claims/{userId}/{mediaId}.{ext}` once
+committed. The real place/review id is bound at attach time, not in the key.
 
 | Method | Path                | Auth         |
 | ------ | ------------------- | ------------ |
 | POST   | `/media/uploads`    | session      |
 | POST   | `/media/:id/commit` | session      |
+| GET    | `/media/:id/url`    | owner, admin |
 | DELETE | `/media/:id`        | owner, admin |
 
 **POST /media/uploads**
@@ -383,8 +388,11 @@ Keys are server-chosen, never client-chosen:
   constrain what the client stores; `commit` enforces it by sniffing magic bytes
   and re-writing the object with a server-chosen type. `sizeBytes` in the request
   is a hint used to pick the bucket/limit, never trusted for validation.
-- Inserts `media` with `status='pending'`, `key = tmp/{userId}/{id}.{ext}`.
-- Rate limit: 30 uploads/user/hour.
+- Inserts `media` with `status='pending'`,
+  `key = tmp/{userId}/{id}.{ext}` (`claims/tmp/{userId}/{id}.{ext}` for a
+  `claim_document`, so evidence never lands in the public bucket).
+- Rate limit: 30 uploads/user/hour — **not yet implemented**; planned with the
+  rate-limit work.
 
 **POST /media/:id/commit** — `{ }` (empty body). The browser calls this after
 the PUT succeeds.
@@ -402,8 +410,8 @@ the PUT succeeds.
 ```
 
 Returns `{ "data": { "id", "url", "mime", "sizeBytes" } }`. `url` is
-`{MEDIA_PUBLIC_BASE_URL}/{key}` for public media; for private media it is
-`null` and clients use `GET /media/:id/url`.
+`{MEDIA_PUBLIC_BASE_URL}/{key}` for ready public media and a 10-minute presigned
+GET URL for private media; clients use `GET /media/:id/url` to refresh.
 
 **Why re-write, not copy** — three reasons, all verified on RustFS:
 
@@ -414,18 +422,19 @@ Returns `{ "data": { "id", "url", "mime", "sizeBytes" } }`. `url` is
    `.webp` key succeeds and RustFS stores `text/html`. Serving that from the
    public bucket is stored XSS.
 3. Re-writing lets the **server** set the content type from the magic bytes it
-   just sniffed, which fixes the hole. Streaming (`s3.file(src).stream()` →
-   `s3.write(dst, stream)`) measured **0.0 MB heap delta** on a 5 MB object, so
-   this does not buffer the file in memory. Buffered was 152 ms vs streamed
-   246 ms for 5 MB — both fine at a 5 MB cap.
+   just sniffed, which fixes the hole. The commit path currently buffers the
+   object, so the re-write costs at most the 5 MB image cap (10 MB for documents)
+   of heap per in-flight commit. Streaming (`s3.file(src).stream()` →
+   `s3.write(dst, stream)`) is the upgrade path if the cap or concurrency grows.
 
 Cost: one extra round-trip through the API process per upload. At a 5 MB limit
 and prototype traffic that is nothing; it also gives a natural place to add
 resizing later.
 
-**GET /media/:id/url** — owner or admin only. Returns a 15-minute presigned GET
-URL for private media; for public media returns the plain URL. `404` for anyone
-else (no existence leak).
+**GET /media/:id/url** — owner or admin only. Returns a 10-minute presigned GET
+URL for private media, and for public media only once the row is `ready` (a
+pending object has never been sniffed, so it gets a presigned URL too). `404` for
+anyone else (no existence leak).
 
 **DELETE /media/:id** — owner or admin. Deletes the object, cascades
 `place_photos`/`review_photos` rows, nulls `places.cover_media_id` if it was the
@@ -446,7 +455,8 @@ RustFS operational notes (all verified against a live container, via
   preflight. It is unset by default — this is the one config step that silently
   breaks uploads if forgotten.
 - Lifecycle rule on `darasa-public` prefix `tmp/` with `Expiration: 1 day`
-  reaps abandoned uploads; supported by RustFS.
+  reaps abandoned uploads; supported by RustFS. Add the same rule for
+  `darasa-private` prefix `claims/tmp/`.
 - `Region: "us-east-1"` and any non-empty credentials work; set real
   `RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` outside local dev.
 - `stat()` on a missing key throws `NoSuchKey`; `exists()` returns `false` —
@@ -808,10 +818,12 @@ RustFS bootstrap (once, per environment):
 aws --endpoint-url $S3_ENDPOINT s3 mb s3://darasa-public
 aws --endpoint-url $S3_ENDPOINT s3 mb s3://darasa-private
 
-# 2. public-read on the public bucket ONLY
+# 2. public-read on the public bucket, scoped to places/* and reviews/*
+#    (`claims/*` never lives there; the tmp prefix is transient and unserved)
 #    direct GET is 403 until this policy exists — verified
 # 3. RUSTFS_CORS_ALLOWED_ORIGINS=$WEB_APP_URL on the RustFS process
-# 4. lifecycle: expire darasa-public prefix tmp/ after 1 day
+# 4. lifecycle: expire darasa-public prefix tmp/ and darasa-private prefix
+#    claims/tmp/ after 1 day
 ```
 
 The API itself needs **no S3 dependency**: `Bun.S3Client` covers `write`,
