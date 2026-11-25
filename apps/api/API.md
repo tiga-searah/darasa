@@ -601,7 +601,9 @@ Only `status='published'` reviews. `mine` is true when the session user wrote it
 - `photoMediaIds` (max 5) must be `status='ready'`, `purpose='place_photo'`,
   owned by the caller — else `403`. `place_photos` rows are created with
   `sortOrder` = array index, `photoMediaIds[0]` becomes `coverMediaId`, and each
-  object is moved `tmp/...` → `places/{placeId}/{mediaId}.{ext}`.
+  object is moved `tmp/...` → `places/{userId}/{mediaId}.{ext}`. (The real
+  `placeId` is not known until the place exists, so the owner id scopes the key;
+  keys are opaque, and the media row is what binds an object to a place.)
 - `201` returns the detail shape.
 - Rate limit: 3 submissions/user/day (`429 RATE_LIMITED`).
 
@@ -670,10 +672,13 @@ exists for that place (partial unique index) or the claimant already has an
 approved claim for it. `404` if place is not published.
 
 `documentMediaIds` (max 5) must be `purpose='claim_document'`, `status='ready'`,
-owned by the caller. Objects are moved `tmp/...` → `claims/{claimId}/...` in the
-**private** bucket; the response returns no URLs, only ids. Admin reads them via
-`GET /media/:id/url` (15-minute presigned GET), which keeps evidence out of any
-public URL and out of browser history/CDN logs.
+owned by the caller. Evidence never touches the public bucket: the presigned PUT
+targets `claims/tmp/{userId}/{mediaId}.{ext}` in the **private** bucket from the
+first byte, and commit keeps it under `claims/{userId}/{mediaId}.{ext}`. The
+response returns no URLs, only ids. Admin reads them via `GET /media/:id/url`
+(10-minute presigned GET), which keeps evidence out of any public URL and out of
+browser history/CDN logs. Apply a 1-day lifecycle rule to `claims/tmp/` on the
+private bucket to reap abandoned uploads.
 
 **GET /claims/mine** — all claims by the session user, newest first, with
 `place: { id, slug, name, coverUrl }`.
