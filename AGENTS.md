@@ -32,11 +32,13 @@ darasa/
       database/
         schema/         # drizzle schemas
         index.ts        # drizzle entrypoint
-      modules/
+      plugins/          # elysia plugins (middleware, derive, guard, etc)
+      routes/
         <feature>/
           index.ts      # elysia controller
           model.ts      # typebox models
           service.ts    # bussiness logic
+      utils.ts          # global utilities function
       index.ts          # elysia server entrypoint
     web/                # react router framework frontend
   packages/             # shared packages

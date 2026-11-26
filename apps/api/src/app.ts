@@ -6,8 +6,14 @@ import { googleClient } from "./lib/google";
 import type { GoogleClient, Storage } from "./lib/ports";
 import { s3Storage } from "./lib/storage";
 import { errorPlugin } from "./plugins/errors";
+import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
+import { categoryRoutes } from "./routes/categories";
+import { claimRoutes } from "./routes/claims";
 import { mediaRoutes } from "./routes/media";
+import { ownerRoutes } from "./routes/owner";
+import { placeRoutes } from "./routes/places";
+import { reviewRoutes } from "./routes/reviews";
 
 export type AppDeps = {
 	storage?: Storage;
@@ -38,5 +44,11 @@ export const createApp = (deps: AppDeps = {}) => {
 		.decorate("deps", resolved)
 		.get("/health", () => ({ data: { ok: true } }))
 		.use(authRoutes)
-		.use(mediaRoutes);
+		.use(mediaRoutes)
+		.use(categoryRoutes)
+		.use(placeRoutes)
+		.use(reviewRoutes)
+		.use(claimRoutes)
+		.use(ownerRoutes)
+		.use(adminRoutes);
 };

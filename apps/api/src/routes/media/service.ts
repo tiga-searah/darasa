@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
-import { ApiError, notFound, sniffMime } from "../../utils";
+import type { DbOrTx } from "../../lib/ranking";
+import { ApiError, forbidden, notFound, sniffMime } from "../../utils";
 
 export const MEDIA_LIMITS = {
 	image: 5 * 1024 * 1024,
@@ -168,6 +169,43 @@ export async function commitUpload(
  * object with a server-sniffed Content-Type, so a pending object may hold
  * browser-chosen `text/html`. Privacy also comes from the row, never the key.
  */
+export async function resolveMediaUrl(
+	storage: Storage,
+	key: string,
+): Promise<string> {
+	return (
+		storage.publicUrl(key) ?? (await storage.presignGet(key, UPLOAD_EXPIRES_IN))
+	);
+}
+
+export async function assertOwnedReadyMedia(
+	tx: DbOrTx,
+	userId: string,
+	mediaIds: string[],
+	purpose: Purpose,
+): Promise<void> {
+	if (mediaIds.length === 0) return;
+	const uniqueIds = [...new Set(mediaIds)];
+	const rows = await tx
+		.select({
+			id: schema.media.id,
+			ownerId: schema.media.ownerId,
+			status: schema.media.status,
+			purpose: schema.media.purpose,
+		})
+		.from(schema.media)
+		.where(inArray(schema.media.id, uniqueIds));
+	if (
+		rows.length !== uniqueIds.length ||
+		rows.some(
+			(r) =>
+				r.ownerId !== userId || r.status !== "ready" || r.purpose !== purpose,
+		)
+	) {
+		throw forbidden("attach one or more media files");
+	}
+}
+
 const mediaUrl = (
 	storage: Storage,
 	key: string,
@@ -176,7 +214,7 @@ const mediaUrl = (
 ) =>
 	isPrivate || !ready
 		? storage.presignGet(key, UPLOAD_EXPIRES_IN)
-		: (storage.publicUrl(key) ?? storage.presignGet(key, UPLOAD_EXPIRES_IN));
+		: resolveMediaUrl(storage, key);
 
 /** 404 rather than 403 for strangers: an id must not confirm that media exists. */
 export async function getMediaUrl(

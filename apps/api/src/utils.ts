@@ -84,3 +84,15 @@ export const verifyPassword = async (
 		return false;
 	}
 };
+
+/** Postgres unique_violation, wrapped by drizzle in `DrizzleQueryError`. */
+export function isUniqueViolation(error: unknown): boolean {
+	let cause = (error as { cause?: unknown } | undefined)?.cause as
+		| { code?: string; errno?: string; cause?: unknown }
+		| undefined;
+	while (cause) {
+		if (cause.code === "23505" || cause.errno === "23505") return true;
+		cause = cause.cause as typeof cause;
+	}
+	return false;
+}
