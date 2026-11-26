@@ -705,3 +705,13 @@
 		}
 	}
 }
+
+/* Horizontal shelf track with hidden native scrollbar (navigated via scroll, wheel, buttons, and dots) */
+.darasa-shelf-scroll {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.darasa-shelf-scroll::-webkit-scrollbar {
+	display: none;
+}

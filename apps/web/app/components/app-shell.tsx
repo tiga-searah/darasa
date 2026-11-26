@@ -1,6 +1,5 @@
 import gsap from "gsap";
 import {
-	Award,
 	Bookmark,
 	Check,
 	CheckCircle2,
@@ -14,7 +13,6 @@ import {
 	LogIn,
 	LogOut,
 	MapPin,
-	Menu,
 	Moon,
 	PlusCircle,
 	Search,
@@ -41,14 +39,6 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from "~/components/ui/sheet";
-import {
 	Sidebar,
 	SidebarContent,
 	SidebarFooter,
@@ -69,6 +59,7 @@ import { cn } from "~/lib/utils";
 interface NavItem {
 	to: string;
 	label: string;
+	mobileLabel?: string;
 	icon: typeof Compass;
 	badge?: string;
 }
@@ -118,18 +109,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const [collapsed, setCollapsed] = useState(false);
-	const [mobileOpen, setMobileOpen] = useState(false);
 	const [globalQuery, setGlobalQuery] = useState("");
 	const [globalSearchFocused, setGlobalSearchFocused] = useState(false);
 
 	const sidebarRef = useRef<HTMLElement>(null);
 	const navContainerRef = useRef<HTMLElement>(null);
 	const activeIndicatorRef = useRef<HTMLSpanElement>(null);
+	const mobileTabListRef = useRef<HTMLUListElement>(null);
+	const mobileIndicatorRef = useRef<HTMLSpanElement>(null);
 	const brandTextRef = useRef<HTMLDivElement>(null);
 	const mainContentRef = useRef<HTMLDivElement>(null);
 	const profilePopoverRef = useRef<HTMLDivElement>(null);
 	const globalSearchBoxRef = useRef<HTMLDivElement>(null);
 	const hasMountedSidebarRef = useRef(false);
+	const hasPositionedDesktopPillRef = useRef(false);
+	const hasPositionedMobilePillRef = useRef(false);
 	const profilePopoverId = useId();
 	const globalSearchInputId = useId();
 
@@ -145,7 +139,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 		() => [
 			{ to: "/", label: "Home", icon: Home },
 			{ to: "/explore", label: "Jelajah", icon: Compass },
-			{ to: "/hidden-gem", label: "Hidden Gems", icon: Gem },
+			{
+				to: "/hidden-gem",
+				label: "Hidden Gems",
+				mobileLabel: "Hidden Gem",
+				icon: Gem,
+			},
 			{ to: "/submit-place", label: "Contribute", icon: PlusCircle },
 			{
 				to: "/bookmarks",
@@ -160,20 +159,27 @@ export function AppShell({ children }: { children: ReactNode }) {
 		[bookmarkedPlaceIds.length],
 	);
 
-	const managementLinks = useMemo<NavItem[]>(
-		() => [
-			{ to: "/claim", label: "Klaim Usaha", icon: Award },
-			{ to: "/owner", label: "Dasbor Pemilik", icon: LayoutDashboard },
-			{
+	const managementLinks = useMemo<NavItem[]>(() => {
+		const items: NavItem[] = [];
+		if (currentUser.role === "owner") {
+			items.push({
+				to: "/owner",
+				label: "Usahamu",
+				icon: LayoutDashboard,
+			});
+		}
+		if (currentUser.role === "admin") {
+			items.push({
 				to: "/admin",
 				label: "Verifikasi Admin",
+				mobileLabel: "Admin",
 				icon: ShieldAlert,
 				badge:
 					adminAttentionCount > 0 ? String(adminAttentionCount) : undefined,
-			},
-		],
-		[adminAttentionCount],
-	);
+			});
+		}
+		return items;
+	}, [currentUser.role, adminAttentionCount]);
 
 	const globalSearchMatches = useMemo(() => {
 		const q = globalQuery.trim().toLowerCase();
@@ -225,47 +231,102 @@ export function AppShell({ children }: { children: ReactNode }) {
 		return () => document.removeEventListener("mousedown", handlePointerDown);
 	}, []);
 
-	// Vertical active indicator glide between sidebar discovery items
-	const updateActiveIndicator = useCallback(() => {
-		const nav = navContainerRef.current;
-		const indicator = activeIndicatorRef.current;
-		if (!nav || !indicator) return;
-
-		const activeLink = nav.querySelector<HTMLElement>('[aria-current="page"]');
-		if (!activeLink) {
-			gsap.to(indicator, { opacity: 0, duration: 0.15 });
-			return;
-		}
-
-		const navRect = nav.getBoundingClientRect();
-		const linkRect = activeLink.getBoundingClientRect();
-		const topOffset = linkRect.top - navRect.top + nav.scrollTop;
+	// Smoothly glide active pill across sidebar items & mobile bottom tab bar
+	const updateActiveIndicators = useCallback((instant = false) => {
 		const reduced = window.matchMedia(
 			"(prefers-reduced-motion: reduce)",
 		).matches;
 
-		if (reduced) {
-			indicator.style.transform = `translateY(${topOffset}px)`;
-			indicator.style.height = `${linkRect.height}px`;
-			indicator.style.opacity = "1";
-			return;
+		const nav = navContainerRef.current;
+		const pill = activeIndicatorRef.current;
+		if (nav && pill) {
+			const activeLink = nav.querySelector<HTMLElement>(
+				'[aria-current="page"]',
+			);
+			if (!activeLink) {
+				gsap.to(pill, { opacity: 0, duration: reduced ? 0 : 0.16 });
+			} else {
+				const navRect = nav.getBoundingClientRect();
+				const linkRect = activeLink.getBoundingClientRect();
+				const topOffset = linkRect.top - navRect.top + nav.scrollTop;
+
+				if (reduced || instant || !hasPositionedDesktopPillRef.current) {
+					gsap.set(pill, {
+						y: topOffset,
+						height: linkRect.height,
+						opacity: 1,
+					});
+					hasPositionedDesktopPillRef.current = true;
+				} else {
+					gsap.to(pill, {
+						y: topOffset,
+						height: linkRect.height,
+						opacity: 1,
+						duration: 0.28,
+						ease: "power3.out",
+						overwrite: "auto",
+					});
+				}
+			}
 		}
 
-		gsap.to(indicator, {
-			y: topOffset,
-			height: linkRect.height,
-			opacity: 1,
-			duration: 0.24,
-			ease: "power3.out",
-		});
+		const mobileList = mobileTabListRef.current;
+		const mobilePill = mobileIndicatorRef.current;
+		if (mobileList && mobilePill) {
+			const activeTab = mobileList.querySelector<HTMLElement>(
+				'[aria-current="page"]',
+			);
+			if (!activeTab) {
+				gsap.to(mobilePill, { opacity: 0, duration: reduced ? 0 : 0.16 });
+			} else {
+				const listRect = mobileList.getBoundingClientRect();
+				const tabRect = activeTab.getBoundingClientRect();
+				const barWidth = Math.min(36, Math.max(24, tabRect.width * 0.48));
+				const leftOffset =
+					tabRect.left - listRect.left + (tabRect.width - barWidth) / 2;
+
+				if (reduced || instant || !hasPositionedMobilePillRef.current) {
+					gsap.set(mobilePill, {
+						x: leftOffset,
+						width: barWidth,
+						opacity: 1,
+					});
+					hasPositionedMobilePillRef.current = true;
+				} else {
+					gsap.to(mobilePill, {
+						x: leftOffset,
+						width: barWidth,
+						opacity: 1,
+						duration: 0.28,
+						ease: "power3.out",
+						overwrite: "auto",
+					});
+				}
+			}
+		}
 	}, []);
 
 	useEffect(() => {
-		const _syncKey = `${location.pathname}:${collapsed}`;
+		const _syncKey = `${location.pathname}:${collapsed}:${managementLinks.length}`;
 		if (!_syncKey) return;
-		const timer = window.setTimeout(updateActiveIndicator, 60);
-		return () => window.clearTimeout(timer);
-	}, [updateActiveIndicator, location.pathname, collapsed]);
+		const frame = window.requestAnimationFrame(() => updateActiveIndicators());
+		const settleTimer = window.setTimeout(() => updateActiveIndicators(), 250);
+		return () => {
+			window.cancelAnimationFrame(frame);
+			window.clearTimeout(settleTimer);
+		};
+	}, [
+		updateActiveIndicators,
+		location.pathname,
+		collapsed,
+		managementLinks.length,
+	]);
+
+	useEffect(() => {
+		const handleResize = () => updateActiveIndicators(true);
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, [updateActiveIndicators]);
 
 	// Desktop sidebar width collapse/expand
 	useEffect(() => {
@@ -283,41 +344,28 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 		if (reduced) {
 			sidebar.style.width = `${targetWidth}px`;
+			updateActiveIndicators(true);
 			return;
 		}
 
 		const ctx = gsap.context(() => {
 			gsap.to(sidebar, {
 				width: targetWidth,
-				duration: 0.22,
+				duration: 0.26,
 				ease: "power3.out",
+				onUpdate: () => updateActiveIndicators(true),
+				onComplete: () => updateActiveIndicators(true),
 			});
-
-			if (!collapsed && brandTextRef.current) {
-				gsap.fromTo(
-					brandTextRef.current,
-					{ opacity: 0, y: -4 },
-					{
-						opacity: 1,
-						y: 0,
-						duration: 0.18,
-						delay: 0.04,
-						ease: "power2.out",
-						clearProps: "transform",
-					},
-				);
-			}
 		}, sidebarRef);
 
 		return () => {
 			ctx.kill();
 		};
-	}, [collapsed]);
+	}, [collapsed, updateActiveIndicators]);
 
-	// Subtle page entrance & mobile sheet/popover auto-close on route change
+	// Subtle page entrance & popover auto-close on route change
 	useEffect(() => {
 		const _path = location.pathname;
-		setMobileOpen(false);
 		setGlobalSearchFocused(false);
 		closeProfilePopover();
 
@@ -345,7 +393,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 		}
 	};
 
-	const renderNavItems = (items: NavItem[], isMobile = false) => (
+	const renderNavItems = (items: NavItem[]) => (
 		<SidebarMenu>
 			{items.map((item) => {
 				const Icon = item.icon;
@@ -354,42 +402,61 @@ export function AppShell({ children }: { children: ReactNode }) {
 						<NavLink
 							to={item.to}
 							end={item.to === "/"}
-							aria-label={!isMobile && collapsed ? item.label : undefined}
-							title={!isMobile && collapsed ? item.label : undefined}
+							aria-label={collapsed ? item.label : undefined}
+							title={collapsed ? item.label : undefined}
 							className={({ isActive }) =>
 								cn(
-									"group relative flex min-h-[44px] items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-semibold transition-colors duration-150",
+									"group relative z-10 flex min-h-[44px] items-center gap-3 overflow-hidden rounded-[10px] pl-[18px] pr-3 py-2 text-sm font-semibold transition-[color,transform,background-color] duration-200 active:scale-[0.98]",
 									isActive
-										? "bg-primary text-primary-foreground"
-										: "text-foreground hover:bg-secondary hover:text-secondary-foreground",
-									!isMobile && collapsed ? "justify-center px-0" : "",
+										? "text-primary-foreground"
+										: "text-foreground hover:bg-secondary/80 hover:text-secondary-foreground",
 								)
 							}
 						>
 							{({ isActive }) => (
 								<>
-									<Icon
+									<span className="relative inline-flex shrink-0 items-center justify-center">
+										<Icon
+											className={cn(
+												"size-5 shrink-0 transition-transform duration-200 group-hover:scale-105",
+												isActive
+													? "text-primary-foreground"
+													: "text-muted-foreground group-hover:text-secondary-foreground",
+											)}
+											aria-hidden="true"
+										/>
+										{collapsed && item.badge ? (
+											<span
+												className={cn(
+													"absolute -right-2 -top-1.5 inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-4 tabular-nums",
+													isActive
+														? "bg-card text-primary"
+														: "bg-primary text-primary-foreground",
+												)}
+											>
+												{item.badge}
+											</span>
+										) : null}
+									</span>
+									<span
+										aria-hidden={collapsed}
 										className={cn(
-											"size-5 shrink-0",
-											isActive
-												? "text-primary-foreground"
-												: "text-muted-foreground group-hover:text-secondary-foreground",
+											"flex min-w-0 flex-1 items-center justify-between gap-2 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 motion-reduce:transition-none",
+											collapsed
+												? "max-w-0 opacity-0"
+												: "max-w-[170px] opacity-100",
 										)}
-										aria-hidden="true"
-									/>
-									{(!collapsed || isMobile) && (
-										<span className="flex flex-1 items-center justify-between gap-2 truncate">
-											<span>{item.label}</span>
-											{item.badge ? (
-												<Badge
-													variant={isActive ? "secondary" : "outline"}
-													className="tabular-nums"
-												>
-													{item.badge}
-												</Badge>
-											) : null}
-										</span>
-									)}
+									>
+										<span className="truncate">{item.label}</span>
+										{item.badge ? (
+											<Badge
+												variant={isActive ? "secondary" : "outline"}
+												className="shrink-0 tabular-nums"
+											>
+												{item.badge}
+											</Badge>
+										) : null}
+									</span>
 								</>
 							)}
 						</NavLink>
@@ -399,23 +466,38 @@ export function AppShell({ children }: { children: ReactNode }) {
 		</SidebarMenu>
 	);
 
-	const renderSidebarNavigation = (isMobile = false) => (
+	const renderSidebarNavigation = () => (
 		<nav
-			ref={isMobile ? undefined : navContainerRef}
-			aria-label={isMobile ? "Menu seluler" : "Menu utama"}
-			className="relative flex flex-col gap-2 pt-2"
+			ref={navContainerRef}
+			aria-label="Menu utama"
+			className="relative flex flex-col gap-2"
 		>
-			{!isMobile ? (
-				<span
-					ref={activeIndicatorRef}
-					aria-hidden="true"
-					className="pointer-events-none absolute -left-2 top-0 w-1 rounded-full bg-primary opacity-0"
-				/>
-			) : null}
+			<span
+				ref={activeIndicatorRef}
+				aria-hidden="true"
+				className="pointer-events-none absolute left-0 right-0 top-0 z-0 rounded-[10px] bg-primary opacity-0 shadow-xs"
+			/>
 
-			<SidebarGroup>{renderNavItems(discoveryLinks, isMobile)}</SidebarGroup>
+			<SidebarGroup>{renderNavItems(discoveryLinks)}</SidebarGroup>
+
+			{managementLinks.length > 0 ? (
+				<SidebarGroup className="border-t border-sidebar-border pt-3">
+					<p
+						aria-hidden={collapsed}
+						className={cn(
+							"overflow-hidden whitespace-nowrap px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-[max-height,opacity,padding] duration-200 motion-reduce:transition-none",
+							collapsed ? "max-h-0 pb-0 opacity-0" : "max-h-6 pb-1 opacity-100",
+						)}
+					>
+						Pengelolaan
+					</p>
+					{renderNavItems(managementLinks)}
+				</SidebarGroup>
+			) : null}
 		</nav>
 	);
+
+	const mobileTabItems = [...discoveryLinks, ...managementLinks];
 
 	// GitHub logo stacked ABOVE copyright at the very bottom of sidebar
 	const renderSidebarCopyrightFooter = (isIconOnly = false) => (
@@ -426,11 +508,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 				rel="noopener noreferrer"
 				aria-label="Repositori GitHub Darasa oleh Team Lorem Ipsum"
 				title="GitHub Darasa"
-				className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+				className="inline-flex size-9 items-center justify-center rounded-[8px] text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
 			>
 				<GitHubMark className="size-5" />
 			</a>
-			<p className="text-[11px] font-medium leading-tight text-muted-foreground">
+			<p className="whitespace-nowrap text-[11px] font-medium leading-tight text-muted-foreground">
 				{isIconOnly ? "© 2026" : "© 2026 Team Lorem Ipsum"}
 			</p>
 		</div>
@@ -447,35 +529,51 @@ export function AppShell({ children }: { children: ReactNode }) {
 				aria-label="Navigasi utama Darasa"
 				className="hidden lg:flex w-[256px] shrink-0 flex-col justify-between sticky top-0 h-dvh overflow-x-hidden"
 			>
-				<SidebarHeader className="pb-3 border-b border-sidebar-border">
+				<SidebarHeader
+					className={cn(
+						"h-16 justify-center border-b border-sidebar-border py-0 transition-[padding] duration-200",
+						collapsed ? "px-2" : "px-4",
+					)}
+				>
 					<div
 						className={cn(
-							"flex items-center gap-2",
-							collapsed ? "flex-col justify-center" : "justify-between",
+							"flex items-center",
+							collapsed ? "justify-center gap-1" : "justify-between gap-2",
 						)}
 					>
 						<Link
 							to="/"
 							aria-label="Darasa Beranda"
-							className="flex items-center gap-2.5 rounded-[8px] p-1 hover:bg-background"
+							className={cn(
+								"flex min-w-0 items-center rounded-[8px] transition-colors hover:bg-background",
+								collapsed ? "p-0.5" : "gap-2.5 p-1",
+							)}
 						>
 							{/* TODO: Replace temporary Darasa mark with final brand logo SVG */}
 							<span
 								aria-hidden="true"
-								className="flex size-9 shrink-0 items-center justify-center rounded-[8px] bg-primary text-base font-bold text-primary-foreground"
+								className={cn(
+									"flex shrink-0 items-center justify-center rounded-[8px] bg-primary font-bold text-primary-foreground transition-[width,height,font-size] duration-200",
+									collapsed ? "size-8 text-sm" : "size-9 text-base",
+								)}
 							>
 								D
 							</span>
-							{!collapsed ? (
-								<div ref={brandTextRef} className="leading-tight">
-									<span className="block text-base font-bold tracking-tight text-foreground">
-										Darasa
-									</span>
-									<span className="block text-xs text-muted-foreground">
-										Kuliner Batang
-									</span>
-								</div>
-							) : null}
+							<div
+								ref={brandTextRef}
+								aria-hidden={collapsed}
+								className={cn(
+									"overflow-hidden whitespace-nowrap leading-tight transition-[max-width,opacity] duration-200 motion-reduce:transition-none",
+									collapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100",
+								)}
+							>
+								<span className="block text-base font-bold tracking-tight text-foreground">
+									Darasa
+								</span>
+								<span className="block text-xs text-muted-foreground">
+									Kuliner Batang
+								</span>
+							</div>
 						</Link>
 
 						<Button
@@ -485,9 +583,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 							aria-expanded={!collapsed}
 							aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
 							title={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
+							className={cn(
+								"shrink-0 transition-[width,height] duration-200",
+								collapsed ? "size-8 rounded-[7px]" : "size-9",
+							)}
 						>
 							{collapsed ? (
-								<ChevronRight className="size-5" aria-hidden="true" />
+								<ChevronRight className="size-4" aria-hidden="true" />
 							) : (
 								<ChevronLeft className="size-5" aria-hidden="true" />
 							)}
@@ -495,56 +597,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</div>
 				</SidebarHeader>
 
-				<SidebarContent>{renderSidebarNavigation(false)}</SidebarContent>
+				<SidebarContent className="py-3">
+					{renderSidebarNavigation()}
+				</SidebarContent>
 
-				<SidebarFooter className="bg-sidebar">
+				<SidebarFooter className="bg-sidebar p-3">
 					{renderSidebarCopyrightFooter(collapsed)}
 				</SidebarFooter>
 			</Sidebar>
 
-			{/* Main Column + Mobile Sheet */}
+			{/* Main Column + Mobile Bottom Tab Bar */}
 			<div className="flex min-w-0 flex-1 flex-col bg-card">
 				<header className="sticky top-0 z-30 border-b border-border bg-card">
 					<div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 md:px-8 xl:px-10">
 						<div className="flex items-center gap-2.5 shrink-0">
-							<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-								<SheetTrigger asChild>
-									<Button
-										variant="outline"
-										aria-label="Buka menu navigasi"
-										aria-expanded={mobileOpen}
-										className="lg:hidden min-h-[44px] px-3"
-									>
-										<Menu className="size-5" aria-hidden="true" />
-										<span className="hidden sm:inline">Menu</span>
-									</Button>
-								</SheetTrigger>
-								<SheetContent aria-label="Menu navigasi Darasa">
-									<SheetHeader>
-										<SheetTitle className="flex items-center gap-2.5">
-											<span
-												aria-hidden="true"
-												className="flex size-8 items-center justify-center rounded-[8px] bg-primary text-sm font-bold text-primary-foreground"
-											>
-												D
-											</span>
-											Darasa
-										</SheetTitle>
-										<SheetDescription>
-											Direktori Kuliner Kabupaten Batang
-										</SheetDescription>
-									</SheetHeader>
-
-									<div className="flex-1 overflow-y-auto px-3 py-4">
-										{renderSidebarNavigation(true)}
-									</div>
-
-									<div className="border-t border-border p-4">
-										{renderSidebarCopyrightFooter(false)}
-									</div>
-								</SheetContent>
-							</Sheet>
-
 							<Link
 								to="/"
 								className="flex items-center gap-2 lg:hidden"
@@ -560,10 +626,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 									Darasa
 								</span>
 							</Link>
-
-							<p className="hidden lg:block truncate text-sm font-medium text-muted-foreground">
-								Direktori Kuliner Kabupaten Batang
-							</p>
 						</div>
 
 						{/* Navbar Right: Global Search + Profile (with Dark/Light Mode Settings) */}
@@ -783,44 +845,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 								<Separator />
 
-								<div className="space-y-1">
-									<p className="px-1 pb-1 text-xs font-semibold text-muted-foreground">
-										Pengelolaan &amp; Kurasi
-									</p>
-									{managementLinks.map((item) => {
-										const Icon = item.icon;
-										const active = location.pathname === item.to;
-										return (
-											<Link
-												key={item.to}
-												to={item.to}
-												onClick={closeProfilePopover}
-												className={cn(
-													"flex min-h-[40px] items-center justify-between gap-2 rounded-[8px] px-2.5 py-1.5 text-sm font-medium transition-colors",
-													active
-														? "bg-primary-soft text-primary-hover"
-														: "text-foreground hover:bg-muted",
-												)}
-											>
-												<span className="flex items-center gap-2.5">
-													<Icon
-														className="size-4 text-muted-foreground"
-														aria-hidden="true"
-													/>
-													<span>{item.label}</span>
-												</span>
-												{item.badge ? (
-													<Badge variant="yellow" className="tabular-nums">
-														{item.badge}
-													</Badge>
-												) : null}
-											</Link>
-										);
-									})}
-								</div>
-
-								<Separator />
-
 								<fieldset className="space-y-2 border-0 p-0 m-0">
 									<legend className="px-1 text-xs font-semibold text-muted-foreground">
 										Peran Prototipe
@@ -866,16 +890,82 @@ export function AppShell({ children }: { children: ReactNode }) {
 				<main id="main-content" tabIndex={-1} className="flex-1 bg-card">
 					<div
 						ref={mainContentRef}
-						className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 xl:px-10 xl:py-7"
+						className="mx-auto max-w-[1440px] px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-6 xl:px-10 xl:py-7"
 					>
 						{children}
 					</div>
 				</main>
 
+				{/* Mobile Bottom Tab Bar (< 1024px) */}
+				<nav
+					aria-label="Navigasi seluler"
+					className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] lg:hidden"
+				>
+					<div className="relative mx-auto max-w-lg">
+						<span
+							ref={mobileIndicatorRef}
+							aria-hidden="true"
+							className="pointer-events-none absolute left-0 top-0 h-0.5 rounded-full bg-primary opacity-0"
+						/>
+						<ul
+							ref={mobileTabListRef}
+							className="flex h-16 items-stretch justify-around px-1"
+						>
+							{mobileTabItems.map((item) => {
+								const Icon = item.icon;
+								const tabLabel = item.mobileLabel ?? item.label;
+								return (
+									<li key={item.to} className="flex min-w-0 flex-1">
+										<NavLink
+											to={item.to}
+											end={item.to === "/"}
+											aria-label={item.label}
+											className={({ isActive }) =>
+												cn(
+													"relative flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[10px] px-1 py-1.5 text-[10px] sm:text-[11px] font-semibold transition-colors duration-200 active:scale-[0.96]",
+													isActive
+														? "text-primary"
+														: "text-muted-foreground hover:text-foreground",
+												)
+											}
+										>
+											{({ isActive }) => (
+												<>
+													<span
+														className={cn(
+															"relative inline-flex h-7 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-200",
+															isActive
+																? "scale-105 bg-primary-soft text-primary"
+																: "",
+														)}
+													>
+														<Icon
+															className="size-5 shrink-0"
+															aria-hidden="true"
+														/>
+														{item.badge ? (
+															<span className="absolute -top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground tabular-nums">
+																{item.badge}
+															</span>
+														) : null}
+													</span>
+													<span className="max-w-full truncate leading-none">
+														{tabLabel}
+													</span>
+												</>
+											)}
+										</NavLink>
+									</li>
+								);
+							})}
+						</ul>
+					</div>
+				</nav>
+
 				{toast ? (
 					<div
 						aria-live="polite"
-						className="pointer-events-none fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 rounded-[12px] border border-border bg-card px-4 py-3 text-sm shadow-lg"
+						className="pointer-events-none fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-[12px] border border-border bg-card px-4 py-3 text-sm shadow-lg sm:left-auto sm:right-5 lg:bottom-5"
 					>
 						<div className="pointer-events-auto flex w-full items-center gap-2.5">
 							{toast.tone === "success" ? (
@@ -903,44 +993,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 						</div>
 					</div>
 				) : null}
-
-				<footer className="border-t border-border bg-background/50">
-					<div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-4 text-xs text-muted-foreground sm:px-6 lg:px-8 xl:px-10">
-						<p>
-							<strong className="font-semibold text-foreground">Darasa</strong>{" "}
-							&middot; Direktori Kuliner Kabupaten Batang
-						</p>
-						<div className="flex flex-wrap items-center gap-4">
-							<Link to="/" className="hover:text-primary hover:underline">
-								Home
-							</Link>
-							<Link
-								to="/explore"
-								className="hover:text-primary hover:underline"
-							>
-								Jelajah
-							</Link>
-							<Link
-								to="/hidden-gem"
-								className="hover:text-primary hover:underline"
-							>
-								Hidden Gems
-							</Link>
-							<Link
-								to="/submit-place"
-								className="hover:text-primary hover:underline"
-							>
-								Contribute
-							</Link>
-							<Link
-								to="/bookmarks"
-								className="hover:text-primary hover:underline"
-							>
-								Bookmark
-							</Link>
-						</div>
-					</div>
-				</footer>
 			</div>
 		</div>
 	);

@@ -21,7 +21,7 @@ import type { Route } from "./+types/owner";
 
 export function meta(_args: Route.MetaArgs) {
 	return [
-		{ title: "Dasbor Pemilik Usaha | Darasa" },
+		{ title: "Usahamu | Darasa" },
 		{
 			name: "description",
 			content:
@@ -82,7 +82,7 @@ export default function OwnerDashboardPage() {
 					</span>
 					<div>
 						<h1 className="text-xl font-bold text-foreground">
-							Akses Dasbor Pemilik Memerlukan Klaim Disetujui
+							Akses Usahamu Memerlukan Klaim Disetujui
 						</h1>
 						<p className="text-sm text-muted-foreground">
 							Sesuai aturan PRD FR-040, pengelolaan profil usaha hanya aktif
@@ -151,7 +151,7 @@ export default function OwnerDashboardPage() {
 						<Badge variant="secondary">{ownedPlace.district}</Badge>
 					</div>
 					<h1 className="text-2xl sm:text-[28px] font-bold text-foreground">
-						Dasbor Pemilik: {ownedPlace.name}
+						Usahamu: {ownedPlace.name}
 					</h1>
 				</div>
 
@@ -173,7 +173,8 @@ export default function OwnerDashboardPage() {
 					<p className="text-2xl font-bold text-foreground tabular-nums">
 						{ownedPlace.averageRating.toFixed(2)}{" "}
 						<span className="text-sm font-normal text-muted-foreground">
-							dari {ownedPlace.reviewCount} ulasan
+							dari {ownedPlace.reviewCount} ulasan ·{" "}
+							{ownedPlace.views.toLocaleString("id-ID")} kali dilihat
 						</span>
 					</p>
 				</div>
@@ -196,7 +197,7 @@ export default function OwnerDashboardPage() {
 					<p className="text-lg font-bold text-foreground tabular-nums">
 						{ownedPlace.hiddenGemEligible
 							? `Memenuhi Syarat (${ownedPlace.hiddenGemScore.toFixed(2)})`
-							: "Rating di bawah 4.0"}
+							: "Belum memenuhi syarat"}
 					</p>
 				</div>
 			</section>

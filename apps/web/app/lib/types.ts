@@ -6,12 +6,10 @@ export type VerificationStatus =
 	| "owner_verified";
 
 export type PlaceCategory =
-	| "Masakan Tradisional"
-	| "Kuliner Pesisir"
-	| "Kopi & Kafe"
-	| "Bakso & Mie"
-	| "Jajanan & Oleh-oleh"
-	| "Warung Pekerja";
+	| "Makanan berat"
+	| "Minuman"
+	| "Street food"
+	| "Dessert";
 
 export type BatangDistrict =
 	| "Batang Kota"
@@ -63,6 +61,7 @@ export interface CulinaryPlace {
 	phone?: string;
 	description: string;
 	photos: string[];
+	views: number;
 	verificationStatus: VerificationStatus;
 	ownerId?: string;
 	submittedByUserId: string;

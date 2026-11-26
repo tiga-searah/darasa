@@ -1,14 +1,17 @@
 import gsap from "gsap";
 import {
 	ArrowUpDown,
+	Banknote,
 	Bookmark,
 	ChevronDown,
 	Gem,
 	Info,
 	LayoutGrid,
 	List,
+	MapPin,
 	RotateCcw,
 	Search,
+	ShieldCheck,
 	SlidersHorizontal,
 	Star,
 	X,
@@ -16,7 +19,6 @@ import {
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { PlaceCard } from "~/components/place-card";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
 	Dialog,
@@ -57,35 +59,78 @@ export function meta(_args: Route.MetaArgs) {
 	];
 }
 
-function getPriceMidpoint(priceRange: string): number | null {
-	const matches = priceRange.match(/\d[\d.]*/g);
+const SORT_LABELS: Record<ExploreSortOption, string> = {
+	explore: "Explore Score",
+	rating: "Rating Tertinggi",
+	reviews: "Ulasan Terbanyak",
+	views: "Paling Sering Dilihat",
+	newest: "Terbaru Ditambahkan",
+	az: "Nama A-Z",
+	za: "Nama Z-A",
+};
+
+const MIN_RATING_OPTIONS: Array<{ value: ExploreMinRating; label: string }> = [
+	{ value: "all", label: "Semua Rating" },
+	{ value: "2.0", label: "2.0+" },
+	{ value: "2.5", label: "2.5+" },
+	{ value: "3.0", label: "3.0+" },
+	{ value: "3.5", label: "3.5+" },
+	{ value: "4.0", label: "4.0+" },
+	{ value: "4.5", label: "4.5+" },
+];
+
+const PRICE_TIER_LABELS: Record<Exclude<ExplorePriceTier, "all">, string> = {
+	under_25k: "< Rp 25.000",
+	"25k_50k": "Rp 25.000 - Rp 50.000",
+	"50k_100k": "Rp 50.000 - Rp 100.000",
+	over_100k: "> Rp 100.000",
+};
+
+const PRICE_TIER_OPTIONS: Array<{ value: ExplorePriceTier; label: string }> = [
+	{ value: "all", label: "Semua Harga" },
+	...(
+		Object.entries(PRICE_TIER_LABELS) as Array<
+			[Exclude<ExplorePriceTier, "all">, string]
+		>
+	).map(([value, label]) => ({ value, label })),
+];
+
+function parsePriceBounds(
+	priceRange: string,
+): { min: number; max: number } | null {
+	const matches = priceRange.match(/\d[\d.]*(?:\s*(?:rb|ribu|k))?/gi);
 	if (!matches || matches.length === 0) return null;
 	const numbers = matches
-		.map((raw) => Number.parseInt(raw.replace(/\./g, ""), 10))
+		.map((raw) => {
+			const hasThousandSuffix = /(?:rb|ribu|k)$/i.test(raw.trim());
+			const value = Number.parseInt(raw.replace(/[^\d]/g, ""), 10);
+			if (Number.isNaN(value)) return Number.NaN;
+			return hasThousandSuffix && value < 1000 ? value * 1000 : value;
+		})
 		.filter((n) => !Number.isNaN(n));
 	if (numbers.length === 0) return null;
-	if (numbers.length === 1) return numbers[0];
-	return (numbers[0] + numbers[1]) / 2;
+	return { min: Math.min(...numbers), max: Math.max(...numbers) };
 }
 
 function matchesPriceTier(priceRange: string, tier: ExplorePriceTier): boolean {
 	if (tier === "all") return true;
-	const mid = getPriceMidpoint(priceRange);
-	if (mid === null) return true;
+	const bounds = parsePriceBounds(priceRange);
+	if (bounds === null) return true;
 	switch (tier) {
-		case "budget":
-			return mid <= 22000;
-		case "mid":
-			return mid > 22000 && mid <= 40000;
-		case "premium":
-			return mid > 40000;
+		case "under_25k":
+			return bounds.min <= 25000;
+		case "25k_50k":
+			return bounds.max > 25000 && bounds.min <= 50000;
+		case "50k_100k":
+			return bounds.max > 50000 && bounds.min <= 100000;
+		case "over_100k":
+			return bounds.max > 100000;
 	}
 }
 
 export default function ExplorePage() {
 	const {
 		places,
-		hydrated,
 		bookmarkedPlaceIds,
 		exploreFilters,
 		setExploreFilters,
@@ -96,10 +141,13 @@ export default function ExplorePage() {
 	const [filtersOpen, setFiltersOpen] = useState(false);
 
 	const gridRef = useRef<HTMLDivElement>(null);
+	const filterPanelRef = useRef<HTMLDivElement>(null);
 	const searchInputId = useId();
 	const advancedPanelId = useId();
 	const districtSelectId = useId();
 	const verifySelectId = useId();
+	const ratingSelectId = useId();
+	const priceSelectId = useId();
 	const sortSelectId = useId();
 
 	useEffect(() => {
@@ -143,8 +191,10 @@ export default function ExplorePage() {
 				) {
 					return false;
 				}
-				if (minRating === "4.0" && place.averageRating < 4.0) return false;
-				if (minRating === "4.5" && place.averageRating < 4.5) return false;
+				if (minRating !== "all") {
+					const threshold = Number.parseFloat(minRating);
+					if (place.averageRating < threshold) return false;
+				}
 				if (!matchesPriceTier(place.priceRange, priceTier)) return false;
 				if (onlyHiddenGem && !place.hiddenGemEligible) return false;
 				if (onlyBookmarked && !bookmarkedPlaceIds.includes(place.id))
@@ -159,8 +209,14 @@ export default function ExplorePage() {
 						);
 					case "reviews":
 						return b.reviewCount - a.reviewCount;
+					case "views":
+						return b.views - a.views || b.reviewCount - a.reviewCount;
 					case "newest":
 						return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+					case "az":
+						return a.name.localeCompare(b.name, "id", { sensitivity: "base" });
+					case "za":
+						return b.name.localeCompare(a.name, "id", { sensitivity: "base" });
 					default:
 						return b.exploreScore - a.exploreScore;
 				}
@@ -214,6 +270,31 @@ export default function ExplorePage() {
 		viewMode,
 	]);
 
+	useEffect(() => {
+		if (!filtersOpen) return;
+		const panel = filterPanelRef.current;
+		if (!panel) return;
+		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+		const ctx = gsap.context(() => {
+			gsap.fromTo(
+				panel.children,
+				{ opacity: 0, y: 8 },
+				{
+					opacity: 1,
+					y: 0,
+					duration: 0.24,
+					stagger: 0.05,
+					delay: 0.04,
+					ease: "power2.out",
+					clearProps: "opacity,transform",
+				},
+			);
+		}, filterPanelRef);
+
+		return () => ctx.revert();
+	}, [filtersOpen]);
+
 	const activeAdvancedCount =
 		(selectedCategory !== "all" ? 1 : 0) +
 		(selectedDistrict !== "all" ? 1 : 0) +
@@ -236,12 +317,6 @@ export default function ExplorePage() {
 		owner_verified: "Terverifikasi Pemilik",
 		community_verified: "Terverifikasi Komunitas",
 		unverified: "Belum Terverifikasi",
-	};
-
-	const priceTierLabels: Record<Exclude<ExplorePriceTier, "all">, string> = {
-		budget: "Hemat (< Rp 22rb)",
-		mid: "Menengah (Rp 22rb - 40rb)",
-		premium: "Spesial (> Rp 40rb)",
 	};
 
 	return (
@@ -372,7 +447,7 @@ export default function ExplorePage() {
 								/>
 							</Button>
 
-							<div className="min-w-[175px] flex-1 sm:flex-none">
+							<div>
 								<Label htmlFor={sortSelectId} className="sr-only">
 									Urutkan hasil kuliner
 								</Label>
@@ -384,20 +459,31 @@ export default function ExplorePage() {
 								>
 									<SelectTrigger
 										id={sortSelectId}
-										aria-label="Urutkan hasil"
-										className="h-11 rounded-[10px] bg-background"
+										hideChevron
+										aria-label={`Urutkan hasil: ${SORT_LABELS[sortBy]}`}
+										title={`Urutkan: ${SORT_LABELS[sortBy]}`}
+										className={cn(
+											"size-11 w-11 shrink-0 justify-center rounded-[10px] p-0",
+											sortBy !== "explore"
+												? "border-primary bg-primary-soft text-primary-hover"
+												: "bg-background text-foreground hover:bg-muted",
+										)}
 									>
-										<ArrowUpDown
-											className="size-4 text-muted-foreground"
-											aria-hidden="true"
-										/>
-										<SelectValue />
+										<ArrowUpDown className="size-4" aria-hidden="true" />
+										<span className="sr-only">
+											<SelectValue />
+										</span>
 									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="explore">Explore Score</SelectItem>
-										<SelectItem value="rating">Rating Tertinggi</SelectItem>
-										<SelectItem value="reviews">Ulasan Terbanyak</SelectItem>
-										<SelectItem value="newest">Terbaru Ditambahkan</SelectItem>
+									<SelectContent align="end" className="min-w-[200px]">
+										{(
+											Object.entries(SORT_LABELS) as Array<
+												[ExploreSortOption, string]
+											>
+										).map(([value, label]) => (
+											<SelectItem key={value} value={value}>
+												{label}
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 							</div>
@@ -406,256 +492,290 @@ export default function ExplorePage() {
 				</search>
 
 				{/* Expandable Advanced Search Panel */}
-				{filtersOpen ? (
-					<div
-						id={advancedPanelId}
-						className="rounded-[14px] border border-border bg-background p-4 sm:p-5 space-y-5"
-					>
-						{/* Category Pills */}
-						<fieldset className="m-0 space-y-2 border-0 p-0">
-							<legend className="text-xs font-semibold text-muted-foreground">
-								Kategori Kuliner
-							</legend>
-							<div className="flex flex-wrap gap-2">
-								<button
-									type="button"
-									aria-pressed={selectedCategory === "all"}
-									onClick={() => setExploreFilters({ category: "all" })}
-									className={cn(
-										"inline-flex min-h-[36px] items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
-										selectedCategory === "all"
-											? "border-primary bg-primary text-primary-foreground"
-											: "border-border bg-card text-foreground hover:border-primary/60",
-									)}
-								>
-									Semua Kategori
-								</button>
-								{PLACE_CATEGORIES.map((category) => {
-									const active = selectedCategory === category;
-									return (
-										<button
-											key={category}
-											type="button"
-											aria-pressed={active}
-											onClick={() =>
-												setExploreFilters({
-													category: active ? "all" : category,
-												})
+				<div
+					id={advancedPanelId}
+					aria-hidden={!filtersOpen}
+					inert={!filtersOpen}
+					className={cn(
+						"grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out motion-reduce:transition-none",
+						filtersOpen
+							? "mt-4 grid-rows-[1fr] opacity-100"
+							: "pointer-events-none !mt-0 grid-rows-[0fr] opacity-0",
+					)}
+				>
+					<div className="min-h-0 overflow-hidden">
+						<div
+							ref={filterPanelRef}
+							className="flex flex-col gap-5 rounded-[14px] border border-border bg-background p-4 sm:p-5"
+						>
+							{/* Category Pills */}
+							<fieldset className="border-0 p-0">
+								<legend className="mb-2.5 text-xs font-semibold leading-none text-muted-foreground">
+									Kategori Kuliner
+								</legend>
+								<div className="flex flex-wrap gap-2">
+									<button
+										type="button"
+										aria-pressed={selectedCategory === "all"}
+										onClick={() => setExploreFilters({ category: "all" })}
+										className={cn(
+											"inline-flex min-h-[36px] items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
+											selectedCategory === "all"
+												? "border-primary bg-primary text-primary-foreground"
+												: "border-border bg-card text-foreground hover:border-primary/60",
+										)}
+									>
+										Semua Kategori
+									</button>
+									{PLACE_CATEGORIES.map((category) => {
+										const active = selectedCategory === category;
+										return (
+											<button
+												key={category}
+												type="button"
+												aria-pressed={active}
+												onClick={() =>
+													setExploreFilters({
+														category: active ? "all" : category,
+													})
+												}
+												className={cn(
+													"inline-flex min-h-[36px] items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
+													active
+														? "border-primary bg-primary text-primary-foreground"
+														: "border-border bg-card text-foreground hover:border-primary/60",
+												)}
+											>
+												{category}
+											</button>
+										);
+									})}
+								</div>
+							</fieldset>
+
+							{/* District + Verification + Rating + Price Grid */}
+							<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+								<div className="flex flex-col gap-2">
+									<Label
+										htmlFor={districtSelectId}
+										className="text-xs font-semibold text-muted-foreground"
+									>
+										Kawasan Batang
+									</Label>
+									<Select
+										value={selectedDistrict}
+										onValueChange={(val) => {
+											const next = val as BatangDistrict | "all";
+											setExploreFilters({ district: next });
+											if (next === "all") {
+												setSearchParams({});
+											} else {
+												setSearchParams({ district: next });
 											}
-											className={cn(
-												"inline-flex min-h-[36px] items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
-												active
-													? "border-primary bg-primary text-primary-foreground"
-													: "border-border bg-card text-foreground hover:border-primary/60",
-											)}
-										>
-											{category}
-										</button>
-									);
-								})}
-							</div>
-						</fieldset>
+										}}
+									>
+										<SelectTrigger id={districtSelectId} className="bg-card">
+											<div className="flex min-w-0 flex-1 items-center gap-2">
+												<MapPin
+													className={cn(
+														"size-4 shrink-0",
+														selectedDistrict !== "all"
+															? "text-primary"
+															: "text-muted-foreground",
+													)}
+													aria-hidden="true"
+												/>
+												<SelectValue />
+											</div>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">Semua Kawasan Batang</SelectItem>
+											{BATANG_DISTRICTS.map((district) => (
+												<SelectItem key={district} value={district}>
+													{district}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 
-						{/* District + Verification + Rating + Price Grid */}
-						<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-							<div className="space-y-1.5">
-								<Label
-									htmlFor={districtSelectId}
-									className="text-xs font-semibold text-muted-foreground"
-								>
-									Kawasan Batang
-								</Label>
-								<Select
-									value={selectedDistrict}
-									onValueChange={(val) => {
-										const next = val as BatangDistrict | "all";
-										setExploreFilters({ district: next });
-										if (next === "all") {
-											setSearchParams({});
-										} else {
-											setSearchParams({ district: next });
+								<div className="flex flex-col gap-2">
+									<Label
+										htmlFor={verifySelectId}
+										className="text-xs font-semibold text-muted-foreground"
+									>
+										Status Verifikasi
+									</Label>
+									<Select
+										value={verificationFilter}
+										onValueChange={(val) =>
+											setExploreFilters({
+												verification: val as VerificationStatus | "all",
+											})
 										}
-									}}
-								>
-									<SelectTrigger id={districtSelectId} className="bg-card">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">Semua Kawasan Batang</SelectItem>
-										{BATANG_DISTRICTS.map((district) => (
-											<SelectItem key={district} value={district}>
-												{district}
+									>
+										<SelectTrigger id={verifySelectId} className="bg-card">
+											<div className="flex min-w-0 flex-1 items-center gap-2">
+												<ShieldCheck
+													className={cn(
+														"size-4 shrink-0",
+														verificationFilter !== "all"
+															? "text-primary"
+															: "text-muted-foreground",
+													)}
+													aria-hidden="true"
+												/>
+												<SelectValue />
+											</div>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">Semua Status</SelectItem>
+											<SelectItem value="owner_verified">
+												Terverifikasi Pemilik
 											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1.5">
-								<Label
-									htmlFor={verifySelectId}
-									className="text-xs font-semibold text-muted-foreground"
-								>
-									Status Verifikasi
-								</Label>
-								<Select
-									value={verificationFilter}
-									onValueChange={(val) =>
-										setExploreFilters({
-											verification: val as VerificationStatus | "all",
-										})
-									}
-								>
-									<SelectTrigger id={verifySelectId} className="bg-card">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">Semua Status</SelectItem>
-										<SelectItem value="owner_verified">
-											Terverifikasi Pemilik
-										</SelectItem>
-										<SelectItem value="community_verified">
-											Terverifikasi Komunitas
-										</SelectItem>
-										<SelectItem value="unverified">
-											Belum Terverifikasi
-										</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-
-							<fieldset className="m-0 space-y-1.5 border-0 p-0">
-								<legend className="text-xs font-semibold text-muted-foreground">
-									Rating Minimum
-								</legend>
-								<div className="flex flex-wrap gap-1.5">
-									{(
-										[
-											{ value: "all", label: "Semua" },
-											{ value: "4.0", label: "4.0+" },
-											{ value: "4.5", label: "4.5+" },
-										] as Array<{ value: ExploreMinRating; label: string }>
-									).map((opt) => {
-										const active = minRating === opt.value;
-										return (
-											<button
-												key={opt.value}
-												type="button"
-												aria-pressed={active}
-												onClick={() =>
-													setExploreFilters({ minRating: opt.value })
-												}
-												className={cn(
-													"inline-flex min-h-[38px] items-center gap-1 rounded-[8px] border px-3 text-xs font-semibold transition-colors",
-													active
-														? "border-primary bg-primary text-primary-foreground"
-														: "border-border bg-card text-foreground hover:border-primary/60",
-												)}
-											>
-												{opt.value !== "all" ? (
-													<Star className="size-3.5" aria-hidden="true" />
-												) : null}
-												{opt.label}
-											</button>
-										);
-									})}
+											<SelectItem value="community_verified">
+												Terverifikasi Komunitas
+											</SelectItem>
+											<SelectItem value="unverified">
+												Belum Terverifikasi
+											</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
-							</fieldset>
 
-							<fieldset className="m-0 space-y-1.5 border-0 p-0">
-								<legend className="text-xs font-semibold text-muted-foreground">
-									Kisaran Harga
-								</legend>
-								<div className="flex flex-wrap gap-1.5">
-									{(
-										[
-											{ value: "all", label: "Semua" },
-											{ value: "budget", label: "Hemat" },
-											{ value: "mid", label: "Menengah" },
-											{ value: "premium", label: "Spesial" },
-										] as Array<{ value: ExplorePriceTier; label: string }>
-									).map((opt) => {
-										const active = priceTier === opt.value;
-										return (
-											<button
-												key={opt.value}
-												type="button"
-												aria-pressed={active}
-												onClick={() =>
-													setExploreFilters({ priceTier: opt.value })
-												}
-												className={cn(
-													"inline-flex min-h-[38px] items-center rounded-[8px] border px-2.5 text-xs font-semibold transition-colors",
-													active
-														? "border-primary bg-primary text-primary-foreground"
-														: "border-border bg-card text-foreground hover:border-primary/60",
-												)}
-											>
-												{opt.label}
-											</button>
-										);
-									})}
+								<div className="flex flex-col gap-2">
+									<Label
+										htmlFor={ratingSelectId}
+										className="text-xs font-semibold text-muted-foreground"
+									>
+										Rating Minimum
+									</Label>
+									<Select
+										value={minRating}
+										onValueChange={(val) =>
+											setExploreFilters({ minRating: val as ExploreMinRating })
+										}
+									>
+										<SelectTrigger id={ratingSelectId} className="bg-card">
+											<div className="flex min-w-0 flex-1 items-center gap-2">
+												<Star
+													className={cn(
+														"size-4 shrink-0",
+														minRating !== "all"
+															? "fill-accent-yellow text-accent-yellow"
+															: "text-muted-foreground",
+													)}
+													aria-hidden="true"
+												/>
+												<SelectValue />
+											</div>
+										</SelectTrigger>
+										<SelectContent>
+											{MIN_RATING_OPTIONS.map((opt) => (
+												<SelectItem key={opt.value} value={opt.value}>
+													{opt.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 								</div>
-							</fieldset>
-						</div>
 
-						{/* Extra Toggles + Panel Actions */}
-						<div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-							<div className="flex flex-wrap items-center gap-2">
-								<button
-									type="button"
-									aria-pressed={onlyHiddenGem}
-									onClick={() =>
-										setExploreFilters({ onlyHiddenGem: !onlyHiddenGem })
-									}
-									className={cn(
-										"inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
-										onlyHiddenGem
-											? "border-accent-yellow bg-accent text-accent-foreground"
-											: "border-border bg-card text-foreground hover:border-accent-yellow",
-									)}
-								>
-									<Gem className="size-3.5" aria-hidden="true" />
-									Hanya Hidden Gem
-								</button>
-
-								<button
-									type="button"
-									aria-pressed={onlyBookmarked}
-									onClick={() =>
-										setExploreFilters({ onlyBookmarked: !onlyBookmarked })
-									}
-									className={cn(
-										"inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
-										onlyBookmarked
-											? "border-primary bg-primary-soft text-primary-hover"
-											: "border-border bg-card text-foreground hover:border-primary/60",
-									)}
-								>
-									<Bookmark className="size-3.5" aria-hidden="true" />
-									Hanya Bookmark ({bookmarkedPlaceIds.length})
-								</button>
+								<div className="flex flex-col gap-2">
+									<Label
+										htmlFor={priceSelectId}
+										className="text-xs font-semibold text-muted-foreground"
+									>
+										Kisaran Harga
+									</Label>
+									<Select
+										value={priceTier}
+										onValueChange={(val) =>
+											setExploreFilters({ priceTier: val as ExplorePriceTier })
+										}
+									>
+										<SelectTrigger id={priceSelectId} className="bg-card">
+											<div className="flex min-w-0 flex-1 items-center gap-2">
+												<Banknote
+													className={cn(
+														"size-4 shrink-0",
+														priceTier !== "all"
+															? "text-primary"
+															: "text-muted-foreground",
+													)}
+													aria-hidden="true"
+												/>
+												<SelectValue />
+											</div>
+										</SelectTrigger>
+										<SelectContent>
+											{PRICE_TIER_OPTIONS.map((opt) => (
+												<SelectItem key={opt.value} value={opt.value}>
+													{opt.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 							</div>
 
-							<div className="flex items-center gap-2">
-								{hasActiveFilters ? (
-									<Button variant="ghost" size="sm" onClick={handleReset}>
-										<RotateCcw className="size-3.5" aria-hidden="true" />
-										Reset Semua
+							{/* Extra Toggles + Panel Actions */}
+							<div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+								<div className="flex flex-wrap items-center gap-2">
+									<button
+										type="button"
+										aria-pressed={onlyHiddenGem}
+										onClick={() =>
+											setExploreFilters({ onlyHiddenGem: !onlyHiddenGem })
+										}
+										className={cn(
+											"inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
+											onlyHiddenGem
+												? "border-accent-yellow bg-accent text-accent-foreground"
+												: "border-border bg-card text-foreground hover:border-accent-yellow",
+										)}
+									>
+										<Gem className="size-3.5" aria-hidden="true" />
+										Hanya Hidden Gem
+									</button>
+
+									<button
+										type="button"
+										aria-pressed={onlyBookmarked}
+										onClick={() =>
+											setExploreFilters({ onlyBookmarked: !onlyBookmarked })
+										}
+										className={cn(
+											"inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
+											onlyBookmarked
+												? "border-primary bg-primary-soft text-primary-hover"
+												: "border-border bg-card text-foreground hover:border-primary/60",
+										)}
+									>
+										<Bookmark className="size-3.5" aria-hidden="true" />
+										Hanya Bookmark ({bookmarkedPlaceIds.length})
+									</button>
+								</div>
+
+								<div className="ml-auto flex shrink-0 items-center gap-2">
+									{hasActiveFilters ? (
+										<Button variant="ghost" size="sm" onClick={handleReset}>
+											<RotateCcw className="size-3.5" aria-hidden="true" />
+											Reset Semua
+										</Button>
+									) : null}
+									<Button
+										type="button"
+										variant="secondary"
+										size="sm"
+										onClick={() => setFiltersOpen(false)}
+									>
+										Tutup Filter
 									</Button>
-								) : null}
-								<Button
-									type="button"
-									variant="secondary"
-									size="sm"
-									onClick={() => setFiltersOpen(false)}
-								>
-									Tutup Filter
-								</Button>
+								</div>
 							</div>
 						</div>
 					</div>
-				) : null}
+				</div>
 			</section>
 
 			{/* Result Count, Active Filter Chips & View Mode Switcher */}
@@ -737,10 +857,10 @@ export default function ExplorePage() {
 						<button
 							type="button"
 							onClick={() => setExploreFilters({ priceTier: "all" })}
-							aria-label={`Hapus filter harga ${priceTierLabels[priceTier]}`}
+							aria-label={`Hapus filter harga ${PRICE_TIER_LABELS[priceTier]}`}
 							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
 						>
-							{priceTierLabels[priceTier]}
+							{PRICE_TIER_LABELS[priceTier]}
 							<X className="size-3.5" aria-hidden="true" />
 						</button>
 					) : null}
@@ -777,11 +897,7 @@ export default function ExplorePage() {
 					) : null}
 				</div>
 
-				<div className="flex items-center gap-2">
-					<Badge variant="secondary" className="hidden sm:inline-flex">
-						{!hydrated ? "Memuat data lokal..." : "Katalog Batang"}
-					</Badge>
-
+				<div className="ml-auto flex shrink-0 items-center gap-2">
 					<fieldset className="m-0 inline-flex items-center rounded-[8px] border border-border bg-background p-0.5">
 						<legend className="sr-only">Mode tampilan daftar</legend>
 						<button

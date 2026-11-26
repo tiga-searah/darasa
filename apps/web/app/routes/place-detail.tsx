@@ -2,8 +2,11 @@ import {
 	ArrowLeft,
 	Award,
 	Bookmark,
+	ChevronLeft,
+	ChevronRight,
 	Clock,
 	Compass,
+	Eye,
 	Gem,
 	ImagePlus,
 	MapPin,
@@ -12,14 +15,23 @@ import {
 	Phone,
 	Star,
 	Store,
+	X,
 } from "lucide-react";
-import { type ChangeEvent, type FormEvent, useId, useState } from "react";
+import {
+	type ChangeEvent,
+	type FormEvent,
+	useEffect,
+	useId,
+	useRef,
+	useState,
+} from "react";
 import { Link, useParams } from "react-router";
 import { BatangMapPreview } from "~/components/batang-map-preview";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
 	Dialog,
+	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -31,14 +43,27 @@ import { Separator } from "~/components/ui/separator";
 import { Textarea } from "~/components/ui/textarea";
 import { VerificationBadge } from "~/components/verification-badge";
 import { useDarasa } from "~/context/darasa-store";
+import { INITIAL_PLACES } from "~/data/batang-places";
 import type { Route } from "./+types/place-detail";
 
+function formatSlugTitle(slug?: string): string {
+	if (!slug) return "Detail Kuliner";
+	return slug
+		.split("-")
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+}
+
 export function meta({ params }: Route.MetaArgs) {
+	const matchedPlace = INITIAL_PLACES.find((p) => p.slug === params.slug);
+	const pageTitle = matchedPlace?.name ?? formatSlugTitle(params.slug);
 	return [
-		{ title: `${params.slug ?? "Detail Kuliner"} | Darasa` },
+		{ title: `${pageTitle} | Darasa` },
 		{
 			name: "description",
 			content:
+				matchedPlace?.description ??
 				"Detail tempat kuliner, foto, rating, ulasan komunitas, dan lokasi peta di Kabupaten Batang.",
 		},
 	];
@@ -46,9 +71,17 @@ export function meta({ params }: Route.MetaArgs) {
 
 export default function PlaceDetailPage() {
 	const { slug } = useParams();
-	const { places, currentUser, submitReview, isBookmarked, toggleBookmark } =
-		useDarasa();
+	const {
+		places,
+		hydrated,
+		currentUser,
+		recordPlaceView,
+		submitReview,
+		isBookmarked,
+		toggleBookmark,
+	} = useDarasa();
 	const place = places.find((p) => p.slug === slug);
+	const recordedPlaceIdRef = useRef<string | null>(null);
 
 	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 	const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -63,6 +96,24 @@ export default function PlaceDetailPage() {
 	const commentId = useId();
 	const photoInputId = useId();
 	const errorId = useId();
+
+	useEffect(() => {
+		if (place) {
+			document.title = `${place.name} | Darasa`;
+		}
+	}, [place]);
+
+	useEffect(() => {
+		if (!place?.id) return;
+		setActivePhotoIndex(0);
+	}, [place?.id]);
+
+	useEffect(() => {
+		if (!hydrated || !place?.id) return;
+		if (recordedPlaceIdRef.current === place.id) return;
+		recordedPlaceIdRef.current = place.id;
+		recordPlaceView(place.id);
+	}, [hydrated, place?.id, recordPlaceView]);
 
 	if (!place) {
 		return (
@@ -84,9 +135,23 @@ export default function PlaceDetailPage() {
 		);
 	}
 
-	const photos =
-		place.photos.length > 0 ? place.photos : ["/images/megono-batang.svg"];
-	const activePhoto = photos[activePhotoIndex] ?? photos[0];
+	const photos = Array.from(
+		new Set(
+			place.photos.length > 0 ? place.photos : ["/images/megono-batang.svg"],
+		),
+	);
+	const safePhotoIndex = Math.min(
+		activePhotoIndex,
+		Math.max(0, photos.length - 1),
+	);
+	const activePhoto = photos[safePhotoIndex] ?? photos[0];
+	const hasMultiplePhotos = photos.length > 1;
+	const showPrevPhoto = () => {
+		setActivePhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+	};
+	const showNextPhoto = () => {
+		setActivePhotoIndex((prev) => (prev + 1) % photos.length);
+	};
 	const isVisitor = currentUser.role === "visitor";
 	const isClaimed = Boolean(place.ownerId);
 	const saved = isBookmarked(place.id);
@@ -155,7 +220,7 @@ export default function PlaceDetailPage() {
 						className={`size-4 ${saved ? "fill-current" : ""}`}
 						aria-hidden="true"
 					/>
-					{saved ? "Tersimpan di Bookmark" : "Simpan Bookmark"}
+					{saved ? "Tersimpan" : "Simpan"}
 				</Button>
 			</div>
 
@@ -169,90 +234,134 @@ export default function PlaceDetailPage() {
 			) : null}
 
 			{/* Top Hero & Summary Split (Cardless, Play Store / Maps style) */}
-			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
 				<section
 					aria-label="Galeri foto tempat kuliner"
 					className="lg:col-span-7 space-y-3"
 				>
-					<div className="overflow-hidden rounded-[14px] bg-muted">
+					<div className="group relative overflow-hidden rounded-[14px] bg-muted">
 						<button
 							type="button"
 							onClick={() => setLightboxOpen(true)}
 							aria-label={`Perbesar foto ${place.name}`}
-							className="group relative block w-full overflow-hidden text-left"
+							className="block w-full overflow-hidden text-left"
 						>
 							<img
 								src={activePhoto}
-								alt={`Foto utama ${place.name}`}
+								alt={`Foto ${safePhotoIndex + 1} ${place.name}`}
 								width={800}
 								height={500}
 								fetchPriority="high"
 								className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
 							/>
-							<span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm border border-border">
-								<Maximize2
-									className="size-3.5 text-primary"
-									aria-hidden="true"
-								/>
-								Perbesar foto
-							</span>
+						</button>
+
+						{hasMultiplePhotos ? (
+							<>
+								<span className="pointer-events-none absolute top-3 right-3 rounded-full border border-border bg-card/95 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm tabular-nums">
+									{safePhotoIndex + 1} / {photos.length}
+								</span>
+								<button
+									type="button"
+									onClick={showPrevPhoto}
+									aria-label="Foto sebelumnya"
+									title="Foto sebelumnya"
+									className="absolute left-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card/95 text-foreground shadow-sm transition-colors hover:bg-card hover:text-primary"
+								>
+									<ChevronLeft className="size-4" aria-hidden="true" />
+								</button>
+								<button
+									type="button"
+									onClick={showNextPhoto}
+									aria-label="Foto berikutnya"
+									title="Foto berikutnya"
+									className="absolute right-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card/95 text-foreground shadow-sm transition-colors hover:bg-card hover:text-primary"
+								>
+									<ChevronRight className="size-4" aria-hidden="true" />
+								</button>
+							</>
+						) : null}
+
+						<button
+							type="button"
+							onClick={() => setLightboxOpen(true)}
+							aria-label={`Perbesar foto ${place.name}`}
+							title="Perbesar foto"
+							className="absolute bottom-3 right-3 inline-flex size-10 items-center justify-center rounded-full border border-border bg-card/95 text-foreground shadow-sm transition-colors hover:bg-card hover:text-primary"
+						>
+							<Maximize2 className="size-4" aria-hidden="true" />
 						</button>
 					</div>
 
 					<Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-						<DialogContent className="max-w-3xl p-4 sm:p-6">
-							<DialogHeader>
-								<DialogTitle>{place.name}</DialogTitle>
-								<DialogDescription>
-									Foto ke-{activePhotoIndex + 1} dari {photos.length} ·{" "}
-									{place.district}, Kabupaten Batang
-								</DialogDescription>
-							</DialogHeader>
-							<div className="overflow-hidden rounded-[10px] border border-border bg-background">
+						<DialogContent
+							bare
+							onKeyDown={(event) => {
+								if (!hasMultiplePhotos) return;
+								if (event.key === "ArrowLeft") {
+									event.preventDefault();
+									showPrevPhoto();
+								} else if (event.key === "ArrowRight") {
+									event.preventDefault();
+									showNextPhoto();
+								}
+							}}
+						>
+							<DialogTitle className="sr-only">{place.name}</DialogTitle>
+							<DialogDescription className="sr-only">
+								Foto ke-{safePhotoIndex + 1} dari {photos.length}
+							</DialogDescription>
+							<div className="relative">
 								<img
 									src={activePhoto}
-									alt={`Foto ukuran penuh ${place.name}`}
-									className="max-h-[70vh] w-full object-contain"
+									alt={`Foto ukuran penuh ${safePhotoIndex + 1} ${place.name}`}
+									className="block max-h-[88dvh] max-w-[92dvw] w-auto h-auto rounded-[10px] object-contain"
 								/>
-							</div>
-							{photos.length > 1 ? (
-								<div className="flex flex-wrap gap-2">
-									{photos.map((src, idx) => (
+								<DialogClose
+									aria-label="Tutup foto"
+									className="absolute top-3 right-3 inline-flex size-10 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+								>
+									<X className="size-5" aria-hidden="true" />
+								</DialogClose>
+								{hasMultiplePhotos ? (
+									<>
 										<button
-											key={src}
 											type="button"
-											onClick={() => setActivePhotoIndex(idx)}
-											className={`overflow-hidden rounded-[8px] border-2 ${
-												idx === activePhotoIndex
-													? "border-primary"
-													: "border-border"
-											}`}
+											onClick={showPrevPhoto}
+											aria-label="Foto sebelumnya"
+											title="Foto sebelumnya"
+											className="absolute left-3 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/80"
 										>
-											<img
-												src={src}
-												alt={`Pilih foto ${idx + 1}`}
-												className="h-14 w-20 object-cover"
-											/>
+											<ChevronLeft className="size-5" aria-hidden="true" />
 										</button>
-									))}
-								</div>
-							) : null}
+										<button
+											type="button"
+											onClick={showNextPhoto}
+											aria-label="Foto berikutnya"
+											title="Foto berikutnya"
+											className="absolute right-3 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/80"
+										>
+											<ChevronRight className="size-5" aria-hidden="true" />
+										</button>
+									</>
+								) : null}
+							</div>
 						</DialogContent>
 					</Dialog>
 
-					{photos.length > 1 ? (
-						<div className="flex flex-wrap gap-2">
+					{hasMultiplePhotos ? (
+						<div className="flex gap-2 overflow-x-auto pb-1">
 							{photos.map((src, idx) => (
 								<button
 									key={src}
 									type="button"
 									onClick={() => setActivePhotoIndex(idx)}
 									aria-label={`Lihat foto ${idx + 1}`}
-									aria-pressed={idx === activePhotoIndex}
-									className={`overflow-hidden rounded-[8px] border-2 ${
-										idx === activePhotoIndex
+									aria-pressed={idx === safePhotoIndex}
+									className={`shrink-0 overflow-hidden rounded-[8px] border-2 transition-colors ${
+										idx === safePhotoIndex
 											? "border-primary"
-											: "border-border"
+											: "border-border hover:border-input"
 									}`}
 								>
 									<img
@@ -268,7 +377,7 @@ export default function PlaceDetailPage() {
 					) : null}
 				</section>
 
-				<div className="lg:col-span-5 lg:border-l lg:border-border lg:pl-7 flex flex-col justify-between gap-6">
+				<div className="lg:col-span-5 flex flex-col justify-between gap-6">
 					<div className="space-y-4">
 						<div className="flex flex-wrap items-center gap-2">
 							<Badge variant="secondary">{place.category}</Badge>
@@ -282,18 +391,27 @@ export default function PlaceDetailPage() {
 							{place.name}
 						</h1>
 
-						<div className="flex items-center gap-2">
-							<Star
-								className="size-5 fill-accent-yellow text-yellow-text"
-								aria-hidden="true"
-							/>
-							<span className="text-xl font-bold text-foreground tabular-nums">
-								{place.reviewCount > 0
-									? place.averageRating.toFixed(1)
-									: "Belum ada"}
+						<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+							<div className="flex items-center gap-2">
+								<Star
+									className="size-5 fill-accent-yellow text-yellow-text"
+									aria-hidden="true"
+								/>
+								<span className="text-xl font-bold text-foreground tabular-nums">
+									{place.reviewCount > 0
+										? place.averageRating.toFixed(1)
+										: "Belum ada"}
+								</span>
+								<span className="text-sm text-muted-foreground tabular-nums">
+									({place.reviewCount} ulasan)
+								</span>
+							</div>
+							<span aria-hidden="true" className="text-border">
+								·
 							</span>
-							<span className="text-sm text-muted-foreground tabular-nums">
-								({place.reviewCount} ulasan)
+							<span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground tabular-nums">
+								<Eye className="size-4 text-primary" aria-hidden="true" />
+								{place.views.toLocaleString("id-ID")}
 							</span>
 						</div>
 
@@ -358,7 +476,7 @@ export default function PlaceDetailPage() {
 						</dl>
 
 						{/* Inline Play-Store-style metric bar instead of boxed stat cards */}
-						<div className="grid grid-cols-2 divide-x divide-border border-y border-border py-3">
+						<div className="grid grid-cols-2 divide-x divide-border py-3">
 							<div className="pr-3">
 								<p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
 									<Compass
@@ -382,7 +500,9 @@ export default function PlaceDetailPage() {
 								<p className="mt-0.5 text-lg font-bold text-foreground tabular-nums">
 									{place.hiddenGemEligible
 										? place.hiddenGemScore.toFixed(2)
-										: "Tidak masuk (<4.0)"}
+										: place.reviews.some((r) => r.comment.trim().length > 0)
+											? "Tidak masuk (<4.0)"
+											: "Butuh ulasan tertulis"}
 								</p>
 							</div>
 						</div>
@@ -425,7 +545,7 @@ export default function PlaceDetailPage() {
 			<Separator />
 
 			{/* Map & Reviews Split (Open divided sections, minimal card) */}
-			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
 				<section className="lg:col-span-7 space-y-6">
 					{/* Play Store Style Rating Breakdown */}
 					<div className="space-y-4 border-b border-border pb-6">
@@ -563,7 +683,7 @@ export default function PlaceDetailPage() {
 					</div>
 				</section>
 
-				<aside className="lg:col-span-5 lg:border-l lg:border-border lg:pl-7 space-y-4">
+				<aside className="lg:col-span-5 space-y-4">
 					<h2 className="text-lg font-bold text-foreground">
 						Lokasi di Batang
 					</h2>
@@ -614,7 +734,7 @@ export default function PlaceDetailPage() {
 										<label
 											key={value}
 											onMouseEnter={() => setHoverRating(value)}
-											className="inline-flex size-11 items-center justify-center rounded-[8px] transition-transform duration-150 hover:scale-110 active:scale-95 focus-within:outline-2 focus-within:outline-ring"
+											className="relative inline-flex size-11 items-center justify-center rounded-[8px] transition-transform duration-150 hover:scale-110 active:scale-95 focus-within:outline-2 focus-within:outline-ring"
 										>
 											<input
 												type="radio"
@@ -623,7 +743,7 @@ export default function PlaceDetailPage() {
 												checked={rating === value}
 												onChange={() => setRating(value)}
 												aria-label={`${value} bintang`}
-												className="visually-hidden"
+												className="sr-only"
 											/>
 											<Star
 												className={`size-8 transition-colors duration-150 ${

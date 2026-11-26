@@ -1,4 +1,4 @@
-import { Bookmark, Clock, Compass, Gem, MapPin, Star } from "lucide-react";
+import { Bookmark, Clock, Compass, Eye, Gem, MapPin, Star } from "lucide-react";
 import { Link } from "react-router";
 import { Badge } from "~/components/ui/badge";
 import { VerificationBadge } from "~/components/verification-badge";
@@ -10,6 +10,42 @@ interface PlaceCardProps {
 	mode?: "explore" | "hidden-gem";
 	layout?: "grid" | "list";
 	prioritizeImage?: boolean;
+}
+
+/** Shared icon-only bookmark toggle matching the Explore card style. */
+export function BookmarkIconButton({
+	placeName,
+	saved,
+	onToggle,
+}: {
+	placeName: string;
+	saved: boolean;
+	onToggle: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onToggle}
+			aria-pressed={saved}
+			aria-label={
+				saved
+					? `Hapus ${placeName} dari bookmark`
+					: `Simpan ${placeName} ke bookmark`
+			}
+			title={saved ? "Hapus dari Bookmark" : "Simpan ke Bookmark"}
+			className={cn(
+				"relative z-10 inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border transition-colors",
+				saved
+					? "border-primary/40 bg-primary-soft text-primary"
+					: "border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground",
+			)}
+		>
+			<Bookmark
+				className={cn("size-4", saved ? "fill-primary" : "")}
+				aria-hidden="true"
+			/>
+		</button>
+	);
 }
 
 export function PlaceCard({
@@ -37,28 +73,11 @@ export function PlaceCard({
 		);
 
 	const bookmarkButton = (
-		<button
-			type="button"
-			onClick={() => toggleBookmark(place.id)}
-			aria-pressed={saved}
-			aria-label={
-				saved
-					? `Hapus ${place.name} dari bookmark`
-					: `Simpan ${place.name} ke bookmark`
-			}
-			title={saved ? "Hapus dari Bookmark" : "Simpan ke Bookmark"}
-			className={cn(
-				"relative z-10 inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border transition-colors",
-				saved
-					? "border-primary/40 bg-primary-soft text-primary"
-					: "border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground",
-			)}
-		>
-			<Bookmark
-				className={cn("size-4", saved ? "fill-primary" : "")}
-				aria-hidden="true"
-			/>
-		</button>
+		<BookmarkIconButton
+			placeName={place.name}
+			saved={saved}
+			onToggle={() => toggleBookmark(place.id)}
+		/>
 	);
 
 	if (layout === "list") {
@@ -120,6 +139,13 @@ export function PlaceCard({
 						</span>
 						<span className="text-xs font-medium text-foreground tabular-nums">
 							{place.priceRange}
+						</span>
+						<span aria-hidden="true" className="text-border">
+							·
+						</span>
+						<span className="inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+							<Eye className="size-3.5 text-primary" aria-hidden="true" />
+							{place.views.toLocaleString("id-ID")}
 						</span>
 					</div>
 
@@ -196,6 +222,13 @@ export function PlaceCard({
 						<span className="inline-flex items-center gap-1 text-muted-foreground">
 							<MapPin className="size-3.5 text-primary" aria-hidden="true" />
 							{place.district}
+						</span>
+						<span aria-hidden="true" className="text-border">
+							·
+						</span>
+						<span className="inline-flex items-center gap-1 text-muted-foreground tabular-nums">
+							<Eye className="size-3.5 text-primary" aria-hidden="true" />
+							{place.views.toLocaleString("id-ID")}
 						</span>
 					</div>
 				</div>

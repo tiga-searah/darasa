@@ -12,6 +12,7 @@ import {
 	INITIAL_CLAIMS,
 	INITIAL_PLACES,
 	INITIAL_REVIEWS,
+	PLACE_CATEGORIES,
 } from "~/data/batang-places";
 import {
 	calculateExploreScore,
@@ -33,10 +34,29 @@ import type {
 	VerificationStatus,
 } from "~/lib/types";
 
-export type ExploreSortOption = "explore" | "rating" | "reviews" | "newest";
+export type ExploreSortOption =
+	| "explore"
+	| "rating"
+	| "reviews"
+	| "views"
+	| "newest"
+	| "az"
+	| "za";
 export type ExploreViewMode = "grid" | "list";
-export type ExploreMinRating = "all" | "4.0" | "4.5";
-export type ExplorePriceTier = "all" | "budget" | "mid" | "premium";
+export type ExploreMinRating =
+	| "all"
+	| "2.0"
+	| "2.5"
+	| "3.0"
+	| "3.5"
+	| "4.0"
+	| "4.5";
+export type ExplorePriceTier =
+	| "all"
+	| "under_25k"
+	| "25k_50k"
+	| "50k_100k"
+	| "over_100k";
 
 export interface ExploreFilters {
 	keyword: string;
@@ -140,6 +160,7 @@ interface DarasaContextValue {
 			CulinaryPlace,
 			| "id"
 			| "slug"
+			| "views"
 			| "verificationStatus"
 			| "submittedByUserId"
 			| "submittedByName"
@@ -147,6 +168,7 @@ interface DarasaContextValue {
 			| "isPendingModeration"
 		>,
 	) => CulinaryPlace;
+	recordPlaceView: (placeId: string) => void;
 	submitReview: (input: {
 		placeId: string;
 		rating: number;
@@ -203,6 +225,32 @@ interface DarasaContextValue {
 }
 
 const DarasaContext = createContext<DarasaContextValue | null>(null);
+
+const LEGACY_CATEGORY_MAP: Record<string, PlaceCategory> = {
+	"Masakan Tradisional": "Makanan berat",
+	"Kuliner Pesisir": "Makanan berat",
+	"Warung Pekerja": "Makanan berat",
+	"Kopi & Kafe": "Minuman",
+	"Bakso & Mie": "Street food",
+	"Jajanan & Oleh-oleh": "Dessert",
+};
+
+const INITIAL_PHOTOS_BY_ID = new Map(
+	INITIAL_PLACES.map((place) => [place.id, place.photos]),
+);
+
+function normalizeCategory(value: unknown): PlaceCategory {
+	if (
+		typeof value === "string" &&
+		PLACE_CATEGORIES.includes(value as PlaceCategory)
+	) {
+		return value as PlaceCategory;
+	}
+	if (typeof value === "string" && value in LEGACY_CATEGORY_MAP) {
+		return LEGACY_CATEGORY_MAP[value];
+	}
+	return "Makanan berat";
+}
 
 function slugify(value: string): string {
 	return (
@@ -270,7 +318,28 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				const parsed = JSON.parse(raw) as Partial<PersistedState>;
 				if (Array.isArray(parsed.places) && Array.isArray(parsed.reviews)) {
 					setState({
-						places: parsed.places,
+						places: parsed.places.map((place) => {
+							const seedPhotos = INITIAL_PHOTOS_BY_ID.get(place.id);
+							const customPhotos = Array.isArray(place.photos)
+								? place.photos.filter((src) => !src.endsWith(".svg"))
+								: [];
+							const photos =
+								seedPhotos && place.isPrototypeSample
+									? Array.from(new Set([...customPhotos, ...seedPhotos]))
+									: place.photos;
+							return {
+								...place,
+								category: normalizeCategory(place.category),
+								photos,
+								views:
+									typeof place.views === "number" &&
+									Number.isFinite(place.views) &&
+									place.views >= 0
+										? place.views
+										: (INITIAL_PLACES.find((ip) => ip.id === place.id)?.views ??
+											0),
+							};
+						}),
 						reviews: parsed.reviews,
 						claims: Array.isArray(parsed.claims)
 							? parsed.claims
@@ -335,15 +404,26 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			const placeReviews = reviewsByPlace[place.id] ?? [];
 			const averageRating = getAverageRating(placeReviews);
 			const reviewCount = placeReviews.length;
+			const views =
+				typeof place.views === "number" &&
+				Number.isFinite(place.views) &&
+				place.views >= 0
+					? place.views
+					: 0;
 			const exploreBreakdown = calculateExploreScore(place, placeReviews);
-			const hiddenGemEligible = isHiddenGemEligible(averageRating);
+			const hiddenGemEligible = isHiddenGemEligible(
+				averageRating,
+				placeReviews,
+			);
 			const hiddenGemScore = calculateHiddenGemScore(
 				averageRating,
-				reviewCount,
+				placeReviews,
+				views,
 			);
 
 			return {
 				...place,
+				views,
 				reviews: placeReviews,
 				averageRating,
 				reviewCount,
@@ -454,6 +534,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					input.photos.length > 0
 						? input.photos
 						: ["/images/megono-batang.svg"],
+				views: 0,
 				verificationStatus: "unverified",
 				submittedByUserId: currentUser.id,
 				submittedByName: currentUser.name,
@@ -470,6 +551,25 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 		},
 		[currentUser, notify],
 	);
+
+	const recordPlaceView = useCallback((placeId: string) => {
+		setState((prev) => ({
+			...prev,
+			places: prev.places.map((p) =>
+				p.id === placeId
+					? {
+							...p,
+							views:
+								(typeof p.views === "number" &&
+								Number.isFinite(p.views) &&
+								p.views >= 0
+									? p.views
+									: 0) + 1,
+						}
+					: p,
+			),
+		}));
+	}, []);
 
 	const submitReview: DarasaContextValue["submitReview"] = useCallback(
 		({ placeId, rating, comment, photoUrl }) => {
@@ -786,6 +886,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			switchDemoAccount,
 			logout,
 			submitPlace,
+			recordPlaceView,
 			submitReview,
 			submitClaim,
 			reviewClaim,
@@ -819,6 +920,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			switchDemoAccount,
 			logout,
 			submitPlace,
+			recordPlaceView,
 			submitReview,
 			submitClaim,
 			reviewClaim,

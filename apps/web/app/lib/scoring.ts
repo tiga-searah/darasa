@@ -84,23 +84,34 @@ export function calculateExploreScore(
 	};
 }
 
-/**
- * PRD 4.7 Hidden Gem eligibility: Average Rating >= 4.0
- */
-export function isHiddenGemEligible(averageRating: number): boolean {
-	return averageRating >= 4.0;
+export function getWrittenReviewCount(reviews: ReviewItem[]): number {
+	return reviews.filter((item) => item.comment.trim().length > 0).length;
 }
 
 /**
- * PRD 4.7 Hidden Gem Score formula:
- * Hidden Gem Score = Average Rating * (1 / (1 + Review Count))
+ * Hidden Gem eligibility:
+ * Average Rating >= 4.0 and must have at least one rating accompanied by a written review.
+ */
+export function isHiddenGemEligible(
+	averageRating: number,
+	reviews: ReviewItem[],
+): boolean {
+	return averageRating >= 4.0 && getWrittenReviewCount(reviews) > 0;
+}
+
+/**
+ * Hidden Gem Score formula (with YouTube-style view exposure decay):
+ * Hidden Gem Score = Average Rating * (1 / (1 + Review Count + log10(1 + Views)))
  */
 export function calculateHiddenGemScore(
 	averageRating: number,
-	reviewCount: number,
+	reviews: ReviewItem[],
+	views: number,
 ): number {
-	if (!isHiddenGemEligible(averageRating)) return 0;
-	return Number((averageRating * (1 / (1 + reviewCount))).toFixed(3));
+	if (!isHiddenGemEligible(averageRating, reviews)) return 0;
+	const safeViews = Math.max(0, Number.isFinite(views) ? views : 0);
+	const denominator = 1 + reviews.length + Math.log10(1 + safeViews);
+	return Number((averageRating * (1 / denominator)).toFixed(3));
 }
 
 /**

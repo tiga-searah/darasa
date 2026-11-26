@@ -86,21 +86,20 @@ export default function HiddenGemPage() {
 							Hidden Gem Kuliner Batang
 						</h1>
 						<p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-							Memberi panggung bagi UMKM kuliner bermutu tinggi yang masih minim
-							eksposur. Hanya tempat dengan rating rata-rata minimal{" "}
+							Kuliner berating minimal{" "}
 							<strong className="font-semibold text-foreground">4,0</strong>{" "}
-							yang masuk daftar ini.
+							dengan ulasan tertulis yang masih minim eksposur dan kunjungan.
 						</p>
 					</div>
 
 					<details className="rounded-[10px] border border-border bg-background px-4 py-2.5 text-xs max-w-sm">
 						<summary className="flex items-center gap-1.5 font-semibold text-foreground">
 							<Info className="size-4 text-primary" aria-hidden="true" />
-							Rumus Hidden Gem Score (PRD)
+							Rumus Hidden Gem Score
 						</summary>
 						<p className="mt-2 text-muted-foreground leading-relaxed tabular-nums">
-							Skor = Rata-rata Rating x (1 / (1 + Jumlah Ulasan)), dengan syarat
-							Rata-rata Rating &ge; 4,0.
+							Skor = Rata-rata Rating x (1 / (1 + Ulasan + log10(1 + Views))),
+							syarat rating &ge; 4,0 dan wajib ada ulasan tertulis.
 						</p>
 					</details>
 				</div>
@@ -134,8 +133,8 @@ export default function HiddenGemPage() {
 					) : null}
 				</div>
 
-				<div className="flex flex-wrap items-center gap-3">
-					<div className="flex items-center gap-2 min-w-[220px]">
+				<div className="flex w-full items-center justify-between gap-3 sm:w-auto">
+					<div className="flex min-w-0 flex-1 items-center gap-2 sm:w-[220px] sm:flex-none">
 						<Label htmlFor={districtId} className="shrink-0 text-xs">
 							Kawasan:
 						</Label>
@@ -159,7 +158,7 @@ export default function HiddenGemPage() {
 						</Select>
 					</div>
 
-					<fieldset className="m-0 inline-flex items-center rounded-[8px] border border-border bg-background p-0.5">
+					<fieldset className="m-0 ml-auto inline-flex shrink-0 items-center rounded-[8px] border border-border bg-background p-0.5">
 						<legend className="sr-only">Mode tampilan daftar</legend>
 						<button
 							type="button"

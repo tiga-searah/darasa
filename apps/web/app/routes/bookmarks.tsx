@@ -1,8 +1,7 @@
-import { Bookmark, Compass, LayoutGrid, List, Search } from "lucide-react";
+import { LayoutGrid, List, Search } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { PlaceCard } from "~/components/place-card";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -41,28 +40,14 @@ export default function BookmarksPage() {
 
 	return (
 		<div className="space-y-6">
-			<section className="border-b border-border pb-5 space-y-4">
-				<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-					<div className="max-w-2xl space-y-1.5">
-						<Badge variant="secondary">
-							<Bookmark className="size-3.5" aria-hidden="true" />
-							<span>Simpanan Pribadi</span>
-						</Badge>
-						<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
-							Bookmark Kuliner
-						</h1>
-						<p className="text-sm text-muted-foreground">
-							Tempat makan dan kedai pilihan di Batang yang Anda simpan untuk
-							kunjungan berikutnya.
-						</p>
-					</div>
-
-					<Button asChild variant="outline" size="sm">
-						<Link to="/explore">
-							<Compass className="size-4" aria-hidden="true" />
-							Jelajah Lebih Banyak
-						</Link>
-					</Button>
+			<section className="border-b border-border pb-4 space-y-4">
+				<div className="space-y-1">
+					<h1 className="text-2xl font-bold tracking-tight text-foreground">
+						Bookmark
+					</h1>
+					<p className="text-sm text-muted-foreground">
+						Daftar tempat kuliner yang Anda simpan.
+					</p>
 				</div>
 
 				{bookmarkedPlaceIds.length > 0 ? (
@@ -85,7 +70,7 @@ export default function BookmarksPage() {
 							/>
 						</div>
 
-						<div className="flex items-center gap-3">
+						<div className="flex items-center justify-between gap-3 sm:justify-end">
 							<span className="text-sm text-muted-foreground">
 								<strong className="font-semibold text-foreground tabular-nums">
 									{bookmarkedPlaces.length}
@@ -93,7 +78,7 @@ export default function BookmarksPage() {
 								tersimpan
 							</span>
 
-							<fieldset className="m-0 inline-flex items-center rounded-[8px] border border-border bg-background p-0.5">
+							<fieldset className="m-0 inline-flex shrink-0 items-center rounded-[8px] border border-border bg-background p-0.5">
 								<legend className="sr-only">Mode tampilan bookmark</legend>
 								<button
 									type="button"
@@ -132,22 +117,15 @@ export default function BookmarksPage() {
 			</section>
 
 			{bookmarkedPlaceIds.length === 0 ? (
-				<div className="py-16 text-center space-y-4">
-					<div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-						<Bookmark className="size-6" aria-hidden="true" />
-					</div>
-					<h2 className="text-lg font-semibold text-foreground">
-						Belum ada tempat kuliner di Bookmark
-					</h2>
-					<p className="mx-auto max-w-md text-sm text-muted-foreground">
-						Klik ikon bookmark pada kartu kuliner di halaman Jelajah atau detail
-						tempat untuk menyimpannya di sini.
+				<div className="py-12 text-center space-y-3">
+					<p className="text-sm font-medium text-foreground">
+						Belum ada tempat yang disimpan.
 					</p>
-					<Button asChild>
-						<Link to="/explore">
-							<Compass className="size-4" aria-hidden="true" />
-							Jelajah Kuliner Batang
-						</Link>
+					<p className="text-sm text-muted-foreground">
+						Simpan tempat kuliner dari halaman Jelajah untuk melihatnya di sini.
+					</p>
+					<Button asChild variant="outline" size="sm">
+						<Link to="/explore">Jelajah Kuliner</Link>
 					</Button>
 				</div>
 			) : bookmarkedPlaces.length === 0 ? (

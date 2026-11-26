@@ -40,26 +40,33 @@ export function DialogOverlay({
 export function DialogContent({
 	className,
 	children,
+	bare = false,
 	...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+	bare?: boolean;
+}) {
 	return (
 		<DialogPrimitive.Portal>
 			<DialogOverlay />
 			<DialogPrimitive.Content
 				data-slot="dialog-content"
 				className={cn(
-					"fixed top-1/2 left-1/2 z-50 grid w-[min(92dvw,560px)] max-h-[90dvb] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-[16px] border border-border bg-card p-6 text-card-foreground shadow-xl",
+					bare
+						? "fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 outline-none"
+						: "fixed top-1/2 left-1/2 z-50 grid w-[min(92dvw,560px)] max-h-[90dvb] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-[16px] border border-border bg-card p-6 text-card-foreground shadow-xl",
 					className,
 				)}
 				{...props}
 			>
 				{children}
-				<DialogPrimitive.Close
-					aria-label="Tutup dialog"
-					className="absolute top-4 right-4 inline-flex size-10 items-center justify-center rounded-[8px] border border-border bg-card text-muted-foreground hover:bg-background hover:text-foreground"
-				>
-					<X className="size-5" aria-hidden="true" />
-				</DialogPrimitive.Close>
+				{!bare ? (
+					<DialogPrimitive.Close
+						aria-label="Tutup dialog"
+						className="absolute top-4 right-4 inline-flex size-10 items-center justify-center rounded-[8px] border border-border bg-card text-muted-foreground hover:bg-background hover:text-foreground"
+					>
+						<X className="size-5" aria-hidden="true" />
+					</DialogPrimitive.Close>
+				) : null}
 			</DialogPrimitive.Content>
 		</DialogPrimitive.Portal>
 	);
