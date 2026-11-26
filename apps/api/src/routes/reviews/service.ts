@@ -7,7 +7,13 @@ import { type DbOrTx, recomputePlaceStats } from "../../lib/ranking";
 
 type SessionUser = { id: string; role?: string };
 
-import { ApiError, conflict, forbidden, notFound } from "../../utils";
+import {
+	ApiError,
+	conflict,
+	forbidden,
+	isUniqueViolation,
+	notFound,
+} from "../../utils";
 import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -218,11 +224,7 @@ export async function createReview(
 				.returning();
 			inserted = row;
 		} catch (err) {
-			const code =
-				typeof err === "object" && err !== null && "code" in err
-					? (err as { code?: string }).code
-					: undefined;
-			if (code === "23505") {
+			if (isUniqueViolation(err)) {
 				throw conflict("You have already reviewed this place");
 			}
 			throw err;

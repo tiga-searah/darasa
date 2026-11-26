@@ -1,7 +1,12 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
-import { ApiError, hashPassword, verifyPassword } from "../../utils";
+import {
+	ApiError,
+	hashPassword,
+	isUniqueViolation,
+	verifyPassword,
+} from "../../utils";
 
 /** A user row as stored; `passwordHash` never leaves this module. */
 type UserRow = typeof schema.users.$inferSelect;
@@ -81,16 +86,4 @@ export async function authenticate(input: {
 		throw new ApiError("UNAUTHENTICATED", 401, "Invalid email or password");
 
 	return user;
-}
-
-/** Postgres unique_violation, wrapped by drizzle in `DrizzleQueryError`. */
-function isUniqueViolation(error: unknown): boolean {
-	let cause = (error as { cause?: unknown } | undefined)?.cause as
-		| { code?: string; errno?: string; cause?: unknown }
-		| undefined;
-	while (cause) {
-		if (cause.code === "23505" || cause.errno === "23505") return true;
-		cause = cause.cause as typeof cause;
-	}
-	return false;
 }

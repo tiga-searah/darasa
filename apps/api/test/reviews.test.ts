@@ -355,4 +355,23 @@ describe("reviews & anomaly flags", () => {
 		);
 		expect(patchRemoved.status).toBe(409);
 	});
+
+	test("concurrent duplicate POST returns one 201 and one 409", async () => {
+		const place = await seedPublishedPlace();
+		const cookie = await registerUser("race@b.test");
+		const app = freshApp({ storage: memoryStorage() });
+
+		const req = () =>
+			app.handle(
+				new Request(`http://test/api/places/${place.id}/reviews`, {
+					method: "POST",
+					headers: { "content-type": "application/json", cookie },
+					body: JSON.stringify({ rating: 5 }),
+				}),
+			);
+
+		const [r1, r2] = await Promise.all([req(), req()]);
+		const statuses = [r1.status, r2.status].sort();
+		expect(statuses).toEqual([201, 409]);
+	});
 });
