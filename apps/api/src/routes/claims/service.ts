@@ -70,26 +70,28 @@ export async function listMyClaims(
 		},
 	});
 
-	return rows.map((row) => ({
-		id: row.id,
-		placeId: row.placeId,
-		status: row.status,
-		evidence: row.evidence,
-		decisionNote: row.decisionNote,
-		reviewedAt: row.reviewedAt,
-		createdAt: row.createdAt,
-		place: row.place
-			? {
-					id: row.place.id,
-					slug: row.place.slug,
-					name: row.place.name,
-					coverUrl:
-						row.place.coverMedia && storage
-							? resolveMediaUrl(storage, row.place.coverMedia.key)
-							: null,
-				}
-			: null,
-	}));
+	return Promise.all(
+		rows.map(async (row) => ({
+			id: row.id,
+			placeId: row.placeId,
+			status: row.status,
+			evidence: row.evidence,
+			decisionNote: row.decisionNote,
+			reviewedAt: row.reviewedAt,
+			createdAt: row.createdAt,
+			place: row.place
+				? {
+						id: row.place.id,
+						slug: row.place.slug,
+						name: row.place.name,
+						coverUrl:
+							row.place.coverMedia && storage
+								? await resolveMediaUrl(storage, row.place.coverMedia.key)
+								: null,
+					}
+				: null,
+		})),
+	);
 }
 
 export async function listAdminClaims(query: {
@@ -121,7 +123,12 @@ export async function listAdminClaims(query: {
 
 	return {
 		data: rows,
-		meta: { page, limit, total },
+		meta: {
+			page,
+			limit,
+			total,
+			totalPages: Math.max(1, Math.ceil(total / limit)),
+		},
 	};
 }
 
@@ -134,7 +141,8 @@ export async function approveClaim(
 		const [claim] = await tx
 			.select()
 			.from(schema.businessClaims)
-			.where(eq(schema.businessClaims.id, claimId));
+			.where(eq(schema.businessClaims.id, claimId))
+			.for("update");
 
 		if (!claim) {
 			throw notFound("Claim");
@@ -184,7 +192,8 @@ export async function rejectClaim(
 		const [claim] = await tx
 			.select()
 			.from(schema.businessClaims)
-			.where(eq(schema.businessClaims.id, claimId));
+			.where(eq(schema.businessClaims.id, claimId))
+			.for("update");
 
 		if (!claim) {
 			throw notFound("Claim");
