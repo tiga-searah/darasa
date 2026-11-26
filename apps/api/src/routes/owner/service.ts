@@ -74,10 +74,12 @@ export async function listOwnerPlaces(storage: Storage, user: SessionUser) {
 		)
 		.orderBy(asc(schema.places.name));
 
-	return rows.map(({ coverKey, ...rest }) => ({
-		...rest,
-		coverUrl: coverKey ? resolveMediaUrl(storage, coverKey) : null,
-	}));
+	return Promise.all(
+		rows.map(async ({ coverKey, ...rest }) => ({
+			...rest,
+			coverUrl: coverKey ? await resolveMediaUrl(storage, coverKey) : null,
+		})),
+	);
 }
 
 export async function getOwnerPlace(
@@ -200,9 +202,22 @@ export async function getOwnerPlaceStats(
 			),
 		);
 
+	const [place] = await db
+		.select({
+			ratingAvg: schema.places.ratingAvg,
+			reviewCount: schema.places.reviewCount,
+			lastReviewAt: schema.places.lastReviewAt,
+		})
+		.from(schema.places)
+		.where(eq(schema.places.id, placeId))
+		.limit(1);
+
 	return {
 		days,
 		totalViews,
+		ratingAvg: place?.ratingAvg ?? 0,
+		reviewCount: place?.reviewCount ?? 0,
+		lastReviewAt: place?.lastReviewAt ? place.lastReviewAt.toISOString() : null,
 		unansweredReviews: unanswered?.count ?? 0,
 		daily,
 	};

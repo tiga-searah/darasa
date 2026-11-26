@@ -67,7 +67,7 @@ describe("owner dashboard places & stats", () => {
 	beforeEach(resetDb);
 
 	test("lists owned places, updates business info, rejects identity fields and other places", async () => {
-		const { app, cookie, placeA, placeB } = await seedOwnerSetup();
+		const { app, cookie, user, placeA, placeB } = await seedOwnerSetup();
 
 		const list = await app.handle(
 			new Request("http://test/api/owner/places", { headers: { cookie } }),
@@ -113,6 +113,58 @@ describe("owner dashboard places & stats", () => {
 		);
 		expect(ok.status).toBe(200);
 		expect((await json(ok)).data.address).toBe("Jl. Baru 1");
+
+		// invalid coverMediaId (not in place_photos) -> 422
+		const badCover = await app.handle(
+			new Request(`http://test/api/owner/places/${placeA.id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					coverMediaId: "00000000-0000-0000-0000-000000000000",
+				}),
+			}),
+		);
+		expect(badCover.status).toBe(422);
+
+		// valid coverMediaId -> 200 and coverUrl populated in list & detail
+		const [media] = await db
+			.insert(schema.media)
+			.values({
+				ownerId: user.id,
+				key: "places/cover.jpg",
+				mime: "image/jpeg",
+				sizeBytes: 123,
+				purpose: "place_photo",
+			})
+			.returning();
+		await db.insert(schema.placePhotos).values({
+			placeId: placeA.id,
+			mediaId: media.id,
+			sortOrder: 0,
+		});
+		const goodCover = await app.handle(
+			new Request(`http://test/api/owner/places/${placeA.id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ coverMediaId: media.id }),
+			}),
+		);
+		expect(goodCover.status).toBe(200);
+		expect((await json(goodCover)).data.coverUrl).toBeString();
+
+		const listAfter = await app.handle(
+			new Request("http://test/api/owner/places", { headers: { cookie } }),
+		);
+		expect(listAfter.status).toBe(200);
+		expect((await json(listAfter)).data[0].coverUrl).toBeString();
+
+		const detail = await app.handle(
+			new Request(`http://test/api/owner/places/${placeA.id}`, {
+				headers: { cookie },
+			}),
+		);
+		expect(detail.status).toBe(200);
+		expect((await json(detail)).data.id).toBe(placeA.id);
 	});
 
 	test("GET /owner/places/:id/stats returns daily views and unanswered count", async () => {
@@ -131,6 +183,10 @@ describe("owner dashboard places & stats", () => {
 		const body = await json(res);
 		expect(body.data.days).toBe(7);
 		expect(body.data.totalViews).toBe(1);
+		expect(body.data.ratingAvg).toBe(0);
+		expect(body.data.reviewCount).toBe(0);
+		expect(body.data.lastReviewAt).toBeNull();
+		expect(body.data.unansweredReviews).toBe(0);
 		expect(body.data.daily.length).toBe(1);
 	});
 });
