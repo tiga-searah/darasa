@@ -40,21 +40,6 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 		},
 		async (ctx) => listHiddenGems(storageFrom(ctx), ctx.query),
 	)
-	.use(optionalAuth)
-	.get(
-		"/:slug",
-		{
-			params: t.Object({ slug: t.String() }),
-			response: { 200: PlaceDetailResponse },
-		},
-		async (ctx) => ({
-			data: await getPlaceDetail(
-				storageFrom(ctx),
-				ctx.params.slug,
-				ctx.sessionUser,
-			),
-		}),
-	)
 	.post(
 		"/:id/view",
 		{
@@ -65,6 +50,22 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 			set.status = 204;
 			return;
 		},
+	)
+	.group("", (app) =>
+		app.use(optionalAuth).get(
+			"/:slug",
+			{
+				params: t.Object({ slug: t.String() }),
+				response: { 200: PlaceDetailResponse },
+			},
+			async (ctx) => ({
+				data: await getPlaceDetail(
+					storageFrom(ctx),
+					ctx.params.slug,
+					ctx.sessionUser,
+				),
+			}),
+		),
 	)
 	.use(requireAuth)
 	.post(

@@ -19,66 +19,70 @@ const storageFrom = (ctx: unknown): Storage | undefined =>
 	(ctx as { deps?: { storage?: Storage } }).deps?.storage;
 
 export const reviewRoutes = new Elysia()
-	.use(optionalAuth)
-	.get(
-		"/places/:id/reviews",
-		{
-			params: t.Object({ id: t.String({ format: "uuid" }) }),
-			query: ReviewListQuery,
-			response: { 200: PaginatedReviewsResponse },
-		},
-		async (ctx) =>
-			listPlaceReviews(
-				storageFrom(ctx),
-				ctx.params.id,
-				ctx.query,
-				ctx.sessionUser,
-			),
-	)
-	.use(requireAuth)
-	.post(
-		"/places/:id/reviews",
-		{
-			params: t.Object({ id: t.String({ format: "uuid" }) }),
-			body: CreateReviewBody,
-			response: { 201: ReviewResponse },
-		},
-		async (ctx) => {
-			ctx.set.status = 201;
-			return {
-				data: await createReview(
+	.group("", (app) =>
+		app.use(optionalAuth).get(
+			"/places/:id/reviews",
+			{
+				params: t.Object({ id: t.String({ format: "uuid" }) }),
+				query: ReviewListQuery,
+				response: { 200: PaginatedReviewsResponse },
+			},
+			async (ctx) =>
+				listPlaceReviews(
 					storageFrom(ctx),
 					ctx.params.id,
+					ctx.query,
 					ctx.sessionUser,
-					ctx.body,
 				),
-			};
-		},
+		),
 	)
-	.patch(
-		"/reviews/:id",
-		{
-			params: t.Object({ id: t.String({ format: "uuid" }) }),
-			body: UpdateReviewBody,
-			response: { 200: ReviewResponse },
-		},
-		async (ctx) => ({
-			data: await updateReview(
-				storageFrom(ctx),
-				ctx.params.id,
-				ctx.sessionUser,
-				ctx.body,
+	.group("", (app) =>
+		app
+			.use(requireAuth)
+			.post(
+				"/places/:id/reviews",
+				{
+					params: t.Object({ id: t.String({ format: "uuid" }) }),
+					body: CreateReviewBody,
+					response: { 201: ReviewResponse },
+				},
+				async (ctx) => {
+					ctx.set.status = 201;
+					return {
+						data: await createReview(
+							storageFrom(ctx),
+							ctx.params.id,
+							ctx.sessionUser,
+							ctx.body,
+						),
+					};
+				},
+			)
+			.patch(
+				"/reviews/:id",
+				{
+					params: t.Object({ id: t.String({ format: "uuid" }) }),
+					body: UpdateReviewBody,
+					response: { 200: ReviewResponse },
+				},
+				async (ctx) => ({
+					data: await updateReview(
+						storageFrom(ctx),
+						ctx.params.id,
+						ctx.sessionUser,
+						ctx.body,
+					),
+				}),
+			)
+			.delete(
+				"/reviews/:id",
+				{
+					params: t.Object({ id: t.String({ format: "uuid" }) }),
+				},
+				async ({ params, sessionUser, set }) => {
+					await deleteReview(params.id, sessionUser);
+					set.status = 204;
+					return null;
+				},
 			),
-		}),
-	)
-	.delete(
-		"/reviews/:id",
-		{
-			params: t.Object({ id: t.String({ format: "uuid" }) }),
-		},
-		async ({ params, sessionUser, set }) => {
-			await deleteReview(params.id, sessionUser);
-			set.status = 204;
-			return null;
-		},
 	);

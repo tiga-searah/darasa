@@ -182,6 +182,7 @@ export async function listPlaces(
 			reviewCount: schema.places.reviewCount,
 			exploreScore: schema.places.exploreScore,
 			hiddenGemScore: schema.places.hiddenGemScore,
+			lastReviewAt: schema.places.lastReviewAt,
 			distanceKm: distExpr,
 			catId: schema.categories.id,
 			catName: schema.categories.name,
@@ -225,6 +226,7 @@ export async function listPlaces(
 		exploreScore: r.exploreScore,
 		hiddenGemScore: r.hiddenGemScore,
 		distanceKm: r.distanceKm ?? null,
+		lastReviewAt: r.lastReviewAt ? r.lastReviewAt.toISOString() : null,
 	}));
 
 	return {
@@ -287,6 +289,7 @@ export async function listHiddenGems(
 			reviewCount: schema.places.reviewCount,
 			exploreScore: schema.places.exploreScore,
 			hiddenGemScore: schema.places.hiddenGemScore,
+			lastReviewAt: schema.places.lastReviewAt,
 			catId: schema.categories.id,
 			catName: schema.categories.name,
 			catSlug: schema.categories.slug,
@@ -333,6 +336,7 @@ export async function listHiddenGems(
 		exploreScore: r.exploreScore,
 		hiddenGemScore: r.hiddenGemScore,
 		distanceKm: null,
+		lastReviewAt: r.lastReviewAt ? r.lastReviewAt.toISOString() : null,
 	}));
 
 	return {

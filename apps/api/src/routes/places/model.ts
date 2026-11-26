@@ -73,6 +73,7 @@ export const PlaceListItem = t.Object({
 	exploreScore: t.Number(),
 	hiddenGemScore: t.Number(),
 	distanceKm: t.Nullable(t.Number()),
+	lastReviewAt: t.Nullable(t.String()),
 });
 
 export type PlaceListItemType = {
@@ -92,6 +93,7 @@ export type PlaceListItemType = {
 	exploreScore: number;
 	hiddenGemScore: number;
 	distanceKm: number | null;
+	lastReviewAt: string | null;
 };
 
 export const PlacePhotoItem = t.Object({

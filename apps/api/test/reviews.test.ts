@@ -374,4 +374,48 @@ describe("reviews & anomaly flags", () => {
 		const statuses = [r1.status, r2.status].sort();
 		expect(statuses).toEqual([201, 409]);
 	});
+
+	test("GET /places/:id/reviews includes ownerReply.authorName when reply exists", async () => {
+		const place = await seedPublishedPlace();
+		const authorCookie = await registerUser("rev-author@b.test");
+		await registerUser("place-owner@b.test");
+		const [ownerUser] = await db
+			.select()
+			.from(schema.users)
+			.where(eq(schema.users.email, "place-owner@b.test"));
+		if (!ownerUser) throw new Error("missing ownerUser");
+		const app = freshApp({ storage: memoryStorage() });
+
+		const createRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: authorCookie },
+				body: JSON.stringify({ rating: 5, body: "Great spot" }),
+			}),
+		);
+		expect(createRes.status).toBe(201);
+		const { data: created } = (await createRes.json()) as {
+			data: { id: string };
+		};
+
+		await db.insert(schema.ownerReplies).values({
+			placeId: place.id,
+			reviewId: created.id,
+			authorId: ownerUser.id,
+			body: "Thanks for visiting!",
+		});
+
+		const listRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`),
+		);
+		expect(listRes.status).toBe(200);
+		const listBody = (await listRes.json()) as {
+			data: Array<{
+				id: string;
+				ownerReply: { body: string; authorName: string } | null;
+			}>;
+		};
+		expect(listBody.data[0]?.ownerReply?.body).toBe("Thanks for visiting!");
+		expect(listBody.data[0]?.ownerReply?.authorName).toBe(ownerUser.name);
+	});
 });

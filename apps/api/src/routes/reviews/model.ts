@@ -40,6 +40,7 @@ export const ReviewUserSchema = t.Object({
 
 export const OwnerReplySchema = t.Object({
 	id: t.String(),
+	authorName: t.String(),
 	body: t.String(),
 	createdAt: t.Date(),
 	updatedAt: t.Date(),

@@ -48,7 +48,14 @@ async function hydrateReviews(
 			.innerJoin(schema.media, eq(schema.reviewPhotos.mediaId, schema.media.id))
 			.where(inArray(schema.reviewPhotos.reviewId, reviewIds)),
 		tx
-			.select()
+			.select({
+				id: schema.ownerReplies.id,
+				reviewId: schema.ownerReplies.reviewId,
+				body: schema.ownerReplies.body,
+				createdAt: schema.ownerReplies.createdAt,
+				updatedAt: schema.ownerReplies.updatedAt,
+				authorName: schema.users.name,
+			})
 			.from(schema.ownerReplies)
 			.where(inArray(schema.ownerReplies.reviewId, reviewIds)),
 	]);
@@ -59,6 +66,7 @@ async function hydrateReviews(
 			rep.reviewId,
 			{
 				id: rep.id,
+				authorName: rep.authorName,
 				body: rep.body,
 				createdAt: rep.createdAt,
 				updatedAt: rep.updatedAt,
