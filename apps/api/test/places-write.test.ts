@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { db } from "../src/database";
 import { schema } from "../src/database/schema";
 import { memoryStorage } from "../src/lib/storage";
@@ -251,5 +252,254 @@ describe("place photos", () => {
 			where: { id: place.id },
 		});
 		expect(updated!.coverMediaId).toBe(m2);
+	});
+
+	test("DELETE resets coverMediaId to null when last photo is deleted", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-satu-foto",
+				name: "Warung Satu Foto",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+
+		const up = await app.handle(
+			new Request("http://test/api/media/uploads", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					purpose: "place_photo",
+					mime: "image/png",
+					sizeBytes: 12,
+				}),
+			}),
+		);
+		const { id: mediaId } = (await json(up)).data;
+		const row = await db.query.media.findFirst({ where: { id: mediaId } });
+		await storage.put(row!.key, PNG, "image/png");
+		await app.handle(
+			new Request(`http://test/api/media/${mediaId}/commit`, {
+				method: "POST",
+				headers: { cookie },
+			}),
+		);
+
+		const add = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: [mediaId] }),
+			}),
+		);
+		const added = (await json(add)).data;
+
+		const del = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos/${added[0].id}`, {
+				method: "DELETE",
+				headers: { cookie },
+			}),
+		);
+		expect(del.status).toBe(204);
+
+		const updated = await db.query.places.findFirst({
+			where: { id: place.id },
+		});
+		expect(updated!.coverMediaId).toBeNull();
+	});
+
+	test("DELETE returns 403 for unrelated user and 204 for approved owner or admin", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-auth",
+				name: "Warung Auth",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+
+		const commitPhoto = async () => {
+			const up = await app.handle(
+				new Request("http://test/api/media/uploads", {
+					method: "POST",
+					headers: { "content-type": "application/json", cookie },
+					body: JSON.stringify({
+						purpose: "place_photo",
+						mime: "image/png",
+						sizeBytes: 12,
+					}),
+				}),
+			);
+			const { id } = (await json(up)).data;
+			const row = await db.query.media.findFirst({ where: { id } });
+			await storage.put(row!.key, PNG, "image/png");
+			await app.handle(
+				new Request(`http://test/api/media/${id}/commit`, {
+					method: "POST",
+					headers: { cookie },
+				}),
+			);
+			return id as string;
+		};
+
+		const m1 = await commitPhoto();
+		const m2 = await commitPhoto();
+		const add = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: [m1, m2] }),
+			}),
+		);
+		const added = (await json(add)).data;
+
+		const regOther = await app.handle(
+			new Request("http://test/api/auth/register", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					name: "Other",
+					email: "other@b.test",
+					password: "min8chars",
+				}),
+			}),
+		);
+		const otherCookie = cookieOf(regOther)!;
+		const otherUser = (await db.query.users.findFirst({
+			where: { email: "other@b.test" },
+		}))!;
+
+		const del403 = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos/${added[0].id}`, {
+				method: "DELETE",
+				headers: { cookie: otherCookie },
+			}),
+		);
+		expect(del403.status).toBe(403);
+
+		await db.insert(schema.businessClaims).values({
+			placeId: place.id,
+			claimantId: otherUser.id,
+			evidence: {
+				note: "SIUP",
+				documentMediaIds: [],
+				contactPhone: "08123456789",
+			},
+			status: "approved",
+		});
+		const delOwner = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos/${added[0].id}`, {
+				method: "DELETE",
+				headers: { cookie: otherCookie },
+			}),
+		);
+		expect(delOwner.status).toBe(204);
+
+		const regAdmin = await app.handle(
+			new Request("http://test/api/auth/register", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					name: "Admin",
+					email: "admin@b.test",
+					password: "min8chars",
+				}),
+			}),
+		);
+		const adminCookie = cookieOf(regAdmin)!;
+		const adminUser = (await db.query.users.findFirst({
+			where: { email: "admin@b.test" },
+		}))!;
+		await db
+			.update(schema.users)
+			.set({ role: "admin" })
+			.where(eq(schema.users.id, adminUser.id));
+
+		const delAdmin = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos/${added[1].id}`, {
+				method: "DELETE",
+				headers: { cookie: adminCookie },
+			}),
+		);
+		expect(delAdmin.status).toBe(204);
+	});
+
+	test("POST on pending place returns 404 for outsiders", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-pending",
+				name: "Warung Pending",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "pending",
+			})
+			.returning();
+
+		const res = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: [crypto.randomUUID()] }),
+			}),
+		);
+		expect(res.status).toBe(404);
+	});
+
+	test("POST rejects duplicate or empty photoMediaIds with 422 and unowned media with 403", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-val",
+				name: "Warung Val",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+
+		const emptyRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: [] }),
+			}),
+		);
+		expect(emptyRes.status).toBe(422);
+
+		const dupId = crypto.randomUUID();
+		const dupRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: [dupId, dupId] }),
+			}),
+		);
+		expect(dupRes.status).toBe(422);
+
+		const unownedRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: [crypto.randomUUID()] }),
+			}),
+		);
+		expect(unownedRes.status).toBe(403);
 	});
 });

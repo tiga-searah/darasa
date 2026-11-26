@@ -7,6 +7,7 @@ import {
 	gte,
 	ilike,
 	inArray,
+	isNull,
 	lte,
 	or,
 	type SQL,
@@ -576,22 +577,33 @@ export async function addPlacePhotos(
 	if (!UUID_RE.test(placeId)) {
 		throw notFound("Place");
 	}
-	const place = await db.query.places.findFirst({
-		where: { id: placeId },
-	});
-	if (!place) {
-		throw notFound("Place");
-	}
-	if (place.status !== "published" && user.role !== "admin") {
-		const claim = await db.query.businessClaims.findFirst({
-			where: { placeId, claimantId: user.id, status: "approved" },
-		});
-		if (!claim) {
-			throw notFound("Place");
-		}
-	}
 
 	const inserted = await db.transaction(async (tx) => {
+		const [place] = await tx
+			.select()
+			.from(schema.places)
+			.where(eq(schema.places.id, placeId))
+			.for("update");
+		if (!place) {
+			throw notFound("Place");
+		}
+		if (place.status !== "published" && user.role !== "admin") {
+			const [claim] = await tx
+				.select({ id: schema.businessClaims.id })
+				.from(schema.businessClaims)
+				.where(
+					and(
+						eq(schema.businessClaims.placeId, placeId),
+						eq(schema.businessClaims.claimantId, user.id),
+						eq(schema.businessClaims.status, "approved"),
+					),
+				)
+				.limit(1);
+			if (!claim) {
+				throw notFound("Place");
+			}
+		}
+
 		await assertOwnedReadyMedia(tx, user.id, photoMediaIds, "place_photo");
 		const [agg] = await tx
 			.select({
@@ -621,7 +633,12 @@ export async function addPlacePhotos(
 			await tx
 				.update(schema.places)
 				.set({ coverMediaId: photoMediaIds[0] })
-				.where(eq(schema.places.id, place.id));
+				.where(
+					and(
+						eq(schema.places.id, place.id),
+						isNull(schema.places.coverMediaId),
+					),
+				);
 		}
 		return rows;
 	});
@@ -646,26 +663,50 @@ export async function deletePlacePhoto(
 	if (!UUID_RE.test(placeId) || !UUID_RE.test(photoId)) {
 		throw notFound("Photo");
 	}
-	const [place, photo] = await Promise.all([
-		db.query.places.findFirst({ where: { id: placeId } }),
-		db.query.placePhotos.findFirst({ where: { id: photoId, placeId } }),
-	]);
-	if (!place || !photo) {
-		throw notFound("Photo");
-	}
-
-	let authorized = photo.uploadedById === user.id || user.role === "admin";
-	if (!authorized) {
-		const claim = await db.query.businessClaims.findFirst({
-			where: { placeId, claimantId: user.id, status: "approved" },
-		});
-		authorized = Boolean(claim);
-	}
-	if (!authorized) {
-		throw forbidden("delete this photo");
-	}
 
 	await db.transaction(async (tx) => {
+		const [place] = await tx
+			.select()
+			.from(schema.places)
+			.where(eq(schema.places.id, placeId))
+			.for("update");
+		if (!place) {
+			throw notFound("Photo");
+		}
+
+		const [photo] = await tx
+			.select()
+			.from(schema.placePhotos)
+			.where(
+				and(
+					eq(schema.placePhotos.id, photoId),
+					eq(schema.placePhotos.placeId, placeId),
+				),
+			)
+			.limit(1);
+		if (!photo) {
+			throw notFound("Photo");
+		}
+
+		let authorized = photo.uploadedById === user.id || user.role === "admin";
+		if (!authorized) {
+			const [claim] = await tx
+				.select({ id: schema.businessClaims.id })
+				.from(schema.businessClaims)
+				.where(
+					and(
+						eq(schema.businessClaims.placeId, placeId),
+						eq(schema.businessClaims.claimantId, user.id),
+						eq(schema.businessClaims.status, "approved"),
+					),
+				)
+				.limit(1);
+			authorized = Boolean(claim);
+		}
+		if (!authorized) {
+			throw forbidden("delete this photo");
+		}
+
 		await tx
 			.delete(schema.placePhotos)
 			.where(eq(schema.placePhotos.id, photo.id));

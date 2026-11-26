@@ -220,6 +220,7 @@ export const AddPlacePhotosBody = t.Object({
 	photoMediaIds: t.Array(t.String({ format: "uuid" }), {
 		minItems: 1,
 		maxItems: 5,
+		uniqueItems: true,
 	}),
 });
 
