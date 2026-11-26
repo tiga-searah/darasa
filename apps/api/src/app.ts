@@ -9,6 +9,7 @@ import { errorPlugin } from "./plugins/errors";
 import { authRoutes } from "./routes/auth";
 import { categoryRoutes } from "./routes/categories";
 import { mediaRoutes } from "./routes/media";
+import { placeRoutes } from "./routes/places";
 
 export type AppDeps = {
 	storage?: Storage;
@@ -40,5 +41,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		.get("/health", () => ({ data: { ok: true } }))
 		.use(authRoutes)
 		.use(mediaRoutes)
-		.use(categoryRoutes);
+		.use(categoryRoutes)
+		.use(placeRoutes);
 };
