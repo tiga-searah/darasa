@@ -51,3 +51,20 @@ export const requireAdmin = sessionPlugin("require-admin").onBeforeHandle(
 			throw new ApiError("FORBIDDEN", 403, "Administrator access required");
 	},
 );
+
+/** Resolves the session cookie when present; leaves `sessionUser` null for anonymous requests. */
+export const optionalAuth = new Elysia({ name: "optional-auth" }).derive(
+	"plugin",
+	async ({ cookie }) => {
+		const cookies = cookie as Record<string, Cookie>;
+		const token = tokenFrom(cookies);
+		const resolved = token ? await resolveSession(token) : null;
+		if (resolved?.renewedToken)
+			setSessionCookie(
+				cookies[SESSION_COOKIE],
+				resolved.renewedToken,
+				resolved.expiresAt,
+			);
+		return { sessionUser: (resolved?.user ?? null) as SessionUser | null };
+	},
+);
