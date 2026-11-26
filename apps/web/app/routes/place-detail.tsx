@@ -1,6 +1,7 @@
 import {
 	ArrowLeft,
 	Award,
+	Bookmark,
 	Clock,
 	Compass,
 	Gem,
@@ -17,7 +18,6 @@ import { Link, useParams } from "react-router";
 import { BatangMapPreview } from "~/components/batang-map-preview";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -46,7 +46,8 @@ export function meta({ params }: Route.MetaArgs) {
 
 export default function PlaceDetailPage() {
 	const { slug } = useParams();
-	const { places, currentUser, submitReview } = useDarasa();
+	const { places, currentUser, submitReview, isBookmarked, toggleBookmark } =
+		useDarasa();
 	const place = places.find((p) => p.slug === slug);
 
 	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -65,7 +66,7 @@ export default function PlaceDetailPage() {
 
 	if (!place) {
 		return (
-			<Card className="p-10 text-center space-y-4">
+			<div className="py-16 text-center space-y-4">
 				<h1 className="text-2xl font-bold text-foreground">
 					Tempat kuliner tidak ditemukan
 				</h1>
@@ -74,12 +75,12 @@ export default function PlaceDetailPage() {
 					berubah.
 				</p>
 				<Button asChild>
-					<Link to="/">
+					<Link to="/explore">
 						<ArrowLeft className="size-4" aria-hidden="true" />
 						Kembali ke Jelajah
 					</Link>
 				</Button>
-			</Card>
+			</div>
 		);
 	}
 
@@ -88,6 +89,7 @@ export default function PlaceDetailPage() {
 	const activePhoto = photos[activePhotoIndex] ?? photos[0];
 	const isVisitor = currentUser.role === "visitor";
 	const isClaimed = Boolean(place.ownerId);
+	const saved = isBookmarked(place.id);
 
 	const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -133,32 +135,46 @@ export default function PlaceDetailPage() {
 	};
 
 	return (
-		<div className="space-y-6">
-			<div>
+		<div className="space-y-8">
+			<div className="flex items-center justify-between gap-3">
 				<Button asChild variant="ghost" size="sm" className="-ml-3">
-					<Link to="/">
+					<Link to="/explore">
 						<ArrowLeft className="size-4" aria-hidden="true" />
 						Kembali ke Jelajah Kuliner
 					</Link>
+				</Button>
+
+				<Button
+					type="button"
+					variant={saved ? "default" : "outline"}
+					size="sm"
+					aria-pressed={saved}
+					onClick={() => toggleBookmark(place.id)}
+				>
+					<Bookmark
+						className={`size-4 ${saved ? "fill-current" : ""}`}
+						aria-hidden="true"
+					/>
+					{saved ? "Tersimpan di Bookmark" : "Simpan Bookmark"}
 				</Button>
 			</div>
 
 			{submitSuccess ? (
 				<div
 					role="status"
-					className="rounded-[12px] border border-primary/30 bg-primary-soft px-4 py-3 text-sm font-medium text-primary-hover"
+					className="rounded-[10px] border border-primary/30 bg-primary-soft px-4 py-3 text-sm font-medium text-primary-hover"
 				>
 					{submitSuccess}
 				</div>
 			) : null}
 
-			{/* Top Hero & Summary Grid */}
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+			{/* Top Hero & Summary Split (Cardless, Play Store / Maps style) */}
+			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
 				<section
 					aria-label="Galeri foto tempat kuliner"
 					className="lg:col-span-7 space-y-3"
 				>
-					<Card className="overflow-hidden">
+					<div className="overflow-hidden rounded-[14px] bg-muted">
 						<button
 							type="button"
 							onClick={() => setLightboxOpen(true)}
@@ -181,7 +197,7 @@ export default function PlaceDetailPage() {
 								Perbesar foto
 							</span>
 						</button>
-					</Card>
+					</div>
 
 					<Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
 						<DialogContent className="max-w-3xl p-4 sm:p-6">
@@ -252,7 +268,7 @@ export default function PlaceDetailPage() {
 					) : null}
 				</section>
 
-				<Card className="lg:col-span-5 p-6 flex flex-col justify-between gap-5">
+				<div className="lg:col-span-5 lg:border-l lg:border-border lg:pl-7 flex flex-col justify-between gap-6">
 					<div className="space-y-4">
 						<div className="flex flex-wrap items-center gap-2">
 							<Badge variant="secondary">{place.category}</Badge>
@@ -287,7 +303,7 @@ export default function PlaceDetailPage() {
 
 						<Separator />
 
-						<dl className="space-y-2.5 text-sm">
+						<dl className="space-y-3 text-sm">
 							<div className="flex items-start gap-2.5">
 								<MapPin
 									className="mt-0.5 size-4 shrink-0 text-primary"
@@ -341,8 +357,9 @@ export default function PlaceDetailPage() {
 							) : null}
 						</dl>
 
-						<div className="grid grid-cols-2 gap-3 rounded-[10px] border border-border bg-background p-3.5">
-							<div>
+						{/* Inline Play-Store-style metric bar instead of boxed stat cards */}
+						<div className="grid grid-cols-2 divide-x divide-border border-y border-border py-3">
+							<div className="pr-3">
 								<p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
 									<Compass
 										className="size-3.5 text-primary"
@@ -354,7 +371,7 @@ export default function PlaceDetailPage() {
 									{place.exploreScore.toFixed(2)}
 								</p>
 							</div>
-							<div>
+							<div className="pl-4">
 								<p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
 									<Gem
 										className="size-3.5 text-yellow-text"
@@ -371,7 +388,7 @@ export default function PlaceDetailPage() {
 						</div>
 					</div>
 
-					<div className="flex flex-col gap-2.5 border-t border-border pt-4">
+					<div className="flex flex-col gap-2.5">
 						{isVisitor ? (
 							<Button asChild className="w-full">
 								<Link to={`/login?redirect=/places/${place.slug}`}>
@@ -402,48 +419,36 @@ export default function PlaceDetailPage() {
 							</p>
 						)}
 					</div>
-				</Card>
+				</div>
 			</div>
 
-			{/* Map & Reviews Split */}
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-				<section className="lg:col-span-7 space-y-4">
-					<Card className="p-5 space-y-4">
+			<Separator />
+
+			{/* Map & Reviews Split (Open divided sections, minimal card) */}
+			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+				<section className="lg:col-span-7 space-y-6">
+					{/* Play Store Style Rating Breakdown */}
+					<div className="space-y-4 border-b border-border pb-6">
 						<div className="flex flex-wrap items-center justify-between gap-2">
-							<h2 className="text-base font-bold text-foreground">
-								Rincian Skor &amp; Distribusi Rating
+							<h2 className="text-lg font-bold text-foreground">
+								Rating &amp; Rincian Skor
 							</h2>
 							<span className="text-xs text-muted-foreground">
-								{place.reviewCount > 0
-									? `Rata-rata ${place.averageRating.toFixed(1)} dari ${place.reviewCount} ulasan`
-									: "Belum ada ulasan tercatat"}
+								Ditambahkan oleh {place.submittedByName}
 							</span>
 						</div>
 
-						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-							<div className="space-y-1.5 rounded-[10px] border border-border bg-background p-3.5 text-xs">
-								<p className="font-semibold text-foreground">
-									Transparansi Perhitungan Darasa
+						<div className="grid grid-cols-1 gap-6 sm:grid-cols-12 sm:items-center">
+							<div className="sm:col-span-4 space-y-1">
+								<p className="text-4xl font-bold tracking-tight text-foreground tabular-nums">
+									{place.reviewCount > 0 ? place.averageRating.toFixed(1) : "—"}
 								</p>
-								<p className="text-muted-foreground">
-									Explore Score:{" "}
-									<strong className="text-foreground tabular-nums">
-										{place.exploreScore.toFixed(2)}
-									</strong>{" "}
-									(rating + log jumlah ulasan + bonus verifikasi)
-								</p>
-								<p className="text-muted-foreground">
-									Hidden Gem Score:{" "}
-									<strong className="text-foreground tabular-nums">
-										{place.hiddenGemEligible
-											? place.hiddenGemScore.toFixed(2)
-											: "Belum memenuhi syarat"}
-									</strong>{" "}
-									(rating tinggi dengan ulasan masih sedikit)
+								<p className="text-xs text-muted-foreground tabular-nums">
+									{place.reviewCount} ulasan komunitas
 								</p>
 							</div>
 
-							<div className="space-y-1.5">
+							<div className="sm:col-span-8 space-y-1.5">
 								{[5, 4, 3, 2, 1].map((star) => {
 									const count = place.reviews.filter(
 										(r) => r.rating === star,
@@ -457,13 +462,13 @@ export default function PlaceDetailPage() {
 											key={star}
 											className="flex items-center gap-2.5 text-xs"
 										>
-											<span className="w-12 font-semibold text-foreground tabular-nums">
-												{star} bin.
+											<span className="w-6 font-semibold text-foreground tabular-nums">
+												{star}★
 											</span>
-											<div className="h-2 flex-1 overflow-hidden rounded-full border border-border bg-background">
+											<div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
 												<div
 													style={{ width: `${pct}%` }}
-													className="h-full bg-primary transition-[width] duration-300"
+													className="h-full rounded-full bg-primary transition-[width] duration-300"
 												/>
 											</div>
 											<span className="w-6 text-right text-muted-foreground tabular-nums">
@@ -474,35 +479,31 @@ export default function PlaceDetailPage() {
 								})}
 							</div>
 						</div>
-					</Card>
-
-					<div className="flex flex-wrap items-center justify-between gap-2">
-						<h2 className="text-xl font-bold text-foreground">
-							Ulasan Komunitas ({place.reviews.length})
-						</h2>
-						<span className="text-xs text-muted-foreground">
-							Ditambahkan oleh {place.submittedByName}
-						</span>
 					</div>
 
-					{place.reviews.length === 0 ? (
-						<Card className="p-8 text-center space-y-3">
-							<h3 className="text-base font-semibold text-foreground">
-								Belum ada ulasan untuk tempat ini
-							</h3>
-							<p className="text-sm text-muted-foreground">
-								Jadilah kontributor pertama yang membagikan pengalaman rasa dan
-								harga di sini.
-							</p>
-						</Card>
-					) : (
-						<ul className="space-y-4">
-							{place.reviews.map((rev) => (
-								<li key={rev.id}>
-									<Card className="p-5 space-y-3">
+					{/* Divided Reviews Feed (No Cards per Review) */}
+					<div className="space-y-2">
+						<h2 className="text-lg font-bold text-foreground">
+							Ulasan Komunitas ({place.reviews.length})
+						</h2>
+
+						{place.reviews.length === 0 ? (
+							<div className="py-10 text-center space-y-2">
+								<h3 className="text-base font-semibold text-foreground">
+									Belum ada ulasan untuk tempat ini
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Jadilah kontributor pertama yang membagikan pengalaman rasa
+									dan harga di sini.
+								</p>
+							</div>
+						) : (
+							<ul className="divide-y divide-border">
+								{place.reviews.map((rev) => (
+									<li key={rev.id} className="py-5 space-y-2.5">
 										<div className="flex flex-wrap items-center justify-between gap-2">
 											<div className="flex items-center gap-2.5">
-												<span className="flex size-8 items-center justify-center rounded-[8px] bg-secondary text-xs font-bold text-secondary-foreground">
+												<span className="flex size-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
 													{rev.authorName.slice(0, 1).toUpperCase()}
 												</span>
 												<div>
@@ -541,29 +542,29 @@ export default function PlaceDetailPage() {
 												alt={`Foto ulasan oleh ${rev.authorName}`}
 												width={360}
 												height={220}
-												className="mt-2 h-44 w-full max-w-xs rounded-[8px] border border-border object-cover"
+												className="mt-2 h-44 w-full max-w-xs rounded-[10px] border border-border object-cover"
 											/>
 										) : null}
 
 										{rev.ownerReply ? (
-											<div className="mt-3 rounded-[8px] border border-primary/25 bg-primary-soft/60 p-3.5 space-y-1">
+											<div className="mt-2 border-l-2 border-primary pl-3.5 py-0.5 space-y-1">
 												<p className="text-xs font-semibold text-primary-hover">
 													Balasan {rev.ownerReply.authorName}
 												</p>
-												<p className="text-sm text-foreground">
+												<p className="text-sm text-muted-foreground">
 													{rev.ownerReply.message}
 												</p>
 											</div>
 										) : null}
-									</Card>
-								</li>
-							))}
-						</ul>
-					)}
+									</li>
+								))}
+							</ul>
+						)}
+					</div>
 				</section>
 
-				<aside className="lg:col-span-5 space-y-4">
-					<h2 className="text-xl font-bold text-foreground">
+				<aside className="lg:col-span-5 lg:border-l lg:border-border lg:pl-7 space-y-4">
+					<h2 className="text-lg font-bold text-foreground">
 						Lokasi di Batang
 					</h2>
 					<BatangMapPreview

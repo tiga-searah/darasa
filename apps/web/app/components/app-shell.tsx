@@ -1,25 +1,31 @@
 import gsap from "gsap";
 import {
 	Award,
+	Bookmark,
+	Check,
 	CheckCircle2,
-	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
 	Compass,
 	Gem,
+	Home,
 	Info,
 	LayoutDashboard,
 	LogIn,
 	LogOut,
 	MapPin,
 	Menu,
+	Moon,
 	PlusCircle,
+	Search,
 	ShieldAlert,
-	Store,
-	UserCheck,
+	Star,
+	Sun,
+	UserPlus,
 	X,
 } from "lucide-react";
 import {
+	type FormEvent,
 	type ReactNode,
 	useCallback,
 	useEffect,
@@ -28,19 +34,11 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { Link, NavLink, useLocation } from "react-router";
-import { ThemeToggle } from "~/components/theme-toggle";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Collapsible, CollapsibleTrigger } from "~/components/ui/collapsible";
+import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "~/components/ui/select";
 import { Separator } from "~/components/ui/separator";
 import {
 	Sheet,
@@ -55,13 +53,17 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarGroup,
-	SidebarGroupTrigger,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuItem,
 } from "~/components/ui/sidebar";
 import { useDarasa } from "~/context/darasa-store";
-import { BATANG_DISTRICTS, DEMO_ACCOUNTS } from "~/data/batang-places";
+import { DEMO_ACCOUNTS } from "~/data/batang-places";
+import {
+	COLOR_SCHEME_STORAGE_KEY,
+	setColorSchemePreference,
+	syncColorSchemeFromStorage,
+} from "~/lib/theme";
 import { cn } from "~/lib/utils";
 
 interface NavItem {
@@ -78,103 +80,25 @@ const ROLE_LABELS: Record<string, string> = {
 	admin: "Administrator",
 };
 
-/**
- * Smooth GSAP slide-down / slide-up collapsible section for Shadcn Sidebar.
- * Animates height, opacity, and vertical offset smoothly on click while honoring reduced motion.
- */
-function SmoothCollapsibleSection({
-	open,
-	collapsed,
-	children,
-}: {
-	open: boolean;
-	collapsed: boolean;
-	children: ReactNode;
-}) {
-	const panelRef = useRef<HTMLDivElement>(null);
-	const isFirstRender = useRef(true);
+const SHORT_ROLE_LABELS: Record<string, string> = {
+	visitor: "Tamu",
+	user: "Warga",
+	owner: "Pemilik",
+	admin: "Admin",
+};
 
-	useEffect(() => {
-		const el = panelRef.current;
-		if (!el) return;
+const GITHUB_REPO_URL = "https://github.com/tiga-searah/darasa";
 
-		// In collapsed icon-rail mode, keep items accessible without height-0 clipping
-		if (collapsed) {
-			gsap.killTweensOf(el);
-			el.style.height = "auto";
-			el.style.opacity = "1";
-			el.style.overflow = "visible";
-			el.style.transform = "none";
-			return;
-		}
-
-		const reduced = window.matchMedia(
-			"(prefers-reduced-motion: reduce)",
-		).matches;
-
-		if (isFirstRender.current) {
-			isFirstRender.current = false;
-			el.style.height = open ? "auto" : "0px";
-			el.style.opacity = open ? "1" : "0";
-			el.style.overflow = open ? "visible" : "hidden";
-			return;
-		}
-
-		if (reduced) {
-			el.style.height = open ? "auto" : "0px";
-			el.style.opacity = open ? "1" : "0";
-			el.style.overflow = open ? "visible" : "hidden";
-			return;
-		}
-
-		gsap.killTweensOf(el);
-
-		if (open) {
-			el.style.overflow = "hidden";
-			const targetHeight = el.scrollHeight;
-			gsap.fromTo(
-				el,
-				{ height: 0, opacity: 0, y: -8 },
-				{
-					height: targetHeight,
-					opacity: 1,
-					y: 0,
-					duration: 0.28,
-					ease: "power3.out",
-					onComplete: () => {
-						el.style.height = "auto";
-						el.style.overflow = "visible";
-						el.style.transform = "";
-					},
-				},
-			);
-		} else {
-			el.style.overflow = "hidden";
-			gsap.fromTo(
-				el,
-				{ height: el.scrollHeight, opacity: 1, y: 0 },
-				{
-					height: 0,
-					opacity: 0,
-					y: -8,
-					duration: 0.22,
-					ease: "power2.inOut",
-					onComplete: () => {
-						el.style.transform = "";
-					},
-				},
-			);
-		}
-	}, [open, collapsed]);
-
+function GitHubMark({ className }: { className?: string }) {
 	return (
-		<div
-			ref={panelRef}
-			aria-hidden={!collapsed && !open}
-			className={cn(!collapsed && !open ? "pointer-events-none" : "")}
+		<svg
+			viewBox="0 0 24 24"
+			fill="currentColor"
+			aria-hidden="true"
+			className={className}
 		>
-			{children}
-		</div>
+			<path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+		</svg>
 	);
 }
 
@@ -186,27 +110,28 @@ export function AppShell({ children }: { children: ReactNode }) {
 		claims,
 		anomalies,
 		places,
+		bookmarkedPlaceIds,
+		setExploreFilters,
 		toast,
 		dismissToast,
 	} = useDarasa();
 	const location = useLocation();
+	const navigate = useNavigate();
 	const [collapsed, setCollapsed] = useState(false);
 	const [mobileOpen, setMobileOpen] = useState(false);
-
-	// Smooth collapsible sidebar group states (turun / naik on click)
-	const [openGroups, setOpenGroups] = useState({
-		discovery: true,
-		workspace: true,
-		districts: false,
-	});
+	const [globalQuery, setGlobalQuery] = useState("");
+	const [globalSearchFocused, setGlobalSearchFocused] = useState(false);
 
 	const sidebarRef = useRef<HTMLElement>(null);
 	const navContainerRef = useRef<HTMLElement>(null);
 	const activeIndicatorRef = useRef<HTMLSpanElement>(null);
 	const brandTextRef = useRef<HTMLDivElement>(null);
 	const mainContentRef = useRef<HTMLDivElement>(null);
+	const profilePopoverRef = useRef<HTMLDivElement>(null);
+	const globalSearchBoxRef = useRef<HTMLDivElement>(null);
 	const hasMountedSidebarRef = useRef(false);
-	const roleSelectId = useId();
+	const profilePopoverId = useId();
+	const globalSearchInputId = useId();
 
 	const pendingClaimCount = claims.filter((c) => c.status === "pending").length;
 	const openAnomalyCount = anomalies.filter(
@@ -218,14 +143,24 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 	const discoveryLinks = useMemo<NavItem[]>(
 		() => [
-			{ to: "/", label: "Jelajah Kuliner", icon: Compass },
-			{ to: "/hidden-gem", label: "Hidden Gem", icon: Gem },
-			{ to: "/submit-place", label: "Tambah Tempat", icon: PlusCircle },
+			{ to: "/", label: "Home", icon: Home },
+			{ to: "/explore", label: "Jelajah", icon: Compass },
+			{ to: "/hidden-gem", label: "Hidden Gems", icon: Gem },
+			{ to: "/submit-place", label: "Contribute", icon: PlusCircle },
+			{
+				to: "/bookmarks",
+				label: "Bookmark",
+				icon: Bookmark,
+				badge:
+					bookmarkedPlaceIds.length > 0
+						? String(bookmarkedPlaceIds.length)
+						: undefined,
+			},
 		],
-		[],
+		[bookmarkedPlaceIds.length],
 	);
 
-	const workspaceLinks = useMemo<NavItem[]>(
+	const managementLinks = useMemo<NavItem[]>(
 		() => [
 			{ to: "/claim", label: "Klaim Usaha", icon: Award },
 			{ to: "/owner", label: "Dasbor Pemilik", icon: LayoutDashboard },
@@ -240,7 +175,57 @@ export function AppShell({ children }: { children: ReactNode }) {
 		[adminAttentionCount],
 	);
 
-	// Smooth vertical active indicator glide (naik / turun) between clicked sidebar items
+	const globalSearchMatches = useMemo(() => {
+		const q = globalQuery.trim().toLowerCase();
+		if (!q) return [];
+		return places
+			.filter((place) => {
+				const haystack =
+					`${place.name} ${place.category} ${place.district} ${place.address}`.toLowerCase();
+				return haystack.includes(q);
+			})
+			.slice(0, 5);
+	}, [places, globalQuery]);
+
+	const closeProfilePopover = useCallback(() => {
+		try {
+			profilePopoverRef.current?.hidePopover?.();
+		} catch {
+			// Ignore if popover is already closed or unsupported
+		}
+	}, []);
+
+	// Sync color-scheme changes across tabs and OS preferences
+	useEffect(() => {
+		const handleStorage = (event: StorageEvent) => {
+			if (event.key === null || event.key === COLOR_SCHEME_STORAGE_KEY) {
+				syncColorSchemeFromStorage();
+			}
+		};
+		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+		const handleMediaChange = () => {
+			syncColorSchemeFromStorage();
+		};
+		window.addEventListener("storage", handleStorage);
+		mediaQuery.addEventListener("change", handleMediaChange);
+		return () => {
+			window.removeEventListener("storage", handleStorage);
+			mediaQuery.removeEventListener("change", handleMediaChange);
+		};
+	}, []);
+
+	// Close global search dropdown on outside pointer click
+	useEffect(() => {
+		const handlePointerDown = (event: MouseEvent) => {
+			if (!globalSearchBoxRef.current?.contains(event.target as Node)) {
+				setGlobalSearchFocused(false);
+			}
+		};
+		document.addEventListener("mousedown", handlePointerDown);
+		return () => document.removeEventListener("mousedown", handlePointerDown);
+	}, []);
+
+	// Vertical active indicator glide between sidebar discovery items
 	const updateActiveIndicator = useCallback(() => {
 		const nav = navContainerRef.current;
 		const indicator = activeIndicatorRef.current;
@@ -270,19 +255,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 			y: topOffset,
 			height: linkRect.height,
 			opacity: 1,
-			duration: 0.26,
+			duration: 0.24,
 			ease: "power3.out",
 		});
 	}, []);
 
 	useEffect(() => {
-		const _syncKey = `${location.pathname}:${collapsed}:${openGroups.discovery}:${openGroups.workspace}:${openGroups.districts}`;
+		const _syncKey = `${location.pathname}:${collapsed}`;
 		if (!_syncKey) return;
 		const timer = window.setTimeout(updateActiveIndicator, 60);
 		return () => window.clearTimeout(timer);
-	}, [updateActiveIndicator, location.pathname, openGroups, collapsed]);
+	}, [updateActiveIndicator, location.pathname, collapsed]);
 
-	// Smooth GSAP desktop sidebar width collapse/expand
+	// Desktop sidebar width collapse/expand
 	useEffect(() => {
 		const sidebar = sidebarRef.current;
 		if (!sidebar) return;
@@ -294,7 +279,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 		const reduced = window.matchMedia(
 			"(prefers-reduced-motion: reduce)",
 		).matches;
-		const targetWidth = collapsed ? 80 : 268;
+		const targetWidth = collapsed ? 80 : 256;
 
 		if (reduced) {
 			sidebar.style.width = `${targetWidth}px`;
@@ -304,7 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 		const ctx = gsap.context(() => {
 			gsap.to(sidebar, {
 				width: targetWidth,
-				duration: 0.24,
+				duration: 0.22,
 				ease: "power3.out",
 			});
 
@@ -315,8 +300,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 					{
 						opacity: 1,
 						y: 0,
-						duration: 0.2,
-						delay: 0.05,
+						duration: 0.18,
+						delay: 0.04,
 						ease: "power2.out",
 						clearProps: "transform",
 					},
@@ -329,10 +314,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 		};
 	}, [collapsed]);
 
-	// Gentle page entrance & mobile sheet auto-close on route change
+	// Subtle page entrance & mobile sheet/popover auto-close on route change
 	useEffect(() => {
 		const _path = location.pathname;
 		setMobileOpen(false);
+		setGlobalSearchFocused(false);
+		closeProfilePopover();
 
 		const el = mainContentRef.current;
 		if (!_path || !el) return;
@@ -341,16 +328,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 		const ctx = gsap.context(() => {
 			gsap.fromTo(
 				el,
-				{ opacity: 0, y: 8 },
-				{ opacity: 1, y: 0, duration: 0.22, ease: "power2.out" },
+				{ opacity: 0, y: 6 },
+				{ opacity: 1, y: 0, duration: 0.2, ease: "power2.out" },
 			);
 		}, mainContentRef);
 
 		return () => ctx.revert();
-	}, [location.pathname]);
+	}, [location.pathname, closeProfilePopover]);
 
-	const toggleGroup = (key: keyof typeof openGroups) => {
-		setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+	const handleGlobalSearchSubmit = (e: FormEvent) => {
+		e.preventDefault();
+		setExploreFilters({ keyword: globalQuery.trim() });
+		setGlobalSearchFocused(false);
+		if (location.pathname !== "/explore") {
+			navigate("/explore");
+		}
 	};
 
 	const renderNavItems = (items: NavItem[], isMobile = false) => (
@@ -363,9 +355,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 							to={item.to}
 							end={item.to === "/"}
 							aria-label={!isMobile && collapsed ? item.label : undefined}
+							title={!isMobile && collapsed ? item.label : undefined}
 							className={({ isActive }) =>
 								cn(
-									"group relative flex min-h-[44px] items-center gap-3 rounded-[8px] px-3 py-2 text-sm font-semibold transition-colors duration-150",
+									"group relative flex min-h-[44px] items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-semibold transition-colors duration-150",
 									isActive
 										? "bg-primary text-primary-foreground"
 										: "text-foreground hover:bg-secondary hover:text-secondary-foreground",
@@ -377,7 +370,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 								<>
 									<Icon
 										className={cn(
-											"size-5 shrink-0 transition-transform duration-150 group-hover:scale-105",
+											"size-5 shrink-0",
 											isActive
 												? "text-primary-foreground"
 												: "text-muted-foreground group-hover:text-secondary-foreground",
@@ -389,24 +382,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 											<span>{item.label}</span>
 											{item.badge ? (
 												<Badge
-													variant="yellow"
-													className={cn(
-														"px-2 py-0.5 tabular-nums",
-														isActive
-															? "border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground"
-															: "",
-													)}
+													variant={isActive ? "secondary" : "outline"}
+													className="tabular-nums"
 												>
 													{item.badge}
 												</Badge>
 											) : null}
 										</span>
 									)}
-									{!isMobile && collapsed && item.badge ? (
-										<span className="visually-hidden">
-											{item.badge} perlu ditinjau
-										</span>
-									) : null}
 								</>
 							)}
 						</NavLink>
@@ -420,9 +403,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 		<nav
 			ref={isMobile ? undefined : navContainerRef}
 			aria-label={isMobile ? "Menu seluler" : "Menu utama"}
-			className="relative flex flex-col gap-3"
+			className="relative flex flex-col gap-2 pt-2"
 		>
-			{/* Smooth vertical glide indicator (desktop expanded) */}
 			{!isMobile ? (
 				<span
 					ref={activeIndicatorRef}
@@ -431,114 +413,39 @@ export function AppShell({ children }: { children: ReactNode }) {
 				/>
 			) : null}
 
-			<Collapsible
-				open={openGroups.discovery}
-				onOpenChange={() => toggleGroup("discovery")}
-			>
-				<SidebarGroup>
-					<CollapsibleTrigger asChild>
-						<SidebarGroupTrigger
-							open={openGroups.discovery}
-							collapsed={!isMobile && collapsed}
-						>
-							Penemuan Kuliner
-						</SidebarGroupTrigger>
-					</CollapsibleTrigger>
-					<SmoothCollapsibleSection
-						open={openGroups.discovery}
-						collapsed={!isMobile && collapsed}
-					>
-						{renderNavItems(discoveryLinks, isMobile)}
-					</SmoothCollapsibleSection>
-				</SidebarGroup>
-			</Collapsible>
-
-			<Separator />
-
-			<Collapsible
-				open={openGroups.workspace}
-				onOpenChange={() => toggleGroup("workspace")}
-			>
-				<SidebarGroup>
-					<CollapsibleTrigger asChild>
-						<SidebarGroupTrigger
-							open={openGroups.workspace}
-							collapsed={!isMobile && collapsed}
-						>
-							Pengelolaan &amp; Kurasi
-						</SidebarGroupTrigger>
-					</CollapsibleTrigger>
-					<SmoothCollapsibleSection
-						open={openGroups.workspace}
-						collapsed={!isMobile && collapsed}
-					>
-						{renderNavItems(workspaceLinks, isMobile)}
-					</SmoothCollapsibleSection>
-				</SidebarGroup>
-			</Collapsible>
-
-			{/* Collapsible Quick Batang Districts Accordion (demonstrates smooth turun/naik submenu) */}
-			{(!collapsed || isMobile) && (
-				<>
-					<Separator />
-					<Collapsible
-						open={openGroups.districts}
-						onOpenChange={() => toggleGroup("districts")}
-					>
-						<SidebarGroup>
-							<CollapsibleTrigger asChild>
-								<button
-									type="button"
-									aria-expanded={openGroups.districts}
-									className="flex min-h-[38px] w-full items-center justify-between rounded-[8px] px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-								>
-									<span className="flex items-center gap-1.5">
-										<MapPin
-											className="size-3.5 text-primary"
-											aria-hidden="true"
-										/>
-										Kawasan Populer Batang
-									</span>
-									<ChevronDown
-										className={cn(
-											"size-4 shrink-0 transition-transform duration-200",
-											openGroups.districts ? "rotate-180 text-primary" : "",
-										)}
-										aria-hidden="true"
-									/>
-								</button>
-							</CollapsibleTrigger>
-							<SmoothCollapsibleSection
-								open={openGroups.districts}
-								collapsed={false}
-							>
-								<ul className="mt-1 space-y-1 pl-3 border-l border-border ml-3">
-									{BATANG_DISTRICTS.map((district) => (
-										<li key={district}>
-											<Link
-												to={`/?district=${encodeURIComponent(district)}`}
-												className="flex min-h-[36px] items-center rounded-[6px] px-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
-											>
-												{district}
-											</Link>
-										</li>
-									))}
-								</ul>
-							</SmoothCollapsibleSection>
-						</SidebarGroup>
-					</Collapsible>
-				</>
-			)}
+			<SidebarGroup>{renderNavItems(discoveryLinks, isMobile)}</SidebarGroup>
 		</nav>
 	);
 
+	// GitHub logo stacked ABOVE copyright at the very bottom of sidebar
+	const renderSidebarCopyrightFooter = (isIconOnly = false) => (
+		<div className="flex flex-col items-center gap-2 text-center">
+			<a
+				href={GITHUB_REPO_URL}
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label="Repositori GitHub Darasa oleh Team Lorem Ipsum"
+				title="GitHub Darasa"
+				className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+			>
+				<GitHubMark className="size-5" />
+			</a>
+			<p className="text-[11px] font-medium leading-tight text-muted-foreground">
+				{isIconOnly ? "© 2026" : "© 2026 Team Lorem Ipsum"}
+			</p>
+		</div>
+	);
+
+	const showGlobalDropdown =
+		globalSearchFocused && globalQuery.trim().length > 0;
+
 	return (
-		<div className="flex min-h-dvh bg-background text-foreground">
-			{/* Desktop Shadcn Sidebar (>= 1024px) */}
+		<div className="flex min-h-dvh bg-card text-foreground">
+			{/* Desktop Sidebar (>= 1024px) */}
 			<Sidebar
 				ref={sidebarRef}
 				aria-label="Navigasi utama Darasa"
-				className="hidden lg:flex w-[268px] shrink-0 flex-col justify-between sticky top-0 h-dvh overflow-x-hidden"
+				className="hidden lg:flex w-[256px] shrink-0 flex-col justify-between sticky top-0 h-dvh overflow-x-hidden"
 			>
 				<SidebarHeader className="pb-3 border-b border-sidebar-border">
 					<div
@@ -577,6 +484,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 							onClick={() => setCollapsed((prev) => !prev)}
 							aria-expanded={!collapsed}
 							aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
+							title={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
 						>
 							{collapsed ? (
 								<ChevronRight className="size-5" aria-hidden="true" />
@@ -589,102 +497,26 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 				<SidebarContent>{renderSidebarNavigation(false)}</SidebarContent>
 
-				<SidebarFooter className="space-y-3 bg-sidebar">
-					{!collapsed ? (
-						<>
-							<div className="flex items-center gap-2.5">
-								<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] bg-secondary text-sm font-bold text-secondary-foreground">
-									{currentUser.name.slice(0, 1).toUpperCase()}
-								</span>
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-semibold text-foreground">
-										{currentUser.name}
-									</p>
-									<p className="truncate text-xs text-muted-foreground">
-										{ROLE_LABELS[currentUser.role] ?? currentUser.role}
-									</p>
-								</div>
-							</div>
-
-							<div className="space-y-1.5">
-								<Label
-									htmlFor={roleSelectId}
-									className="text-xs text-muted-foreground"
-								>
-									Ganti peran prototipe
-								</Label>
-								<Select
-									value={currentUser.id}
-									onValueChange={(val) => switchDemoAccount(val)}
-								>
-									<SelectTrigger
-										id={roleSelectId}
-										className="min-h-[40px] bg-background text-xs"
-									>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{DEMO_ACCOUNTS.map((acc) => (
-											<SelectItem key={acc.id} value={acc.id}>
-												{ROLE_LABELS[acc.role]}: {acc.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							{currentUser.role === "visitor" ? (
-								<Button asChild className="w-full" size="default">
-									<Link to="/login">
-										<LogIn className="size-4" aria-hidden="true" />
-										Masuk Akun
-									</Link>
-								</Button>
-							) : (
-								<Button variant="outline" onClick={logout} className="w-full">
-									<LogOut className="size-4" aria-hidden="true" />
-									Keluar
-								</Button>
-							)}
-						</>
-					) : (
-						<div className="flex flex-col items-center gap-2">
-							{currentUser.role === "visitor" ? (
-								<Button asChild size="icon" aria-label="Masuk Akun">
-									<Link to="/login">
-										<LogIn className="size-5" aria-hidden="true" />
-									</Link>
-								</Button>
-							) : (
-								<Button
-									variant="outline"
-									size="icon"
-									onClick={logout}
-									aria-label="Keluar dari akun"
-								>
-									<LogOut className="size-5" aria-hidden="true" />
-								</Button>
-							)}
-						</div>
-					)}
+				<SidebarFooter className="bg-sidebar">
+					{renderSidebarCopyrightFooter(collapsed)}
 				</SidebarFooter>
 			</Sidebar>
 
-			{/* Main Column + Mobile Shadcn Sheet */}
-			<div className="flex min-w-0 flex-1 flex-col">
-				<header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur-xs">
-					<div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 md:px-8 xl:px-12">
-						<div className="flex items-center gap-3">
+			{/* Main Column + Mobile Sheet */}
+			<div className="flex min-w-0 flex-1 flex-col bg-card">
+				<header className="sticky top-0 z-30 border-b border-border bg-card">
+					<div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 md:px-8 xl:px-10">
+						<div className="flex items-center gap-2.5 shrink-0">
 							<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
 								<SheetTrigger asChild>
 									<Button
 										variant="outline"
 										aria-label="Buka menu navigasi"
 										aria-expanded={mobileOpen}
-										className="lg:hidden"
+										className="lg:hidden min-h-[44px] px-3"
 									>
 										<Menu className="size-5" aria-hidden="true" />
-										<span>Menu</span>
+										<span className="hidden sm:inline">Menu</span>
 									</Button>
 								</SheetTrigger>
 								<SheetContent aria-label="Menu navigasi Darasa">
@@ -707,58 +539,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 										{renderSidebarNavigation(true)}
 									</div>
 
-									<div className="border-t border-border p-4 space-y-3">
-										<div className="flex items-center gap-2.5">
-											<UserCheck
-												className="size-5 text-primary"
-												aria-hidden="true"
-											/>
-											<div className="min-w-0 flex-1">
-												<p className="truncate text-sm font-semibold">
-													{currentUser.name}
-												</p>
-												<p className="text-xs text-muted-foreground">
-													{ROLE_LABELS[currentUser.role]}
-												</p>
-											</div>
-										</div>
-
-										<Select
-											value={currentUser.id}
-											onValueChange={(val) => switchDemoAccount(val)}
-										>
-											<SelectTrigger
-												aria-label="Ganti peran prototipe"
-												className="bg-background"
-											>
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												{DEMO_ACCOUNTS.map((acc) => (
-													<SelectItem key={acc.id} value={acc.id}>
-														{ROLE_LABELS[acc.role]}: {acc.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-
-										{currentUser.role === "visitor" ? (
-											<Button asChild className="w-full">
-												<Link to="/login">
-													<LogIn className="size-4" aria-hidden="true" />
-													Masuk Akun
-												</Link>
-											</Button>
-										) : (
-											<Button
-												variant="outline"
-												onClick={logout}
-												className="w-full"
-											>
-												<LogOut className="size-4" aria-hidden="true" />
-												Keluar
-											</Button>
-										)}
+									<div className="border-t border-border p-4">
+										{renderSidebarCopyrightFooter(false)}
 									</div>
 								</SheetContent>
 							</Sheet>
@@ -774,69 +556,317 @@ export function AppShell({ children }: { children: ReactNode }) {
 								>
 									D
 								</span>
-								<span className="text-base font-bold text-foreground">
+								<span className="hidden sm:inline text-base font-bold text-foreground">
 									Darasa
 								</span>
 							</Link>
 
-							<div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
-								<Store className="size-4 text-primary" aria-hidden="true" />
-								<span>
-									Direktori Kuliner Kabupaten Batang &amp; Koridor KITB
-								</span>
-							</div>
+							<p className="hidden lg:block truncate text-sm font-medium text-muted-foreground">
+								Direktori Kuliner Kabupaten Batang
+							</p>
 						</div>
 
-						<div className="flex items-center gap-2.5">
-							<ThemeToggle />
-
-							<Button
-								asChild
-								variant="secondary"
-								size="sm"
-								className="hidden md:inline-flex"
+						{/* Navbar Right: Global Search + Profile (with Dark/Light Mode Settings) */}
+						<div className="flex flex-1 items-center justify-end gap-2.5 min-w-0">
+							<div
+								ref={globalSearchBoxRef}
+								className="relative flex-1 max-w-xs sm:max-w-sm"
 							>
-								<Link to="/submit-place">
-									<PlusCircle className="size-4" aria-hidden="true" />
-									Tambah Tempat
-								</Link>
-							</Button>
+								<search>
+									<form
+										onSubmit={handleGlobalSearchSubmit}
+										className="relative flex items-center"
+									>
+										<Label htmlFor={globalSearchInputId} className="sr-only">
+											Pencarian global kuliner Batang
+										</Label>
+										<Input
+											id={globalSearchInputId}
+											type="search"
+											value={globalQuery}
+											onFocus={() => setGlobalSearchFocused(true)}
+											onChange={(e) => {
+												setGlobalQuery(e.target.value);
+												setGlobalSearchFocused(true);
+											}}
+											onKeyDown={(e) => {
+												if (e.key === "Escape") {
+													setGlobalSearchFocused(false);
+												}
+											}}
+											placeholder="Cari warung, menu, atau kawasan..."
+											className="h-10 rounded-full border-border bg-background pl-4 pr-10 text-sm"
+										/>
+										<button
+											type="submit"
+											aria-label="Cari kuliner secara global"
+											title="Cari"
+											className="absolute right-1.5 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+										>
+											<Search className="size-4" aria-hidden="true" />
+										</button>
+									</form>
+								</search>
 
-							<Button
-								asChild
-								variant="outline"
-								size="sm"
-								className="hidden sm:inline-flex border-accent-yellow/60 bg-accent text-accent-foreground hover:bg-yellow-soft"
+								{showGlobalDropdown ? (
+									<section
+										aria-label="Hasil pencarian global cepat"
+										className="absolute right-0 top-full z-50 mt-2 w-full min-w-[260px] rounded-[12px] border border-border bg-popover p-2 text-popover-foreground shadow-lg"
+									>
+										{globalSearchMatches.length === 0 ? (
+											<p className="px-3 py-2 text-xs text-muted-foreground">
+												Tidak ada tempat cocok untuk &ldquo;{globalQuery.trim()}
+												&rdquo;.
+											</p>
+										) : (
+											<ul className="space-y-1">
+												{globalSearchMatches.map((place) => (
+													<li key={place.id}>
+														<Link
+															to={`/places/${place.slug}`}
+															onClick={() => setGlobalSearchFocused(false)}
+															className="flex items-center justify-between gap-2 rounded-[8px] px-2.5 py-2 text-left transition-colors hover:bg-muted"
+														>
+															<div className="min-w-0">
+																<p className="truncate text-xs font-semibold text-foreground">
+																	{place.name}
+																</p>
+																<p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+																	<MapPin
+																		className="size-3 shrink-0 text-primary"
+																		aria-hidden="true"
+																	/>
+																	<span>{place.district}</span>
+																	<span>·</span>
+																	<span>{place.category}</span>
+																</p>
+															</div>
+															<span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-foreground tabular-nums">
+																<Star
+																	className="size-3 fill-accent-yellow text-accent-yellow"
+																	aria-hidden="true"
+																/>
+																{place.reviewCount > 0
+																	? place.averageRating.toFixed(1)
+																	: "Baru"}
+															</span>
+														</Link>
+													</li>
+												))}
+											</ul>
+										)}
+										<div className="mt-1.5 border-t border-border pt-1.5">
+											<button
+												type="button"
+												onClick={() => {
+													setExploreFilters({ keyword: globalQuery.trim() });
+													setGlobalSearchFocused(false);
+													navigate("/explore");
+												}}
+												className="flex w-full items-center justify-between rounded-[8px] px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary-soft"
+											>
+												<span>Lihat semua hasil di Jelajah &rarr;</span>
+											</button>
+										</div>
+									</section>
+								) : null}
+							</div>
+
+							<button
+								type="button"
+								popoverTarget={profilePopoverId}
+								popoverTargetAction="toggle"
+								aria-controls={profilePopoverId}
+								aria-label={`Menu profil ${currentUser.name}`}
+								title={`${currentUser.name} (${ROLE_LABELS[currentUser.role] ?? currentUser.role})`}
+								className={cn(
+									"relative inline-flex size-10 sm:size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-muted transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+									currentUser.role === "visitor"
+										? "border-border hover:border-primary"
+										: "border-primary hover:border-primary-hover",
+								)}
 							>
-								<Link to="/hidden-gem">
-									<Gem className="size-4" aria-hidden="true" />
-									Mode Hidden Gem
-								</Link>
-							</Button>
+								<img
+									src="/images/avatar-profile.svg"
+									alt={`Foto profil ${currentUser.name}`}
+									width={44}
+									height={44}
+									className="size-full rounded-full object-cover"
+								/>
+							</button>
 
-							{currentUser.role === "visitor" ? (
-								<Button asChild variant="outline" size="sm">
-									<Link to="/login">
-										<LogIn className="size-4" aria-hidden="true" />
-										Masuk
-									</Link>
-								</Button>
-							) : (
-								<Badge
-									variant="default"
-									className="min-h-[38px] px-3 text-xs font-semibold"
-								>
-									{currentUser.name} ({ROLE_LABELS[currentUser.role]})
-								</Badge>
-							)}
+							<div
+								id={profilePopoverId}
+								ref={profilePopoverRef}
+								popover="auto"
+								className="darasa-profile-popover p-4 gap-3"
+							>
+								<div className="flex items-center gap-3">
+									<img
+										src="/images/avatar-profile.svg"
+										alt=""
+										width={40}
+										height={40}
+										className="size-10 shrink-0 rounded-full border border-border object-cover"
+									/>
+									<div className="min-w-0 flex-1">
+										<p className="truncate text-sm font-semibold text-foreground">
+											{currentUser.name}
+										</p>
+										<p className="truncate text-xs text-muted-foreground">
+											{ROLE_LABELS[currentUser.role] ?? currentUser.role}
+										</p>
+									</div>
+								</div>
+
+								{currentUser.role === "visitor" ? (
+									<div className="grid grid-cols-2 gap-2">
+										<Button asChild size="sm" className="w-full">
+											<Link to="/login" onClick={closeProfilePopover}>
+												<LogIn className="size-4" aria-hidden="true" />
+												Masuk
+											</Link>
+										</Button>
+										<Button
+											asChild
+											variant="outline"
+											size="sm"
+											className="w-full"
+										>
+											<Link to="/register" onClick={closeProfilePopover}>
+												<UserPlus className="size-4" aria-hidden="true" />
+												Daftar
+											</Link>
+										</Button>
+									</div>
+								) : (
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => {
+											logout();
+											closeProfilePopover();
+										}}
+										className="w-full justify-start"
+									>
+										<LogOut className="size-4" aria-hidden="true" />
+										Keluar Akun
+									</Button>
+								)}
+
+								<Separator />
+
+								{/* Settings: Dark Mode / Light Mode */}
+								<fieldset className="space-y-2 border-0 p-0 m-0">
+									<legend className="px-1 text-xs font-semibold text-muted-foreground">
+										Settings · Tema Tampilan
+									</legend>
+									<div className="grid grid-cols-2 gap-1.5">
+										<button
+											type="button"
+											onClick={() => setColorSchemePreference("light")}
+											className="darasa-theme-btn-light flex min-h-[38px] items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition-colors"
+										>
+											<Sun className="size-3.5" aria-hidden="true" />
+											<span>Light Mode</span>
+										</button>
+										<button
+											type="button"
+											onClick={() => setColorSchemePreference("dark")}
+											className="darasa-theme-btn-dark flex min-h-[38px] items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition-colors"
+										>
+											<Moon className="size-3.5" aria-hidden="true" />
+											<span>Dark Mode</span>
+										</button>
+									</div>
+								</fieldset>
+
+								<Separator />
+
+								<div className="space-y-1">
+									<p className="px-1 pb-1 text-xs font-semibold text-muted-foreground">
+										Pengelolaan &amp; Kurasi
+									</p>
+									{managementLinks.map((item) => {
+										const Icon = item.icon;
+										const active = location.pathname === item.to;
+										return (
+											<Link
+												key={item.to}
+												to={item.to}
+												onClick={closeProfilePopover}
+												className={cn(
+													"flex min-h-[40px] items-center justify-between gap-2 rounded-[8px] px-2.5 py-1.5 text-sm font-medium transition-colors",
+													active
+														? "bg-primary-soft text-primary-hover"
+														: "text-foreground hover:bg-muted",
+												)}
+											>
+												<span className="flex items-center gap-2.5">
+													<Icon
+														className="size-4 text-muted-foreground"
+														aria-hidden="true"
+													/>
+													<span>{item.label}</span>
+												</span>
+												{item.badge ? (
+													<Badge variant="yellow" className="tabular-nums">
+														{item.badge}
+													</Badge>
+												) : null}
+											</Link>
+										);
+									})}
+								</div>
+
+								<Separator />
+
+								<fieldset className="space-y-2 border-0 p-0 m-0">
+									<legend className="px-1 text-xs font-semibold text-muted-foreground">
+										Peran Prototipe
+									</legend>
+									<div className="grid grid-cols-2 gap-1.5">
+										{DEMO_ACCOUNTS.map((acc) => {
+											const isSelected = currentUser.id === acc.id;
+											return (
+												<button
+													key={acc.id}
+													type="button"
+													aria-pressed={isSelected}
+													onClick={() => {
+														switchDemoAccount(acc.id);
+														closeProfilePopover();
+													}}
+													className={cn(
+														"flex min-h-[36px] items-center justify-between gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-medium transition-colors",
+														isSelected
+															? "border-primary bg-primary-soft text-primary-hover"
+															: "border-border bg-background text-foreground hover:bg-muted",
+													)}
+												>
+													<span className="truncate">
+														{SHORT_ROLE_LABELS[acc.role] ?? acc.role}
+													</span>
+													{isSelected ? (
+														<Check
+															className="size-3.5 shrink-0"
+															aria-hidden="true"
+														/>
+													) : null}
+												</button>
+											);
+										})}
+									</div>
+								</fieldset>
+							</div>
 						</div>
 					</div>
 				</header>
 
-				<main id="main-content" tabIndex={-1} className="flex-1">
+				<main id="main-content" tabIndex={-1} className="flex-1 bg-card">
 					<div
 						ref={mainContentRef}
-						className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 xl:px-12 xl:py-8"
+						className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 xl:px-10 xl:py-7"
 					>
 						{children}
 					</div>
@@ -874,31 +904,39 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</div>
 				) : null}
 
-				<footer className="border-t border-border bg-card">
-					<div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-5 text-xs text-muted-foreground sm:px-6 lg:px-8 xl:px-12">
+				<footer className="border-t border-border bg-background/50">
+					<div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-4 text-xs text-muted-foreground sm:px-6 lg:px-8 xl:px-10">
 						<p>
 							<strong className="font-semibold text-foreground">Darasa</strong>{" "}
-							· Platform Kurasi Kuliner Komunitas Kabupaten Batang (Prototipe
-							2026)
+							&middot; Direktori Kuliner Kabupaten Batang
 						</p>
 						<div className="flex flex-wrap items-center gap-4">
 							<Link to="/" className="hover:text-primary hover:underline">
+								Home
+							</Link>
+							<Link
+								to="/explore"
+								className="hover:text-primary hover:underline"
+							>
 								Jelajah
 							</Link>
 							<Link
 								to="/hidden-gem"
 								className="hover:text-primary hover:underline"
 							>
-								Hidden Gem
+								Hidden Gems
 							</Link>
 							<Link
 								to="/submit-place"
 								className="hover:text-primary hover:underline"
 							>
-								Tambah Tempat
+								Contribute
 							</Link>
-							<Link to="/claim" className="hover:text-primary hover:underline">
-								Klaim Profil Usaha
+							<Link
+								to="/bookmarks"
+								className="hover:text-primary hover:underline"
+							>
+								Bookmark
 							</Link>
 						</div>
 					</div>

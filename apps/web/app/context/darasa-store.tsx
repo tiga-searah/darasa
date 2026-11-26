@@ -23,15 +23,58 @@ import {
 import type {
 	AnomalyFlag,
 	AnomalyResolution,
+	BatangDistrict,
 	BusinessClaim,
 	CulinaryPlace,
 	OwnerReply,
+	PlaceCategory,
 	ReviewItem,
 	UserAccount,
 	VerificationStatus,
 } from "~/lib/types";
 
+export type ExploreSortOption = "explore" | "rating" | "reviews" | "newest";
+export type ExploreViewMode = "grid" | "list";
+export type ExploreMinRating = "all" | "4.0" | "4.5";
+export type ExplorePriceTier = "all" | "budget" | "mid" | "premium";
+
+export interface ExploreFilters {
+	keyword: string;
+	category: PlaceCategory | "all";
+	district: BatangDistrict | "all";
+	verification: VerificationStatus | "all";
+	minRating: ExploreMinRating;
+	priceTier: ExplorePriceTier;
+	onlyHiddenGem: boolean;
+	onlyBookmarked: boolean;
+	sortBy: ExploreSortOption;
+	viewMode: ExploreViewMode;
+}
+
+export const DEFAULT_EXPLORE_FILTERS: ExploreFilters = {
+	keyword: "",
+	category: "all",
+	district: "all",
+	verification: "all",
+	minRating: "all",
+	priceTier: "all",
+	onlyHiddenGem: false,
+	onlyBookmarked: false,
+	sortBy: "explore",
+	viewMode: "grid",
+};
+
 const STORAGE_KEY = "darasa_prototype_state_v1";
+
+export interface ContributionActivity {
+	id: string;
+	userId: string;
+	type: "place" | "review" | "photo" | "edit";
+	placeId: string;
+	placeName: string;
+	summary: string;
+	createdAt: string;
+}
 
 interface PersistedState {
 	places: CulinaryPlace[];
@@ -40,6 +83,8 @@ interface PersistedState {
 	accounts: UserAccount[];
 	currentUserId: string;
 	anomalyOverrides: Record<string, AnomalyResolution>;
+	bookmarkedPlaceIds: string[];
+	contributions: ContributionActivity[];
 }
 
 export interface PlaceWithMetrics extends CulinaryPlace {
@@ -65,7 +110,18 @@ interface DarasaContextValue {
 	places: PlaceWithMetrics[];
 	claims: BusinessClaim[];
 	anomalies: AnomalyFlag[];
+	bookmarkedPlaceIds: string[];
+	contributions: ContributionActivity[];
 	toast: ToastNotification | null;
+	exploreFilters: ExploreFilters;
+	setExploreFilters: (
+		updater:
+			| Partial<ExploreFilters>
+			| ((prev: ExploreFilters) => ExploreFilters),
+	) => void;
+	resetExploreFilters: () => void;
+	isBookmarked: (placeId: string) => boolean;
+	toggleBookmark: (placeId: string) => void;
 	notify: (message: string, tone?: "success" | "info") => void;
 	dismissToast: () => void;
 	loginWithCredentials: (
@@ -125,6 +181,17 @@ interface DarasaContextValue {
 			>
 		>,
 	) => void;
+	addPlacePhoto: (placeId: string, photoUrl: string) => void;
+	suggestPlaceUpdate: (
+		placeId: string,
+		updates: Partial<
+			Pick<
+				CulinaryPlace,
+				"address" | "openingHours" | "priceRange" | "phone" | "description"
+			>
+		>,
+		note?: string,
+	) => void;
 	replyToReview: (reviewId: string, message: string) => void;
 	setPlaceVerification: (
 		placeId: string,
@@ -153,12 +220,31 @@ const DEFAULT_STATE: PersistedState = {
 	accounts: DEMO_ACCOUNTS,
 	currentUserId: "usr-visitor",
 	anomalyOverrides: {},
+	bookmarkedPlaceIds: [],
+	contributions: [],
 };
 
 export function DarasaProvider({ children }: { children: ReactNode }) {
 	const [state, setState] = useState<PersistedState>(DEFAULT_STATE);
 	const [hydrated, setHydrated] = useState(false);
 	const [toast, setToast] = useState<ToastNotification | null>(null);
+	const [exploreFilters, setExploreFiltersState] = useState<ExploreFilters>(
+		DEFAULT_EXPLORE_FILTERS,
+	);
+
+	const setExploreFilters: DarasaContextValue["setExploreFilters"] =
+		useCallback((updater) => {
+			setExploreFiltersState((prev) =>
+				typeof updater === "function" ? updater(prev) : { ...prev, ...updater },
+			);
+		}, []);
+
+	const resetExploreFilters = useCallback(() => {
+		setExploreFiltersState((prev) => ({
+			...DEFAULT_EXPLORE_FILTERS,
+			viewMode: prev.viewMode,
+		}));
+	}, []);
 
 	const notify = useCallback(
 		(message: string, tone: "success" | "info" = "success") => {
@@ -197,6 +283,12 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 								? parsed.currentUserId
 								: "usr-visitor",
 						anomalyOverrides: parsed.anomalyOverrides ?? {},
+						bookmarkedPlaceIds: Array.isArray(parsed.bookmarkedPlaceIds)
+							? parsed.bookmarkedPlaceIds
+							: [],
+						contributions: Array.isArray(parsed.contributions)
+							? parsed.contributions
+							: [],
 					});
 				}
 			}
@@ -523,6 +615,61 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			[notify],
 		);
 
+	const addPlacePhoto = useCallback(
+		(placeId: string, photoUrl: string) => {
+			if (!photoUrl) return;
+			const targetPlace = state.places.find((p) => p.id === placeId);
+			if (!targetPlace) return;
+			const activity: ContributionActivity = {
+				id: `ctb-${Date.now()}`,
+				userId: currentUser.id,
+				type: "photo",
+				placeId,
+				placeName: targetPlace.name,
+				summary: "Menambahkan foto kuliner baru",
+				createdAt: new Date().toISOString(),
+			};
+			setState((prev) => ({
+				...prev,
+				places: prev.places.map((p) =>
+					p.id === placeId && !p.photos.includes(photoUrl)
+						? { ...p, photos: [photoUrl, ...p.photos] }
+						: p,
+				),
+				contributions: [activity, ...prev.contributions],
+			}));
+			notify(`Foto untuk "${targetPlace.name}" berhasil ditambahkan.`);
+		},
+		[currentUser.id, notify, state.places],
+	);
+
+	const suggestPlaceUpdate: DarasaContextValue["suggestPlaceUpdate"] =
+		useCallback(
+			(placeId, updates, note) => {
+				const targetPlace = state.places.find((p) => p.id === placeId);
+				if (!targetPlace) return;
+				const activity: ContributionActivity = {
+					id: `ctb-${Date.now()}`,
+					userId: currentUser.id,
+					type: "edit",
+					placeId,
+					placeName: targetPlace.name,
+					summary:
+						note?.trim() || "Memperbarui informasi operasional tempat kuliner",
+					createdAt: new Date().toISOString(),
+				};
+				setState((prev) => ({
+					...prev,
+					places: prev.places.map((p) =>
+						p.id === placeId ? { ...p, ...updates } : p,
+					),
+					contributions: [activity, ...prev.contributions],
+				}));
+				notify(`Pembaruan info untuk "${targetPlace.name}" berhasil disimpan.`);
+			},
+			[currentUser.id, notify, state.places],
+		);
+
 	const replyToReview = useCallback(
 		(reviewId: string, message: string) => {
 			const cleanMessage = message.trim();
@@ -589,6 +736,33 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 		notify("Data prototipe dikembalikan ke kondisi awal.", "info");
 	}, [notify]);
 
+	const isBookmarked = useCallback(
+		(placeId: string) => state.bookmarkedPlaceIds.includes(placeId),
+		[state.bookmarkedPlaceIds],
+	);
+
+	const toggleBookmark = useCallback(
+		(placeId: string) => {
+			const alreadySaved = state.bookmarkedPlaceIds.includes(placeId);
+			setState((prev) => {
+				const exists = prev.bookmarkedPlaceIds.includes(placeId);
+				return {
+					...prev,
+					bookmarkedPlaceIds: exists
+						? prev.bookmarkedPlaceIds.filter((id) => id !== placeId)
+						: [placeId, ...prev.bookmarkedPlaceIds],
+				};
+			});
+			notify(
+				alreadySaved
+					? "Tempat dihapus dari Bookmark."
+					: "Tempat disimpan ke Bookmark.",
+				alreadySaved ? "info" : "success",
+			);
+		},
+		[state.bookmarkedPlaceIds, notify],
+	);
+
 	const value = useMemo<DarasaContextValue>(
 		() => ({
 			hydrated,
@@ -597,7 +771,14 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			places,
 			claims: state.claims,
 			anomalies,
+			bookmarkedPlaceIds: state.bookmarkedPlaceIds,
+			contributions: state.contributions,
 			toast,
+			exploreFilters,
+			setExploreFilters,
+			resetExploreFilters,
+			isBookmarked,
+			toggleBookmark,
 			notify,
 			dismissToast,
 			loginWithCredentials,
@@ -609,6 +790,8 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			submitClaim,
 			reviewClaim,
 			updatePlaceProfile,
+			addPlacePhoto,
+			suggestPlaceUpdate,
 			replyToReview,
 			setPlaceVerification,
 			resolveAnomalyFlag,
@@ -621,7 +804,14 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			places,
 			state.claims,
 			anomalies,
+			state.bookmarkedPlaceIds,
+			state.contributions,
 			toast,
+			exploreFilters,
+			setExploreFilters,
+			resetExploreFilters,
+			isBookmarked,
+			toggleBookmark,
 			notify,
 			dismissToast,
 			loginWithCredentials,
@@ -633,6 +823,8 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			submitClaim,
 			reviewClaim,
 			updatePlaceProfile,
+			addPlacePhoto,
+			suggestPlaceUpdate,
 			replyToReview,
 			setPlaceVerification,
 			resolveAnomalyFlag,

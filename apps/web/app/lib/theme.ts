@@ -72,14 +72,9 @@ export function syncColorSchemeFromStorage(): void {
 	applyColorSchemeMeta(stored ?? "light dark");
 }
 
-/**
- * Two-state toggle backing onto a tri-state data model ("light dark" | "light" | "dark"):
- * switches to the opposite of the currently rendered scheme, storing an override only when
- * it diverges from the current system preference and clearing storage when returning to system.
- */
-export function toggleColorScheme(): ResolvedColorScheme {
-	const current = getRenderedColorScheme();
-	const target: ResolvedColorScheme = current === "dark" ? "light" : "dark";
+export function setColorSchemePreference(
+	target: ResolvedColorScheme,
+): ResolvedColorScheme {
 	const system = getSystemColorScheme();
 
 	if (target !== system) {
@@ -99,4 +94,15 @@ export function toggleColorScheme(): ResolvedColorScheme {
 	}
 
 	return target;
+}
+
+/**
+ * Two-state toggle backing onto a tri-state data model ("light dark" | "light" | "dark"):
+ * switches to the opposite of the currently rendered scheme, storing an override only when
+ * it diverges from the current system preference and clearing storage when returning to system.
+ */
+export function toggleColorScheme(): ResolvedColorScheme {
+	const current = getRenderedColorScheme();
+	const target: ResolvedColorScheme = current === "dark" ? "light" : "dark";
+	return setColorSchemePreference(target);
 }

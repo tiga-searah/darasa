@@ -1,6 +1,5 @@
 import { ExternalLink } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
 
 interface BatangMapPreviewProps {
 	name: string;
@@ -21,8 +20,8 @@ export function BatangMapPreview({
 	const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
 	return (
-		<Card className="overflow-hidden">
-			<div className="h-64 w-full border-b border-border bg-background">
+		<div className="space-y-3">
+			<div className="h-64 w-full overflow-hidden rounded-[12px] border border-border bg-muted">
 				<iframe
 					title={`Peta Google Maps untuk ${name} di ${district}`}
 					src={embedUrl}
@@ -34,12 +33,12 @@ export function BatangMapPreview({
 				/>
 			</div>
 
-			<div className="p-4 flex flex-wrap items-center justify-between gap-3">
+			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="min-w-0 flex-1 space-y-0.5">
 					<p className="text-sm font-semibold text-foreground">{district}</p>
 					<p className="text-xs text-muted-foreground">{address}</p>
 					<p className="text-xs text-muted-foreground tabular-nums">
-						Koordinat Google Maps: {lat.toFixed(4)}, {lng.toFixed(4)}
+						Koordinat: {lat.toFixed(4)}, {lng.toFixed(4)}
 					</p>
 				</div>
 				<Button asChild variant="secondary" size="sm">
@@ -49,6 +48,6 @@ export function BatangMapPreview({
 					</a>
 				</Button>
 			</div>
-		</Card>
+		</div>
 	);
 }

@@ -43,13 +43,20 @@ export function ThemeToggle({ className, compact = false }: ThemeToggleProps) {
 		<Button
 			type="button"
 			variant="outline"
+			size={compact ? "icon" : "default"}
 			onClick={() => {
 				toggleColorScheme();
 			}}
-			className={cn("min-h-[44px] gap-2", compact ? "px-3" : "px-3", className)}
+			className={cn(
+				compact ? "size-11 rounded-[10px] p-0" : "min-h-[44px] gap-2 px-3",
+				className,
+			)}
 		>
-			<span className="theme-when-light items-center gap-2">
-				<Moon className="size-4" aria-hidden="true" />
+			<span
+				className="theme-when-light items-center gap-2"
+				title="Aktifkan mode gelap"
+			>
+				<Moon className="size-5" aria-hidden="true" />
 				{!compact ? (
 					<span className="hidden sm:inline" aria-hidden="true">
 						Mode Gelap
@@ -57,8 +64,11 @@ export function ThemeToggle({ className, compact = false }: ThemeToggleProps) {
 				) : null}
 				<span className="sr-only">Aktifkan mode gelap</span>
 			</span>
-			<span className="theme-when-dark items-center gap-2">
-				<Sun className="size-4" aria-hidden="true" />
+			<span
+				className="theme-when-dark items-center gap-2"
+				title="Aktifkan mode terang"
+			>
+				<Sun className="size-5" aria-hidden="true" />
 				{!compact ? (
 					<span className="hidden sm:inline" aria-hidden="true">
 						Mode Terang

@@ -1,117 +1,219 @@
-import { Clock, Compass, Gem, MapPin, Star } from "lucide-react";
+import { Bookmark, Clock, Compass, Gem, MapPin, Star } from "lucide-react";
 import { Link } from "react-router";
 import { Badge } from "~/components/ui/badge";
-import { Card } from "~/components/ui/card";
-import { Separator } from "~/components/ui/separator";
 import { VerificationBadge } from "~/components/verification-badge";
-import type { PlaceWithMetrics } from "~/context/darasa-store";
+import { type PlaceWithMetrics, useDarasa } from "~/context/darasa-store";
+import { cn } from "~/lib/utils";
 
 interface PlaceCardProps {
 	place: PlaceWithMetrics;
 	mode?: "explore" | "hidden-gem";
+	layout?: "grid" | "list";
 	prioritizeImage?: boolean;
 }
 
 export function PlaceCard({
 	place,
 	mode = "explore",
+	layout = "grid",
 	prioritizeImage = false,
 }: PlaceCardProps) {
-	return (
-		<Link
-			to={`/places/${place.slug}`}
-			className="group block h-full rounded-[12px]"
+	const { isBookmarked, toggleBookmark } = useDarasa();
+	const saved = isBookmarked(place.id);
+
+	const scoreBadge =
+		mode === "hidden-gem" ? (
+			<Badge variant="yellow" className="bg-yellow-soft/95">
+				<Gem className="size-3.5" aria-hidden="true" />
+				<span className="tabular-nums">
+					Gem {place.hiddenGemScore.toFixed(2)}
+				</span>
+			</Badge>
+		) : (
+			<Badge variant="default" className="bg-primary-soft/95">
+				<Compass className="size-3.5" aria-hidden="true" />
+				<span className="tabular-nums">{place.exploreScore.toFixed(2)}</span>
+			</Badge>
+		);
+
+	const bookmarkButton = (
+		<button
+			type="button"
+			onClick={() => toggleBookmark(place.id)}
+			aria-pressed={saved}
+			aria-label={
+				saved
+					? `Hapus ${place.name} dari bookmark`
+					: `Simpan ${place.name} ke bookmark`
+			}
+			title={saved ? "Hapus dari Bookmark" : "Simpan ke Bookmark"}
+			className={cn(
+				"relative z-10 inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border transition-colors",
+				saved
+					? "border-primary/40 bg-primary-soft text-primary"
+					: "border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground",
+			)}
 		>
-			<Card className="darasa-card-interactive flex h-full flex-col overflow-hidden">
-				<div className="relative aspect-[16/10] w-full overflow-hidden bg-background">
+			<Bookmark
+				className={cn("size-4", saved ? "fill-primary" : "")}
+				aria-hidden="true"
+			/>
+		</button>
+	);
+
+	if (layout === "list") {
+		return (
+			<article className="group relative flex flex-col gap-4 rounded-[12px] px-2 py-4 transition-colors duration-150 hover:bg-muted/55 sm:flex-row sm:items-start">
+				<div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-[12px] bg-muted sm:w-48">
 					<img
 						src={place.photos[0] ?? "/images/megono-batang.svg"}
 						alt={`Ilustrasi sajian ${place.name} di ${place.district}`}
-						width={800}
-						height={500}
+						width={400}
+						height={250}
 						loading={prioritizeImage ? "eager" : "lazy"}
 						fetchPriority={prioritizeImage ? "high" : "auto"}
 						className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
 					/>
-					<div className="absolute inset-x-3 top-3 flex flex-wrap items-center justify-between gap-2">
-						<Badge
-							variant="outline"
-							className="bg-card/95 text-foreground shadow-xs"
-						>
+					<div className="absolute left-2.5 top-2.5">
+						<Badge variant="outline" className="bg-card/95 text-foreground">
 							{place.category}
 						</Badge>
-						{mode === "hidden-gem" ? (
-							<Badge variant="yellow" className="bg-yellow-soft/95 shadow-xs">
-								<Gem className="size-3.5" aria-hidden="true" />
-								<span className="tabular-nums">
-									Gem {place.hiddenGemScore.toFixed(2)}
-								</span>
-							</Badge>
-						) : (
-							<Badge variant="default" className="bg-primary-soft/95 shadow-xs">
-								<Compass className="size-3.5" aria-hidden="true" />
-								<span className="tabular-nums">
-									Explore {place.exploreScore.toFixed(2)}
-								</span>
-							</Badge>
-						)}
 					</div>
 				</div>
 
-				<div className="flex flex-1 flex-col gap-3 p-5">
-					<div className="space-y-1.5">
-						<h2 className="text-[18px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
-							{place.name}
+				<div className="flex min-w-0 flex-1 flex-col gap-2">
+					<div className="flex items-start justify-between gap-2">
+						<h2 className="min-w-0 flex-1 text-base sm:text-[18px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+							<Link
+								to={`/places/${place.slug}`}
+								className="after:absolute after:inset-0 after:rounded-[12px] focus-visible:outline-none"
+							>
+								{place.name}
+							</Link>
 						</h2>
-
-						<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-							<span className="inline-flex items-center gap-1.5 font-semibold text-foreground tabular-nums">
-								<Star
-									className="size-4 fill-accent-yellow text-accent-yellow"
-									aria-hidden="true"
-								/>
-								{place.reviewCount > 0
-									? place.averageRating.toFixed(1)
-									: "Baru"}
-								<span className="font-normal text-muted-foreground">
-									({place.reviewCount} ulasan)
-								</span>
-							</span>
-							<span aria-hidden="true" className="text-border">
-								/
-							</span>
-							<span className="inline-flex items-center gap-1 text-muted-foreground">
-								<MapPin className="size-4 text-primary" aria-hidden="true" />
-								{place.district}
-							</span>
+						<div className="flex shrink-0 items-center gap-1.5">
+							{scoreBadge}
+							{bookmarkButton}
 						</div>
+					</div>
+
+					<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
+						<span className="inline-flex items-center gap-1 font-semibold text-foreground tabular-nums">
+							<Star
+								className="size-4 fill-accent-yellow text-accent-yellow"
+								aria-hidden="true"
+							/>
+							{place.reviewCount > 0 ? place.averageRating.toFixed(1) : "Baru"}
+							<span className="font-normal text-muted-foreground">
+								({place.reviewCount})
+							</span>
+						</span>
+						<span aria-hidden="true" className="text-border">
+							·
+						</span>
+						<span className="inline-flex items-center gap-1 text-muted-foreground">
+							<MapPin className="size-3.5 text-primary" aria-hidden="true" />
+							{place.district}
+						</span>
+						<span aria-hidden="true" className="text-border">
+							·
+						</span>
+						<span className="text-xs font-medium text-foreground tabular-nums">
+							{place.priceRange}
+						</span>
 					</div>
 
 					<p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
 						{place.description}
 					</p>
 
-					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-						<Clock
-							className="size-3.5 shrink-0 text-primary"
-							aria-hidden="true"
-						/>
-						<span className="truncate">{place.openingHours}</span>
-					</div>
-
-					<Separator className="mt-auto" />
-
-					<div className="flex flex-wrap items-center justify-between gap-2">
+					<div className="flex flex-wrap items-center gap-3 pt-0.5 text-xs text-muted-foreground">
 						<VerificationBadge
 							status={place.verificationStatus}
 							isPendingModeration={place.isPendingModeration}
 						/>
-						<span className="text-xs font-semibold text-foreground tabular-nums">
-							{place.priceRange}
+						<span className="inline-flex items-center gap-1">
+							<Clock
+								className="size-3.5 shrink-0 text-primary"
+								aria-hidden="true"
+							/>
+							<span>{place.openingHours}</span>
 						</span>
 					</div>
 				</div>
-			</Card>
-		</Link>
+			</article>
+		);
+	}
+
+	return (
+		<article className="group relative flex h-full flex-col rounded-[14px] p-2.5 -m-2.5 transition-colors duration-150 hover:bg-muted/55">
+			<div className="relative aspect-[16/10] w-full overflow-hidden rounded-[12px] bg-muted">
+				<img
+					src={place.photos[0] ?? "/images/megono-batang.svg"}
+					alt={`Ilustrasi sajian ${place.name} di ${place.district}`}
+					width={800}
+					height={500}
+					loading={prioritizeImage ? "eager" : "lazy"}
+					fetchPriority={prioritizeImage ? "high" : "auto"}
+					className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+				/>
+				<div className="absolute inset-x-2.5 top-2.5 flex flex-wrap items-center justify-between gap-2">
+					<Badge variant="outline" className="bg-card/95 text-foreground">
+						{place.category}
+					</Badge>
+					{scoreBadge}
+				</div>
+			</div>
+
+			<div className="flex flex-1 flex-col gap-2 pt-3">
+				<div className="space-y-1">
+					<div className="flex items-start justify-between gap-2">
+						<h2 className="min-w-0 flex-1 text-[17px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary line-clamp-2">
+							<Link
+								to={`/places/${place.slug}`}
+								className="after:absolute after:inset-0 after:rounded-[14px] focus-visible:outline-none"
+							>
+								{place.name}
+							</Link>
+						</h2>
+						{bookmarkButton}
+					</div>
+
+					<div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm text-muted-foreground">
+						<span className="inline-flex items-center gap-1 font-semibold text-foreground tabular-nums">
+							<Star
+								className="size-3.5 fill-accent-yellow text-accent-yellow"
+								aria-hidden="true"
+							/>
+							{place.reviewCount > 0 ? place.averageRating.toFixed(1) : "Baru"}
+							<span className="font-normal text-muted-foreground">
+								({place.reviewCount})
+							</span>
+						</span>
+						<span aria-hidden="true" className="text-border">
+							·
+						</span>
+						<span className="inline-flex items-center gap-1 text-muted-foreground">
+							<MapPin className="size-3.5 text-primary" aria-hidden="true" />
+							{place.district}
+						</span>
+					</div>
+				</div>
+
+				<p className="line-clamp-2 text-xs sm:text-sm leading-relaxed text-muted-foreground">
+					{place.description}
+				</p>
+
+				<div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1.5 text-xs">
+					<VerificationBadge
+						status={place.verificationStatus}
+						isPendingModeration={place.isPendingModeration}
+					/>
+					<span className="font-medium text-foreground tabular-nums">
+						{place.priceRange}
+					</span>
+				</div>
+			</div>
+		</article>
 	);
 }

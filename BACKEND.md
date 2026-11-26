@@ -18,20 +18,24 @@ Backend di [apps/api](./apps/api) saat ini baru berisi kerangka awal:
 ## 2. Dependensi & Infrastruktur yang Diperlukan
 
 ### A. Database & ORM (`apps/api`)
+
 - **PostgreSQL** : Penyimpanan relasional utama (sesuai `AGENTS.md` dan `PRD.md`).
 - **`drizzle-orm` + `drizzle-orm/typebox` + `typebox`** : Query builder type-safe sekaligus generator skema validasi TypeBox untuk Elysia v2.
 - **`postgres` (atau `pg`)** : Driver koneksi PostgreSQL untuk Bun.
 - **`drizzle-kit`** (devDependency) : Generator dan runner migrasi database.
 
 ### B. Autentikasi, Keamanan, & Upload File (`apps/api`)
+
 - **`@elysiajs/jwt` + Cookie HTTP-Only** : Manajemen sesi login dan token autentikasi lintas role (`visitor`, `user`, `owner`, `admin`).
 - **`Bun.password.hash` / `Bun.password.verify`** : Hashing kata sandi bawaan runtime Bun (Argon2id/bcrypt) tanpa library tambahan.
 - **Penyimpanan File (Local Volume atau S3-compatible seperti Cloudflare R2 / MinIO)** : Menyimpan foto tempat kuliner, foto ulasan, dan dokumen bukti klaim usaha dengan validasi tipe MIME dan ukuran file.
 
 ### C. Type-Safe API Client (`apps/web` atau `packages/`)
+
 - **`@elysiajs/eden`** (di `apps/web`) : Menggunakan `treaty<App>(API_URL)` agar frontend memanggil endpoint backend secara type-safe langsung dari `export type App = typeof app`.
 
 ### D. Layanan Eksternal Opsional (sesuai `PRD.md` Bagian 11)
+
 - **Google Maps Platform API** : Validasi geocoding atau tampilan peta interaktif lanjutan untuk koordinat Kabupaten Batang.
 - **WhatsApp Business API** : Notifikasi status pengajuan/persetujuan klaim profil kepada pemilik usaha (opsional untuk prototipe).
 
@@ -125,17 +129,17 @@ Berdasarkan Bagian 6.1 **PRD.md**, tabel PostgreSQL yang wajib dibuat:
 
 ## 5. Pemetaan Endpoint API ke Halaman Frontend (`apps/web`)
 
-| Halaman Frontend (`apps/web/app/routes/`) | Kebutuhan Endpoint Backend (`apps/api/src/routes/`) | Akses Role |
-| --- | --- | --- |
-| `login.tsx` | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | Publik |
-| `register.tsx` | `POST /auth/register` | Publik |
-| `explore.tsx` (`/`) | `GET /places?q=&category=&district=&verification=` (urut Explore Score) | Publik |
-| `hidden-gem.tsx` (`/hidden-gem`) | `GET /places/hidden-gem?district=` (syarat rating `>= 4.0`) | Publik |
-| `place-detail.tsx` (`/places/:slug`) | `GET /places/:slug`, `POST /places/:id/reviews` (multipart foto) | Detail: Publik / Ulasan: `user+` |
-| `submit-place.tsx` (`/submit-place`) | `POST /places` (validasi koordinat Batang + foto awal) | `user`, `owner`, `admin` |
-| `claim.tsx` (`/claim`) | `POST /claims`, `GET /claims/me` | `user`, `owner`, `admin` |
-| `owner.tsx` (`/owner`) | `GET /owner/place`, `PATCH /owner/place`, `POST /owner/reviews/:id/reply` | `owner` (klaim `approved`) |
-| `admin.tsx` (`/admin`) | `GET /admin/claims`, `PATCH /admin/claims/:id`, `PATCH /admin/places/:id/verify`, `GET/PATCH /admin/anomalies/:id` | `admin` |
+| Halaman Frontend (`apps/web/app/routes/`) | Kebutuhan Endpoint Backend (`apps/api/src/routes/`)                                                                | Akses Role                       |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| `login.tsx`                               | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`                                                            | Publik                           |
+| `register.tsx`                            | `POST /auth/register`                                                                                              | Publik                           |
+| `explore.tsx` (`/`)                       | `GET /places?q=&category=&district=&verification=` (urut Explore Score)                                            | Publik                           |
+| `hidden-gem.tsx` (`/hidden-gem`)          | `GET /places/hidden-gem?district=` (syarat rating `>= 4.0`)                                                        | Publik                           |
+| `place-detail.tsx` (`/places/:slug`)      | `GET /places/:slug`, `POST /places/:id/reviews` (multipart foto)                                                   | Detail: Publik / Ulasan: `user+` |
+| `submit-place.tsx` (`/submit-place`)      | `POST /places` (validasi koordinat Batang + foto awal)                                                             | `user`, `owner`, `admin`         |
+| `claim.tsx` (`/claim`)                    | `POST /claims`, `GET /claims/me`                                                                                   | `user`, `owner`, `admin`         |
+| `owner.tsx` (`/owner`)                    | `GET /owner/place`, `PATCH /owner/place`, `POST /owner/reviews/:id/reply`                                          | `owner` (klaim `approved`)       |
+| `admin.tsx` (`/admin`)                    | `GET /admin/claims`, `PATCH /admin/claims/:id`, `PATCH /admin/places/:id/verify`, `GET/PATCH /admin/anomalies/:id` | `admin`                          |
 
 ---
 

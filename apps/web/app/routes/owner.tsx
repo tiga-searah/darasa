@@ -12,7 +12,6 @@ import { type FormEvent, useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
@@ -76,7 +75,7 @@ export default function OwnerDashboardPage() {
 
 	if (currentUser.role !== "owner" || !ownedPlace) {
 		return (
-			<Card className="mx-auto max-w-2xl p-8 space-y-5">
+			<div className="mx-auto max-w-2xl py-10 space-y-5">
 				<div className="flex items-center gap-3">
 					<span className="flex size-11 items-center justify-center rounded-[10px] bg-yellow-soft text-yellow-text border border-accent-yellow/50">
 						<Lock className="size-5" aria-hidden="true" />
@@ -106,7 +105,7 @@ export default function OwnerDashboardPage() {
 						Coba sebagai Pemilik Terverifikasi (Siti Aminah)
 					</Button>
 				</div>
-			</Card>
+			</div>
 		);
 	}
 
@@ -144,7 +143,8 @@ export default function OwnerDashboardPage() {
 
 	return (
 		<div className="space-y-6">
-			<Card className="p-6 flex flex-wrap items-center justify-between gap-4">
+			{/* Flat Header */}
+			<div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
 				<div className="space-y-1.5">
 					<div className="flex flex-wrap items-center gap-2">
 						<VerificationBadge status={ownedPlace.verificationStatus} />
@@ -158,13 +158,14 @@ export default function OwnerDashboardPage() {
 				<Button asChild variant="secondary">
 					<Link to={`/places/${ownedPlace.slug}`}>Lihat Halaman Publik</Link>
 				</Button>
-			</Card>
+			</div>
 
+			{/* Divided Stat Strip (No Stat Cards) */}
 			<section
 				aria-label="Statistik profil usaha"
-				className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+				className="grid grid-cols-1 divide-y divide-border border-b border-border pb-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0"
 			>
-				<Card className="p-5 space-y-1">
+				<div className="py-2 sm:py-0 sm:pr-6 space-y-1">
 					<p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
 						<Star className="size-4 text-yellow-text" aria-hidden="true" />
 						Rata-rata Rating &amp; Volume
@@ -175,9 +176,9 @@ export default function OwnerDashboardPage() {
 							dari {ownedPlace.reviewCount} ulasan
 						</span>
 					</p>
-				</Card>
+				</div>
 
-				<Card className="p-5 space-y-1">
+				<div className="py-2 sm:py-0 sm:px-6 space-y-1">
 					<p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
 						<Compass className="size-4 text-primary" aria-hidden="true" />
 						Explore Score Saat Ini
@@ -185,9 +186,9 @@ export default function OwnerDashboardPage() {
 					<p className="text-2xl font-bold text-foreground tabular-nums">
 						{ownedPlace.exploreScore.toFixed(3)}
 					</p>
-				</Card>
+				</div>
 
-				<Card className="p-5 space-y-1">
+				<div className="py-2 sm:py-0 sm:pl-6 space-y-1">
 					<p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
 						<Gem className="size-4 text-yellow-text" aria-hidden="true" />
 						Status Hidden Gem
@@ -197,102 +198,99 @@ export default function OwnerDashboardPage() {
 							? `Memenuhi Syarat (${ownedPlace.hiddenGemScore.toFixed(2)})`
 							: "Rating di bawah 4.0"}
 					</p>
-				</Card>
+				</div>
 			</section>
 
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-				<Card className="lg:col-span-5">
-					<CardHeader>
-						<CardTitle className="text-lg font-bold">
-							Perbarui Informasi Usaha
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{savedNotice ? (
-							<div
-								role="status"
-								className="flex items-center gap-2 rounded-[8px] border border-primary/30 bg-primary-soft px-3.5 py-2.5 text-xs font-semibold text-primary-hover"
-							>
-								<CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
-								{savedNotice}
-							</div>
-						) : null}
+			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+				<section className="lg:col-span-5 space-y-4">
+					<h2 className="text-lg font-bold text-foreground">
+						Perbarui Informasi Usaha
+					</h2>
 
-						<form onSubmit={handleProfileSave} className="space-y-4">
+					{savedNotice ? (
+						<div
+							role="status"
+							className="flex items-center gap-2 rounded-[8px] border border-primary/30 bg-primary-soft px-3.5 py-2.5 text-xs font-semibold text-primary-hover"
+						>
+							<CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+							{savedNotice}
+						</div>
+					) : null}
+
+					<form onSubmit={handleProfileSave} className="space-y-4">
+						<div className="space-y-1.5">
+							<Label htmlFor={nameId}>Nama usaha</Label>
+							<Input
+								id={nameId}
+								type="text"
+								required
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+							/>
+						</div>
+
+						<div className="space-y-1.5">
+							<Label htmlFor={addrId}>Alamat usaha</Label>
+							<Input
+								id={addrId}
+								type="text"
+								required
+								value={address}
+								onChange={(e) => setAddress(e.target.value)}
+							/>
+						</div>
+
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 							<div className="space-y-1.5">
-								<Label htmlFor={nameId}>Nama usaha</Label>
+								<Label htmlFor={hoursId}>Jam buka</Label>
 								<Input
-									id={nameId}
+									id={hoursId}
 									type="text"
-									required
-									value={name}
-									onChange={(e) => setName(e.target.value)}
+									value={openingHours}
+									onChange={(e) => setOpeningHours(e.target.value)}
 								/>
 							</div>
 
 							<div className="space-y-1.5">
-								<Label htmlFor={addrId}>Alamat usaha</Label>
+								<Label htmlFor={priceId}>Kisaran harga</Label>
 								<Input
-									id={addrId}
+									id={priceId}
 									type="text"
-									required
-									value={address}
-									onChange={(e) => setAddress(e.target.value)}
+									value={priceRange}
+									onChange={(e) => setPriceRange(e.target.value)}
 								/>
 							</div>
+						</div>
 
-							<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-								<div className="space-y-1.5">
-									<Label htmlFor={hoursId}>Jam buka</Label>
-									<Input
-										id={hoursId}
-										type="text"
-										value={openingHours}
-										onChange={(e) => setOpeningHours(e.target.value)}
-									/>
-								</div>
+						<div className="space-y-1.5">
+							<Label htmlFor={phoneId}>Nomor kontak / WhatsApp</Label>
+							<Input
+								id={phoneId}
+								type="tel"
+								value={phone}
+								onChange={(e) => setPhone(e.target.value)}
+							/>
+						</div>
 
-								<div className="space-y-1.5">
-									<Label htmlFor={priceId}>Kisaran harga</Label>
-									<Input
-										id={priceId}
-										type="text"
-										value={priceRange}
-										onChange={(e) => setPriceRange(e.target.value)}
-									/>
-								</div>
-							</div>
+						<div className="space-y-1.5">
+							<Label htmlFor={descId}>Deskripsi usaha</Label>
+							<Textarea
+								id={descId}
+								rows={3}
+								value={description}
+								onChange={(e) => setDescription(e.target.value)}
+							/>
+						</div>
 
-							<div className="space-y-1.5">
-								<Label htmlFor={phoneId}>Nomor kontak / WhatsApp</Label>
-								<Input
-									id={phoneId}
-									type="tel"
-									value={phone}
-									onChange={(e) => setPhone(e.target.value)}
-								/>
-							</div>
+						<Button type="submit" className="w-full">
+							<Save className="size-4" aria-hidden="true" />
+							Simpan Perubahan Profil
+						</Button>
+					</form>
+				</section>
 
-							<div className="space-y-1.5">
-								<Label htmlFor={descId}>Deskripsi usaha</Label>
-								<Textarea
-									id={descId}
-									rows={3}
-									value={description}
-									onChange={(e) => setDescription(e.target.value)}
-								/>
-							</div>
-
-							<Button type="submit" className="w-full">
-								<Save className="size-4" aria-hidden="true" />
-								Simpan Perubahan Profil
-							</Button>
-						</form>
-					</CardContent>
-				</Card>
-
-				<section className="lg:col-span-7 space-y-6">
-					<Card className="p-6 space-y-3">
+				<section className="lg:col-span-7 lg:border-l lg:border-border lg:pl-7 space-y-6">
+					<div className="border-b border-border pb-6 space-y-3">
 						<h2 className="text-lg font-bold text-foreground">
 							Distribusi Bintang dari Ulasan Terdata
 						</h2>
@@ -310,10 +308,10 @@ export default function OwnerDashboardPage() {
 										<span className="w-16 font-semibold text-foreground tabular-nums">
 											{row.star} bintang
 										</span>
-										<div className="h-2.5 flex-1 overflow-hidden rounded-full bg-background border border-border">
+										<div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
 											<div
 												style={{ width: `${pct}%` }}
-												className="h-full bg-primary transition-[width] duration-300"
+												className="h-full rounded-full bg-primary transition-[width] duration-300"
 											/>
 										</div>
 										<span className="w-10 text-right text-muted-foreground tabular-nums">
@@ -323,9 +321,9 @@ export default function OwnerDashboardPage() {
 								);
 							})}
 						</div>
-					</Card>
+					</div>
 
-					<Card className="p-6 space-y-4">
+					<div className="space-y-4">
 						<div className="flex flex-wrap items-center justify-between gap-3">
 							<h2 className="text-lg font-bold text-foreground">
 								Balas Ulasan Pengunjung ({displayedReviews.length})
@@ -351,17 +349,14 @@ export default function OwnerDashboardPage() {
 						</div>
 
 						{displayedReviews.length === 0 ? (
-							<div className="rounded-[10px] border border-border bg-background p-6 text-center text-sm text-muted-foreground">
+							<div className="border-t border-border py-8 text-center text-sm text-muted-foreground">
 								Semua ulasan pengunjung sudah Anda balas. Kerja bagus menjaga
 								komunikasi dengan pelanggan!
 							</div>
 						) : (
-							<ul className="space-y-4">
+							<ul className="divide-y divide-border border-t border-border">
 								{displayedReviews.map((rev) => (
-									<li
-										key={rev.id}
-										className="rounded-[10px] border border-border bg-background p-4 space-y-3"
-									>
+									<li key={rev.id} className="py-5 space-y-3">
 										<div className="flex items-center justify-between gap-2">
 											<p className="text-sm font-semibold text-foreground">
 												{rev.authorName}
@@ -377,11 +372,11 @@ export default function OwnerDashboardPage() {
 										<p className="text-sm text-foreground">{rev.comment}</p>
 
 										{rev.ownerReply ? (
-											<div className="rounded-[8px] border border-primary/25 bg-primary-soft px-3.5 py-2.5 space-y-1">
+											<div className="border-l-2 border-primary pl-3.5 py-0.5 space-y-1">
 												<p className="text-xs font-semibold text-primary-hover">
 													Balasan Anda
 												</p>
-												<p className="text-sm text-foreground">
+												<p className="text-sm text-muted-foreground">
 													{rev.ownerReply.message}
 												</p>
 											</div>
@@ -419,7 +414,7 @@ export default function OwnerDashboardPage() {
 								))}
 							</ul>
 						)}
-					</Card>
+					</div>
 				</section>
 			</div>
 		</div>

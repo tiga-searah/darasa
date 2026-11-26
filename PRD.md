@@ -5,9 +5,9 @@
 **Document version:** 1.0\
 **Product type:** Responsive web application prototype\
 **Primary launch area:** Batang Regency, Central Java, Indonesia\
-**Source:** *Software Development Proposal (2026)* (2026)
+**Source:** _Software Development Proposal (2026)_ (2026)
 
-------------------------------------------------------------------------
+---
 
 ## 1. Product Overview
 
@@ -71,7 +71,7 @@ reservations. - Online payments or payment processing. - Food delivery
 or courier management. - Point-of-sale (POS) or cashier operations. -
 Full business operations or inventory management.
 
-------------------------------------------------------------------------
+---
 
 ## 2. Target Users and Roles
 
@@ -116,7 +116,7 @@ business-profile claims. - Verify business information. - Review
 information or activity flagged for further inspection. - Manage
 approval and verification outcomes.
 
-------------------------------------------------------------------------
+---
 
 ## 3. Product Scope
 
@@ -144,7 +144,7 @@ The initial product scope is culinary places in **Batang Regency,
 Central Java, Indonesia**. Expansion to other areas is a possible future
 direction, not a requirement for the initial prototype.
 
-------------------------------------------------------------------------
+---
 
 ## 4. Functional Requirements
 
@@ -154,185 +154,203 @@ Optional capability where implementation capacity allows.
 
 ### 4.1 Authentication and Account Management
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-001                  The system must provide Must
-                          a registration page for 
-                          new users.              
+---
 
-  FR-002                  The system must provide Must
-                          a login page for        
-                          registered users.       
+ID Requirement Priority
 
-  FR-003                  Registration and login  Must
-                          forms must validate     
-                          submitted data and show 
-                          appropriate error       
-                          messages when input is  
-                          invalid.                
+---
 
-  FR-004                  The system must         Must
-                          associate               
-                          contributions, such as  
-                          reviews, with the       
-                          submitting user's       
-                          account.                
+FR-001 The system must provide Must
+a registration page for
+new users.
 
-  FR-005                  The system must support Must
-                          role-aware access for   
-                          general users, approved 
-                          business owners, and    
-                          administrators.         
-  -----------------------------------------------------------------------
+FR-002 The system must provide Must
+a login page for  
+registered users.
+
+FR-003 Registration and login Must
+forms must validate  
+submitted data and show
+appropriate error  
+messages when input is  
+invalid.
+
+FR-004 The system must Must
+associate  
+contributions, such as  
+reviews, with the  
+submitting user's  
+account.
+
+FR-005 The system must support Must
+role-aware access for  
+general users, approved
+business owners, and  
+administrators.  
+-----------------------------------------------------------------------
 
 ### 4.2 Explore, Search, and Filters
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-006                  The system must display Must
-                          a browsable list of     
-                          culinary places.        
+---
 
-  FR-007                  Users must be able to   Must
-                          search for culinary     
-                          places using keywords.  
+ID Requirement Priority
 
-  FR-008                  Users must be able to   Must
-                          filter results by       
-                          available categories    
-                          and location.           
+---
 
-  FR-009                  The Explore experience  Must
-                          must provide access to  
-                          the Hidden Gem mode.    
+FR-006 The system must display Must
+a browsable list of  
+culinary places.
 
-  FR-010                  Search and filter       Must
-                          results must show       
-                          relevant place          
-                          information to help     
-                          users choose a          
-                          destination.            
-  -----------------------------------------------------------------------
+FR-007 Users must be able to Must
+search for culinary  
+places using keywords.
+
+FR-008 Users must be able to Must
+filter results by  
+available categories  
+and location.
+
+FR-009 The Explore experience Must
+must provide access to  
+the Hidden Gem mode.
+
+FR-010 Search and filter Must
+results must show  
+relevant place  
+information to help  
+users choose a  
+destination.  
+-----------------------------------------------------------------------
 
 ### 4.3 Culinary Place Details
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-011                  Each culinary place     Must
-                          detail page must        
-                          display the place name  
-                          and available basic     
-                          information.            
+---
 
-  FR-012                  The detail page must    Must
-                          display available       
-                          photos, average rating, 
-                          and user reviews.       
+ID Requirement Priority
 
-  FR-013                  The detail page must    Must
-                          display the place       
-                          location and support    
-                          map-based location      
-                          information.            
+---
 
-  FR-014                  The detail page should  Should
-                          display business        
-                          information such as     
-                          address and opening     
-                          hours when those        
-                          details are available   
-                          and have been supplied  
-                          or verified.            
-  -----------------------------------------------------------------------
+FR-011 Each culinary place Must
+detail page must  
+display the place name  
+and available basic  
+information.
+
+FR-012 The detail page must Must
+display available  
+photos, average rating,
+and user reviews.
+
+FR-013 The detail page must Must
+display the place  
+location and support  
+map-based location  
+information.
+
+FR-014 The detail page should Should
+display business  
+information such as  
+address and opening  
+hours when those  
+details are available  
+and have been supplied  
+or verified.  
+-----------------------------------------------------------------------
 
 ### 4.4 Community Place Contributions
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-015                  Registered users must   Must
-                          be able to submit a new 
-                          culinary place.         
+---
 
-  FR-016                  A place submission must Must
-                          support a name, GPS     
-                          location, and category. 
+ID Requirement Priority
 
-  FR-017                  A place submission must Should
-                          support an initial      
-                          photo when available.   
+---
 
-  FR-018                  The system must         Must
-                          validate submitted      
-                          place data before       
-                          accepting it for        
-                          display.                
+FR-015 Registered users must Must
+be able to submit a new
+culinary place.
 
-  FR-019                  Submitted place         Must
-                          information must be     
-                          subject to the          
-                          platform's validation   
-                          or verification         
-                          process.                
-  -----------------------------------------------------------------------
+FR-016 A place submission must Must
+support a name, GPS  
+location, and category.
+
+FR-017 A place submission must Should
+support an initial  
+photo when available.
+
+FR-018 The system must Must
+validate submitted  
+place data before  
+accepting it for  
+display.
+
+FR-019 Submitted place Must
+information must be  
+subject to the  
+platform's validation  
+or verification  
+process.  
+-----------------------------------------------------------------------
 
 ### 4.5 Ratings, Reviews, and Photos
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-020                  Registered users must   Must
-                          be able to submit a     
-                          rating for a culinary   
-                          place.                  
+---
 
-  FR-021                  Registered users must   Must
-                          be able to write a      
-                          review for a culinary   
-                          place.                  
+ID Requirement Priority
 
-  FR-022                  Registered users must   Should
-                          be able to upload       
-                          photos associated with  
-                          a place or review.      
+---
 
-  FR-023                  The system must         Must
-                          validate review and     
-                          rating inputs before    
-                          storing them.           
+FR-020 Registered users must Must
+be able to submit a  
+rating for a culinary  
+place.
 
-  FR-024                  Reviews and ratings     Must
-                          must be linked to the   
-                          submitting user account 
-                          to support moderation   
-                          and anomaly analysis.   
-  -----------------------------------------------------------------------
+FR-021 Registered users must Must
+be able to write a  
+review for a culinary  
+place.
+
+FR-022 Registered users must Should
+be able to upload  
+photos associated with  
+a place or review.
+
+FR-023 The system must Must
+validate review and  
+rating inputs before  
+storing them.
+
+FR-024 Reviews and ratings Must
+must be linked to the  
+submitting user account
+to support moderation  
+and anomaly analysis.  
+-----------------------------------------------------------------------
 
 ### 4.6 Explore Ranking
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-025                  The system must         Must
-                          calculate an Explore    
-                          Score for culinary      
-                          places.                 
+---
 
-  FR-026                  The Explore Score must  Must
-                          consider average        
-                          rating, review volume,  
-                          review recency, and     
-                          verification status.    
+ID Requirement Priority
 
-  FR-027                  The Explore experience  Must
-                          must use the Explore    
-                          Score to support a      
-                          balanced ordering of    
-                          places.                 
-  -----------------------------------------------------------------------
+---
+
+FR-025 The system must Must
+calculate an Explore  
+Score for culinary  
+places.
+
+FR-026 The Explore Score must Must
+consider average  
+rating, review volume,  
+review recency, and  
+verification status.
+
+FR-027 The Explore experience Must
+must use the Explore  
+Score to support a  
+balanced ordering of  
+places.  
+-----------------------------------------------------------------------
 
 The proposal's initial Explore Score formula is:
 
@@ -345,29 +363,32 @@ score is used for production ranking.
 
 ### 4.7 Hidden Gem
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-028                  The system must provide Must
-                          a dedicated Hidden Gem  
-                          discovery mode.         
+---
 
-  FR-029                  Hidden Gem must         Must
-                          prioritize places with  
-                          high ratings and        
-                          relatively few reviews. 
+ID Requirement Priority
 
-  FR-030                  The initial Hidden Gem  Must
-                          calculation must apply  
-                          only to places with an  
-                          average rating of at    
-                          least 4.0.              
+---
 
-  FR-031                  The Hidden Gem page     Must
-                          must display the places 
-                          that meet its selection 
-                          criteria.               
-  -----------------------------------------------------------------------
+FR-028 The system must provide Must
+a dedicated Hidden Gem  
+discovery mode.
+
+FR-029 Hidden Gem must Must
+prioritize places with  
+high ratings and  
+relatively few reviews.
+
+FR-030 The initial Hidden Gem Must
+calculation must apply  
+only to places with an  
+average rating of at  
+least 4.0.
+
+FR-031 The Hidden Gem page Must
+must display the places
+that meet its selection
+criteria.  
+-----------------------------------------------------------------------
 
 The proposal's initial Hidden Gem Score formula is:
 
@@ -379,123 +400,135 @@ Eligibility condition:
 
 ### 4.8 Verification and Anomaly Flagging
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-032                  The system must support Must
-                          a Community Verified    
-                          status for culinary     
-                          place information.      
+---
 
-  FR-033                  The system must support Must
-                          an Owner Verified       
-                          status after an owner   
-                          claim has been reviewed 
-                          and approved.           
+ID Requirement Priority
 
-  FR-034                  The system must provide Must
-                          an administrator        
-                          process for reviewing   
-                          information that        
-                          requires manual         
-                          verification.           
+---
 
-  FR-035                  The system must use     Should
-                          Z-Score analysis to     
-                          flag unusual rating     
-                          values or activity      
-                          patterns for further    
-                          inspection.             
+FR-032 The system must support Must
+a Community Verified  
+status for culinary  
+place information.
 
-  FR-036                  An anomaly flag must be Must
-                          treated as an           
-                          indication for review,  
-                          not as automatic proof  
-                          of fraud or misconduct. 
-  -----------------------------------------------------------------------
+FR-033 The system must support Must
+an Owner Verified  
+status after an owner  
+claim has been reviewed
+and approved.
+
+FR-034 The system must provide Must
+an administrator  
+process for reviewing  
+information that  
+requires manual  
+verification.
+
+FR-035 The system must use Should
+Z-Score analysis to  
+flag unusual rating  
+values or activity  
+patterns for further  
+inspection.
+
+FR-036 An anomaly flag must be Must
+treated as an  
+indication for review,  
+not as automatic proof  
+of fraud or misconduct.
+-----------------------------------------------------------------------
 
 ### 4.9 Business Profile Claiming
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-037                  A business owner must   Must
-                          be able to submit a     
-                          claim for an existing   
-                          culinary place profile. 
+---
 
-  FR-038                  The system must record  Must
-                          the claim for           
-                          administrator review.   
+ID Requirement Priority
 
-  FR-039                  The system must allow   Must
-                          an administrator to     
-                          approve or reject a     
-                          claim.                  
+---
 
-  FR-040                  The system must grant   Must
-                          profile-management      
-                          access only after the   
-                          claim is approved.      
+FR-037 A business owner must Must
+be able to submit a  
+claim for an existing  
+culinary place profile.
 
-  FR-041                  The system must         Should
-                          communicate the claim   
-                          outcome to the claimant 
-                          through an appropriate  
-                          status or message.      
-  -----------------------------------------------------------------------
+FR-038 The system must record Must
+the claim for  
+administrator review.
+
+FR-039 The system must allow Must
+an administrator to  
+approve or reject a  
+claim.
+
+FR-040 The system must grant Must
+profile-management  
+access only after the  
+claim is approved.
+
+FR-041 The system must Should
+communicate the claim  
+outcome to the claimant
+through an appropriate  
+status or message.  
+-----------------------------------------------------------------------
 
 ### 4.10 Business Owner Dashboard
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-042                  An approved business    Must
-                          owner must be able to   
-                          access a business       
-                          dashboard.              
+---
 
-  FR-043                  The dashboard must      Must
-                          allow the owner to      
-                          update basic business   
-                          information.            
+ID Requirement Priority
 
-  FR-044                  The dashboard must      Should
-                          display available       
-                          business statistics.    
+---
 
-  FR-045                  The dashboard should    Should
-                          allow the owner to      
-                          reply to user reviews.  
-  -----------------------------------------------------------------------
+FR-042 An approved business Must
+owner must be able to  
+access a business  
+dashboard.
+
+FR-043 The dashboard must Must
+allow the owner to  
+update basic business  
+information.
+
+FR-044 The dashboard must Should
+display available  
+business statistics.
+
+FR-045 The dashboard should Should
+allow the owner to  
+reply to user reviews.  
+-----------------------------------------------------------------------
 
 ### 4.11 Administrator Management
 
-  -----------------------------------------------------------------------
-  ID                      Requirement             Priority
-  ----------------------- ----------------------- -----------------------
-  FR-046                  Administrators must be  Must
-                          able to manage culinary 
-                          place data.             
+---
 
-  FR-047                  Administrators must be  Must
-                          able to review          
-                          business-profile        
-                          claims.                 
+ID Requirement Priority
 
-  FR-048                  Administrators must be  Must
-                          able to verify business 
-                          information and manage  
-                          verification outcomes.  
+---
 
-  FR-049                  Administrators must be  Should
-                          able to inspect         
-                          submissions or activity 
-                          flagged for further     
-                          review.                 
-  -----------------------------------------------------------------------
+FR-046 Administrators must be Must
+able to manage culinary
+place data.
 
-------------------------------------------------------------------------
+FR-047 Administrators must be Must
+able to review  
+business-profile  
+claims.
+
+FR-048 Administrators must be Must
+able to verify business
+information and manage  
+verification outcomes.
+
+FR-049 Administrators must be Should
+able to inspect  
+submissions or activity
+flagged for further  
+review.  
+-----------------------------------------------------------------------
+
+---
 
 ## 5. Key User Workflows
 
@@ -587,7 +620,7 @@ Eligibility condition:
 5.  A Z-Score flag alone must not be treated as a final finding of
     manipulation.
 
-------------------------------------------------------------------------
+---
 
 ## 6. Data and Business Rules
 
@@ -597,40 +630,43 @@ The proposal implies the following core data entities. Exact fields,
 relationships, and constraints are to be finalized in the database
 design.
 
-  -----------------------------------------------------------------------
-  Entity                              Purpose
-  ----------------------------------- -----------------------------------
-  User                                Stores account information and
-                                      role/access information.
+---
 
-  Culinary Place                      Stores a place's name, category,
-                                      GPS location, photos, and basic
-                                      business information.
+Entity Purpose
 
-  Rating / Review                     Stores user-submitted ratings,
-                                      written reviews, and their
-                                      association with a place and user.
+---
 
-  Place Photo                         Stores or references images
-                                      submitted for a culinary place or
-                                      review.
+User Stores account information and
+role/access information.
 
-  Business Claim                      Records an owner's request to
-                                      manage an existing place profile
-                                      and its review status.
+Culinary Place Stores a place's name, category,
+GPS location, photos, and basic
+business information.
 
-  Verification Status                 Records community or owner
-                                      verification information.
+Rating / Review Stores user-submitted ratings,
+written reviews, and their
+association with a place and user.
 
-  Owner Reply                         Stores a business owner's response
-                                      to a user review.
+Place Photo Stores or references images
+submitted for a culinary place or
+review.
 
-  Place Statistics                    Supports the business dashboard's
-                                      available statistics.
+Business Claim Records an owner's request to
+manage an existing place profile
+and its review status.
 
-  Anomaly Flag                        Records rating or activity patterns
-                                      that require further inspection.
-  -----------------------------------------------------------------------
+Verification Status Records community or owner
+verification information.
+
+Owner Reply Stores a business owner's response
+to a user review.
+
+Place Statistics Supports the business dashboard's
+available statistics.
+
+Anomaly Flag Records rating or activity patterns
+that require further inspection.
+-----------------------------------------------------------------------
 
 ### 6.2 Business Rules
 
@@ -666,65 +702,68 @@ are recalculated.
 These are implementation decisions, not additional product capabilities
 asserted by the proposal.
 
-------------------------------------------------------------------------
+---
 
 ## 7. Non-Functional Requirements
 
-  -----------------------------------------------------------------------
-  ID                      Category                Requirement
-  ----------------------- ----------------------- -----------------------
-  NFR-001                 Usability               The interface must be
-                                                  clear, consistent, and
-                                                  easy to navigate for
-                                                  users with different
-                                                  levels of digital
-                                                  literacy.
+---
 
-  NFR-002                 Security                The system must provide
-                                                  authentication and
-                                                  password protection.
+ID Category Requirement
 
-  NFR-003                 Input Safety            User inputs must be
-                                                  validated to reduce
-                                                  invalid submissions and
-                                                  misuse.
+---
 
-  NFR-004                 Performance             Search and filtering
-                                                  should remain
-                                                  responsive through
-                                                  suitable query handling
-                                                  and database indexing.
+NFR-001 Usability The interface must be
+clear, consistent, and
+easy to navigate for
+users with different
+levels of digital
+literacy.
 
-  NFR-005                 Data Reliability        Place information,
-                                                  ratings, and reviews
-                                                  must have validation
-                                                  and verification
-                                                  processes.
+NFR-002 Security The system must provide
+authentication and
+password protection.
 
-  NFR-006                 Maintainability         The application must
-                                                  separate frontend,
-                                                  backend/API, and
-                                                  database
-                                                  responsibilities.
+NFR-003 Input Safety User inputs must be
+validated to reduce
+invalid submissions and
+misuse.
 
-  NFR-007                 Compatibility           The web application
-                                                  must be accessible
-                                                  through supported web
-                                                  browsers on devices
-                                                  with an internet
-                                                  connection.
+NFR-004 Performance Search and filtering
+should remain
+responsive through
+suitable query handling
+and database indexing.
 
-  NFR-008                 Modularity              Major modules should be
-                                                  developed and tested
-                                                  separately before
-                                                  integration.
-  -----------------------------------------------------------------------
+NFR-005 Data Reliability Place information,
+ratings, and reviews
+must have validation
+and verification
+processes.
+
+NFR-006 Maintainability The application must
+separate frontend,
+backend/API, and
+database
+responsibilities.
+
+NFR-007 Compatibility The web application
+must be accessible
+through supported web
+browsers on devices
+with an internet
+connection.
+
+NFR-008 Modularity Major modules should be
+developed and tested
+separately before
+integration.
+-----------------------------------------------------------------------
 
 The proposal does not provide numerical service-level targets for
 response time, uptime, concurrency, or recovery. Those targets should be
 established if the prototype moves toward production use.
 
-------------------------------------------------------------------------
+---
 
 ## 8. UX and Interface Requirements
 
@@ -754,7 +793,7 @@ The proposal's wireframes on pages 16--19 illustrate the intended screen
 structure. They are structural references; the final visual design may
 be refined by the team.
 
-------------------------------------------------------------------------
+---
 
 ## 9. Technical Architecture and Technology Stack
 
@@ -772,69 +811,71 @@ Google Maps Platform API supports map display and geolocation.
 
 ### 9.2 Proposed Technology Stack
 
-  -----------------------------------------------------------------------
-  Area                    Technology              Role
-  ----------------------- ----------------------- -----------------------
-  Primary language        TypeScript              Main programming
-                                                  language across the
-                                                  system.
+---
 
-  Runtime / package       Bun                     Runtime and package
-  manager                                         management.
+Area Technology Role
 
-  Monorepo / build        Turborepo               Supports build
-  orchestration                                   processes.
+---
 
-  Linting / formatting    Biome                   Code linting and
-                                                  formatting.
+Primary language TypeScript Main programming
+language across the
+system.
 
-  Frontend library        React                   User interface.
+Runtime / package Bun Runtime and package
+manager management.
 
-  Frontend build tool     Vite                    Frontend build tooling.
+Monorepo / build Turborepo Supports build
+orchestration processes.
 
-  Routing                 React Router            Frontend navigation.
+Linting / formatting Biome Code linting and
+formatting.
 
-  Styling                 Tailwind CSS            Interface styling.
+Frontend library React User interface.
 
-  Frontend-backend        Eden                    Type-safe communication
-  communication                                   between frontend and
-                                                  backend.
+Frontend build tool Vite Frontend build tooling.
 
-  Frontend server toolkit Nitro                   Server toolkit on the
-                                                  frontend side.
+Routing React Router Frontend navigation.
 
-  Backend API framework   ElysiaJS                API implementation.
+Styling Tailwind CSS Interface styling.
 
-  ORM                     Drizzle ORM             Database query and data
-                                                  access management.
+Frontend-backend Eden Type-safe communication
+communication between frontend and
+backend.
 
-  Relational database     PostgreSQL              Primary data storage.
+Frontend server toolkit Nitro Server toolkit on the
+frontend side.
 
-  Mapping / geolocation   Google Maps Platform    Maps and location
-                          API                     features.
+Backend API framework ElysiaJS API implementation.
 
-  Owner communication     WhatsApp Business API   Lightweight
-  channel                                         communication channel
-                                                  for business owners,
-                                                  where used.
+ORM Drizzle ORM Database query and data
+access management.
 
-  UI/UX design            Figma                   Wireframes and
-                                                  interface design.
+Relational database PostgreSQL Primary data storage.
 
-  Version control         Git and GitHub          Source control and
-                                                  collaboration.
+Mapping / geolocation Google Maps Platform Maps and location
+API features.
 
-  Deployment              Docker and Dokploy      Deployment process.
+Owner communication WhatsApp Business API Lightweight
+channel communication channel
+for business owners,
+where used.
 
-  Development editor      Visual Studio Code      Code editing.
-  -----------------------------------------------------------------------
+UI/UX design Figma Wireframes and
+interface design.
+
+Version control Git and GitHub Source control and
+collaboration.
+
+Deployment Docker and Dokploy Deployment process.
+
+## Development editor Visual Studio Code Code editing.
 
 The proposal also mentions AI-assisted development tools, including
 Deepseek-4.1-Flash, Gemini-4-Hydrogen, OMP (Oh My Phi), Antigravity CLI,
 and Claude Code. These are development aids rather than runtime product
 dependencies.
 
-------------------------------------------------------------------------
+---
 
 ## 10. Validation, Testing, and Development Approach
 
@@ -868,27 +909,27 @@ when the following can be demonstrated:
 -   [ ] Visitors can open Explore and browse culinary places.
 -   [ ] Visitors can search and filter places using available criteria.
 -   [ ] Visitors can open a place detail page and view available
-    location, photos, ratings, and reviews.
+        location, photos, ratings, and reviews.
 -   [ ] Users can register and log in.
 -   [ ] Registered users can submit a culinary place with the required
-    information.
+        information.
 -   [ ] Registered users can submit ratings and reviews.
 -   [ ] The system associates contributions with the submitting user.
 -   [ ] Explore Score is calculated using the proposal's stated factors.
 -   [ ] Hidden Gem displays eligible places with an average rating of at
-    least 4.0 and uses the stated initial score formula.
+        least 4.0 and uses the stated initial score formula.
 -   [ ] A business owner can submit a claim for an existing profile.
 -   [ ] An administrator can review and approve or reject a claim.
 -   [ ] Only an approved owner can manage the claimed profile.
 -   [ ] Approved owners can access the dashboard and update basic
-    profile information.
+        profile information.
 -   [ ] Verification statuses can distinguish community verification
-    from owner verification.
+        from owner verification.
 -   [ ] Potential anomalies can be flagged for review without being
-    treated as automatic proof of misconduct.
+        treated as automatic proof of misconduct.
 -   [ ] The application can be accessed through a supported web browser.
 
-------------------------------------------------------------------------
+---
 
 ## 11. External Services and Operational Considerations
 
@@ -906,13 +947,15 @@ when the following can be demonstrated:
 
 The proposal gives the following initial annual estimates:
 
-  Item                                                           Initial Estimate
-  -------------------------- ----------------------------------------------------
-  Domain                                                       IDR 150,000 / year
-  Managed database                                           IDR 1,800,000 / year
-  Google Maps Platform API                                   IDR 1,200,000 / year
-  WhatsApp Business API                                        IDR 600,000 / year
-  Hosting                      A free tier may be used during the prototype stage
+Item Initial Estimate
+
+---
+
+Domain IDR 150,000 / year
+Managed database IDR 1,800,000 / year
+Google Maps Platform API IDR 1,200,000 / year
+WhatsApp Business API IDR 600,000 / year
+Hosting A free tier may be used during the prototype stage
 
 These figures are preliminary estimates from the proposal and must be
 checked against actual provider plans, quotas, and usage. They are not
@@ -928,7 +971,7 @@ These are potential business models only. They have not been established
 as realized revenue and require market validation and actual cost
 measurement.
 
-------------------------------------------------------------------------
+---
 
 ## 12. Risks, Constraints, and Open Questions
 
@@ -975,7 +1018,7 @@ be resolved during detailed design:
 These questions are intentionally listed as unresolved rather than
 assigned invented product behavior.
 
-------------------------------------------------------------------------
+---
 
 ## 13. Future Considerations
 
@@ -990,56 +1033,59 @@ The proposal suggests that future development may focus on:
 Any expansion should be informed by prototype evaluation and feedback
 from the community and local businesses.
 
-------------------------------------------------------------------------
+---
 
 ## 14. Glossary
 
-  -----------------------------------------------------------------------
-  Term                                Definition
-  ----------------------------------- -----------------------------------
-  Darasa                           A community-curated culinary
-                                      discovery platform focused
-                                      initially on Batang Regency.
+---
 
-  Explore                             The main discovery experience for
-                                      browsing, searching, and filtering
-                                      culinary places.
+Term Definition
 
-  Explore Score                       A ranking score that combines
-                                      average rating, review volume,
-                                      review recency, and verification
-                                      status.
+---
 
-  Hidden Gem                          A discovery mode that prioritizes
-                                      highly rated places with relatively
-                                      few reviews.
+Darasa A community-curated culinary
+discovery platform focused
+initially on Batang Regency.
 
-  Hidden Gem Score                    The initial score calculated from
-                                      average rating and review count for
-                                      eligible places.
+Explore The main discovery experience for
+browsing, searching, and filtering
+culinary places.
 
-  Crowdsourcing                       Building and maintaining platform
-                                      information through contributions
-                                      from community members.
+Explore Score A ranking score that combines
+average rating, review volume,
+review recency, and verification
+status.
 
-  Community Verified                  A verification status associated
-                                      with community-based validation.
+Hidden Gem A discovery mode that prioritizes
+highly rated places with relatively
+few reviews.
 
-  Owner Verified                      A verification status associated
-                                      with an approved business-owner
-                                      claim.
+Hidden Gem Score The initial score calculated from
+average rating and review count for
+eligible places.
 
-  Z-Score                             A statistical measure used by the
-                                      system to flag unusual rating
-                                      values or activity patterns for
-                                      further inspection.
+Crowdsourcing Building and maintaining platform
+information through contributions
+from community members.
 
-  KITB                                Kawasan Industri Terpadu Batang
-                                      (Batang Integrated Industrial
-                                      Estate).
-  -----------------------------------------------------------------------
+Community Verified A verification status associated
+with community-based validation.
 
-------------------------------------------------------------------------
+Owner Verified A verification status associated
+with an approved business-owner
+claim.
+
+Z-Score A statistical measure used by the
+system to flag unusual rating
+values or activity patterns for
+further inspection.
+
+KITB Kawasan Industri Terpadu Batang
+(Batang Integrated Industrial
+Estate).
+-----------------------------------------------------------------------
+
+---
 
 ## 15. Source Alignment Note
 

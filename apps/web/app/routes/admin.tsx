@@ -12,7 +12,6 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import {
 	Table,
@@ -26,6 +25,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { VerificationBadge } from "~/components/verification-badge";
 import { useDarasa } from "~/context/darasa-store";
+import { cn } from "~/lib/utils";
 import type { Route } from "./+types/admin";
 
 export function meta(_args: Route.MetaArgs) {
@@ -59,7 +59,7 @@ export default function AdminVerificationPage() {
 
 	if (currentUser.role !== "admin") {
 		return (
-			<Card className="mx-auto max-w-2xl p-8 space-y-5">
+			<div className="mx-auto max-w-2xl py-10 space-y-5">
 				<div className="flex items-center gap-3">
 					<span className="flex size-11 items-center justify-center rounded-[10px] bg-red-soft text-red-text border border-secondary-red/30">
 						<Lock className="size-5" aria-hidden="true" />
@@ -78,7 +78,7 @@ export default function AdminVerificationPage() {
 				<Button onClick={() => switchDemoAccount("usr-admin")}>
 					Masuk sebagai Administrator Prototipe
 				</Button>
-			</Card>
+			</div>
 		);
 	}
 
@@ -88,7 +88,8 @@ export default function AdminVerificationPage() {
 
 	return (
 		<div className="space-y-6">
-			<Card className="p-6 flex flex-wrap items-center justify-between gap-4">
+			{/* Flat Header */}
+			<div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
 				<div className="space-y-1">
 					<h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground">
 						Pusat Verifikasi &amp; Moderasi Darasa
@@ -103,22 +104,25 @@ export default function AdminVerificationPage() {
 					<RotateCcw className="size-4" aria-hidden="true" />
 					Reset Data Prototipe
 				</Button>
-			</Card>
+			</div>
 
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+			{/* Divided Queue Strip (Cardless) */}
+			<div className="grid grid-cols-1 divide-y divide-border border-b border-border pb-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
 				<button
 					type="button"
 					onClick={() => setActiveTab("claims")}
-					className={`rounded-[12px] border bg-card p-5 text-left transition-colors ${
+					aria-pressed={activeTab === "claims"}
+					className={cn(
+						"py-2 sm:py-1 sm:pr-6 text-left transition-colors",
 						activeTab === "claims"
-							? "border-primary bg-primary-soft/50"
-							: "border-border hover:border-primary/40"
-					}`}
+							? "text-primary"
+							: "text-foreground hover:text-primary",
+					)}
 				>
 					<p className="text-xs font-medium text-muted-foreground">
 						Antrean Klaim Usaha
 					</p>
-					<p className="mt-1 text-2xl font-bold text-foreground tabular-nums">
+					<p className="mt-1 text-2xl font-bold tabular-nums">
 						{pendingClaims} menunggu
 					</p>
 				</button>
@@ -126,16 +130,18 @@ export default function AdminVerificationPage() {
 				<button
 					type="button"
 					onClick={() => setActiveTab("places")}
-					className={`rounded-[12px] border bg-card p-5 text-left transition-colors ${
+					aria-pressed={activeTab === "places"}
+					className={cn(
+						"py-2 sm:py-1 sm:px-6 text-left transition-colors",
 						activeTab === "places"
-							? "border-primary bg-primary-soft/50"
-							: "border-border hover:border-primary/40"
-					}`}
+							? "text-primary"
+							: "text-foreground hover:text-primary",
+					)}
 				>
 					<p className="text-xs font-medium text-muted-foreground">
 						Moderasi Tempat Baru
 					</p>
-					<p className="mt-1 text-2xl font-bold text-foreground tabular-nums">
+					<p className="mt-1 text-2xl font-bold tabular-nums">
 						{pendingPlaces} belum diperiksa
 					</p>
 				</button>
@@ -143,16 +149,18 @@ export default function AdminVerificationPage() {
 				<button
 					type="button"
 					onClick={() => setActiveTab("anomalies")}
-					className={`rounded-[12px] border bg-card p-5 text-left transition-colors ${
+					aria-pressed={activeTab === "anomalies"}
+					className={cn(
+						"py-2 sm:py-1 sm:pl-6 text-left transition-colors",
 						activeTab === "anomalies"
-							? "border-primary bg-primary-soft/50"
-							: "border-border hover:border-primary/40"
-					}`}
+							? "text-primary"
+							: "text-foreground hover:text-primary",
+					)}
 				>
 					<p className="text-xs font-medium text-muted-foreground">
 						Indikasi Anomali Z-Score
 					</p>
-					<p className="mt-1 text-2xl font-bold text-foreground tabular-nums">
+					<p className="mt-1 text-2xl font-bold tabular-nums">
 						{openAnomalies} terbuka
 					</p>
 				</button>
@@ -179,106 +187,104 @@ export default function AdminVerificationPage() {
 					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value="claims" className="space-y-4">
+				<TabsContent value="claims">
 					{claims.length === 0 ? (
-						<Card className="p-8 text-center text-sm text-muted-foreground">
+						<p className="py-10 text-center text-sm text-muted-foreground">
 							Belum ada pengajuan klaim yang masuk.
-						</Card>
+						</p>
 					) : (
-						<ul className="space-y-4">
+						<ul className="divide-y divide-border">
 							{claims.map((claim) => (
-								<li key={claim.id}>
-									<Card className="p-5 space-y-4">
-										<div className="flex flex-wrap items-start justify-between gap-3">
-											<div className="space-y-1">
-												<h2 className="text-lg font-semibold text-foreground">
-													{claim.placeName}
-												</h2>
-												<p className="text-xs text-muted-foreground">
-													Pengaju:{" "}
-													<strong className="text-foreground">
-														{claim.claimantName}
-													</strong>{" "}
-													({claim.claimantEmail}) · {claim.businessRole} · WA{" "}
-													{claim.whatsappNumber}
-												</p>
-											</div>
-											<Badge
-												variant={
-													claim.status === "approved"
-														? "default"
-														: claim.status === "rejected"
-															? "destructive"
-															: "yellow"
-												}
-											>
-												{claim.status === "approved"
-													? "Disetujui"
-													: claim.status === "rejected"
-														? "Ditolak"
-														: "Menunggu Tinjauan"}
-											</Badge>
-										</div>
-
-										<p className="rounded-[8px] border border-border bg-background p-3 text-sm text-foreground">
-											Bukti: {claim.evidenceSummary}
-											{claim.evidenceFileName
-												? ` (Lampiran: ${claim.evidenceFileName})`
-												: ""}
-										</p>
-
-										{claim.status === "pending" ? (
-											<div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-												<label className="sr-only" htmlFor={`note-${claim.id}`}>
-													Catatan keputusan untuk {claim.placeName}
-												</label>
-												<Input
-													id={`note-${claim.id}`}
-													type="text"
-													value={claimNotes[claim.id] ?? ""}
-													onChange={(e) =>
-														setClaimNotes((prev) => ({
-															...prev,
-															[claim.id]: e.target.value,
-														}))
-													}
-													placeholder="Catatan keputusan admin (opsional)..."
-													className="flex-1"
-												/>
-												<div className="flex gap-2">
-													<Button
-														onClick={() =>
-															reviewClaim(
-																claim.id,
-																"approved",
-																claimNotes[claim.id],
-															)
-														}
-													>
-														<Check className="size-4" aria-hidden="true" />
-														Setujui Klaim
-													</Button>
-													<Button
-														variant="destructive"
-														onClick={() =>
-															reviewClaim(
-																claim.id,
-																"rejected",
-																claimNotes[claim.id],
-															)
-														}
-													>
-														<X className="size-4" aria-hidden="true" />
-														Tolak
-													</Button>
-												</div>
-											</div>
-										) : claim.adminNote ? (
+								<li key={claim.id} className="py-5 space-y-3.5">
+									<div className="flex flex-wrap items-start justify-between gap-3">
+										<div className="space-y-1">
+											<h2 className="text-lg font-semibold text-foreground">
+												{claim.placeName}
+											</h2>
 											<p className="text-xs text-muted-foreground">
-												Catatan keputusan: {claim.adminNote}
+												Pengaju:{" "}
+												<strong className="text-foreground">
+													{claim.claimantName}
+												</strong>{" "}
+												({claim.claimantEmail}) · {claim.businessRole} · WA{" "}
+												{claim.whatsappNumber}
 											</p>
-										) : null}
-									</Card>
+										</div>
+										<Badge
+											variant={
+												claim.status === "approved"
+													? "default"
+													: claim.status === "rejected"
+														? "destructive"
+														: "yellow"
+											}
+										>
+											{claim.status === "approved"
+												? "Disetujui"
+												: claim.status === "rejected"
+													? "Ditolak"
+													: "Menunggu Tinjauan"}
+										</Badge>
+									</div>
+
+									<p className="border-l-2 border-border pl-3.5 py-0.5 text-sm text-foreground">
+										Bukti: {claim.evidenceSummary}
+										{claim.evidenceFileName
+											? ` (Lampiran: ${claim.evidenceFileName})`
+											: ""}
+									</p>
+
+									{claim.status === "pending" ? (
+										<div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+											<label className="sr-only" htmlFor={`note-${claim.id}`}>
+												Catatan keputusan untuk {claim.placeName}
+											</label>
+											<Input
+												id={`note-${claim.id}`}
+												type="text"
+												value={claimNotes[claim.id] ?? ""}
+												onChange={(e) =>
+													setClaimNotes((prev) => ({
+														...prev,
+														[claim.id]: e.target.value,
+													}))
+												}
+												placeholder="Catatan keputusan admin (opsional)..."
+												className="flex-1"
+											/>
+											<div className="flex gap-2">
+												<Button
+													onClick={() =>
+														reviewClaim(
+															claim.id,
+															"approved",
+															claimNotes[claim.id],
+														)
+													}
+												>
+													<Check className="size-4" aria-hidden="true" />
+													Setujui Klaim
+												</Button>
+												<Button
+													variant="destructive"
+													onClick={() =>
+														reviewClaim(
+															claim.id,
+															"rejected",
+															claimNotes[claim.id],
+														)
+													}
+												>
+													<X className="size-4" aria-hidden="true" />
+													Tolak
+												</Button>
+											</div>
+										</div>
+									) : claim.adminNote ? (
+										<p className="text-xs text-muted-foreground">
+											Catatan keputusan: {claim.adminNote}
+										</p>
+									) : null}
 								</li>
 							))}
 						</ul>
@@ -286,7 +292,7 @@ export default function AdminVerificationPage() {
 				</TabsContent>
 
 				<TabsContent value="places">
-					<Card className="overflow-hidden">
+					<div className="border-t border-border">
 						<Table>
 							<TableCaption className="sr-only">
 								Daftar tempat kuliner dan status verifikasi Darasa
@@ -358,11 +364,11 @@ export default function AdminVerificationPage() {
 								))}
 							</TableBody>
 						</Table>
-					</Card>
+					</div>
 				</TabsContent>
 
 				<TabsContent value="anomalies" className="space-y-4">
-					<div className="rounded-[12px] border border-accent-yellow/60 bg-yellow-soft p-4 flex items-start gap-3">
+					<div className="rounded-[10px] border border-accent-yellow/60 bg-yellow-soft p-4 flex items-start gap-3">
 						<AlertTriangle
 							className="mt-0.5 size-5 shrink-0 text-yellow-text"
 							aria-hidden="true"
@@ -376,60 +382,61 @@ export default function AdminVerificationPage() {
 					</div>
 
 					{anomalies.length === 0 ? (
-						<Card className="p-8 text-center text-sm text-muted-foreground">
+						<p className="py-10 text-center text-sm text-muted-foreground">
 							Tidak ada aktivitas rating dengan simpangan Z-Score di atas ambang
 							saat ini.
-						</Card>
+						</p>
 					) : (
-						<ul className="space-y-3">
+						<ul className="divide-y divide-border border-t border-border">
 							{anomalies.map((flag) => (
-								<li key={flag.id}>
-									<Card className="p-5 flex flex-wrap items-center justify-between gap-4">
-										<div className="space-y-1 max-w-2xl">
-											<div className="flex flex-wrap items-center gap-2">
-												<h2 className="text-base font-semibold text-foreground">
-													{flag.placeName}
-												</h2>
-												<Badge
-													variant={
-														flag.resolution === "cleared"
-															? "default"
-															: flag.resolution === "flagged_hold"
-																? "destructive"
-																: "yellow"
-													}
-												>
-													{flag.resolution === "cleared"
-														? "Dinyatakan Wajar"
+								<li
+									key={flag.id}
+									className="py-5 flex flex-wrap items-center justify-between gap-4"
+								>
+									<div className="space-y-1 max-w-2xl">
+										<div className="flex flex-wrap items-center gap-2">
+											<h2 className="text-base font-semibold text-foreground">
+												{flag.placeName}
+											</h2>
+											<Badge
+												variant={
+													flag.resolution === "cleared"
+														? "default"
 														: flag.resolution === "flagged_hold"
-															? "Ditandai Perlu Pantauan"
-															: "Perlu Tinjauan"}
-												</Badge>
-											</div>
-											<p className="text-sm text-muted-foreground tabular-nums">
-												{flag.reason}
-											</p>
-										</div>
-
-										<div className="flex flex-wrap gap-2">
-											<Button
-												variant="secondary"
-												size="sm"
-												onClick={() => resolveAnomalyFlag(flag.id, "cleared")}
-											>
-												Tandai Wajar
-											</Button>
-											<Button
-												variant="destructive"
-												size="sm"
-												onClick={() =>
-													resolveAnomalyFlag(flag.id, "flagged_hold")
+															? "destructive"
+															: "yellow"
 												}
 											>
-												Tahan untuk Pantauan
-											</Button>
+												{flag.resolution === "cleared"
+													? "Dinyatakan Wajar"
+													: flag.resolution === "flagged_hold"
+														? "Ditandai Perlu Pantauan"
+														: "Perlu Tinjauan"}
+											</Badge>
 										</div>
-									</Card>
+										<p className="text-sm text-muted-foreground tabular-nums">
+											{flag.reason}
+										</p>
+									</div>
+
+									<div className="flex flex-wrap gap-2">
+										<Button
+											variant="secondary"
+											size="sm"
+											onClick={() => resolveAnomalyFlag(flag.id, "cleared")}
+										>
+											Tandai Wajar
+										</Button>
+										<Button
+											variant="destructive"
+											size="sm"
+											onClick={() =>
+												resolveAnomalyFlag(flag.id, "flagged_hold")
+											}
+										>
+											Tahan untuk Pantauan
+										</Button>
+									</div>
 								</li>
 							))}
 						</ul>
