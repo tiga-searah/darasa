@@ -215,3 +215,14 @@ export type CreatePlaceBodyType = {
 	};
 	photoMediaIds?: string[];
 };
+
+export const AddPlacePhotosBody = t.Object({
+	photoMediaIds: t.Array(t.String({ format: "uuid" }), {
+		minItems: 1,
+		maxItems: 5,
+	}),
+});
+
+export const AddPlacePhotosResponse = t.Object({
+	data: t.Array(PlacePhotoItem),
+});

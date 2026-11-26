@@ -2,6 +2,8 @@ import { Elysia, t } from "elysia";
 import type { Storage } from "../../lib/ports";
 import { optionalAuth, requireAuth } from "../../plugins/guard";
 import {
+	AddPlacePhotosBody,
+	AddPlacePhotosResponse,
 	CreatePlaceBody,
 	HiddenGemsQuery,
 	PaginatedPlacesResponse,
@@ -9,7 +11,9 @@ import {
 	PlaceListQuery,
 } from "./model";
 import {
+	addPlacePhotos,
 	createPlace,
+	deletePlacePhoto,
 	getPlaceDetail,
 	listHiddenGems,
 	listPlaces,
@@ -74,5 +78,39 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 			return {
 				data: await createPlace(storageFrom(ctx), ctx.sessionUser, ctx.body),
 			};
+		},
+	)
+	.post(
+		"/:id/photos",
+		{
+			params: t.Object({ id: t.String() }),
+			body: AddPlacePhotosBody,
+			response: { 201: AddPlacePhotosResponse },
+		},
+		async (ctx) => {
+			ctx.set.status = 201;
+			return {
+				data: await addPlacePhotos(
+					storageFrom(ctx),
+					ctx.sessionUser,
+					ctx.params.id,
+					ctx.body.photoMediaIds,
+				),
+			};
+		},
+	)
+	.delete(
+		"/:id/photos/:photoId",
+		{
+			params: t.Object({ id: t.String(), photoId: t.String() }),
+		},
+		async (ctx) => {
+			await deletePlacePhoto(
+				ctx.sessionUser,
+				ctx.params.id,
+				ctx.params.photoId,
+			);
+			ctx.set.status = 204;
+			return;
 		},
 	);

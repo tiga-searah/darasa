@@ -183,3 +183,73 @@ describe("POST /places", () => {
 		expect(res.status).toBe(403);
 	});
 });
+
+describe("place photos", () => {
+	beforeEach(resetDb);
+
+	test("POST adds photos and DELETE promotes next cover photo", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-foto",
+				name: "Warung Foto",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+
+		const commitPhoto = async () => {
+			const up = await app.handle(
+				new Request("http://test/api/media/uploads", {
+					method: "POST",
+					headers: { "content-type": "application/json", cookie },
+					body: JSON.stringify({
+						purpose: "place_photo",
+						mime: "image/png",
+						sizeBytes: 12,
+					}),
+				}),
+			);
+			const { id } = (await json(up)).data;
+			const row = await db.query.media.findFirst({ where: { id } });
+			await storage.put(row!.key, PNG, "image/png");
+			await app.handle(
+				new Request(`http://test/api/media/${id}/commit`, {
+					method: "POST",
+					headers: { cookie },
+				}),
+			);
+			return id as string;
+		};
+
+		const m1 = await commitPhoto();
+		const m2 = await commitPhoto();
+		const add = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: [m1, m2] }),
+			}),
+		);
+		expect(add.status).toBe(201);
+		const added = (await json(add)).data;
+		expect(added.length).toBe(2);
+
+		const del = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos/${added[0].id}`, {
+				method: "DELETE",
+				headers: { cookie },
+			}),
+		);
+		expect(del.status).toBe(204);
+
+		const updated = await db.query.places.findFirst({
+			where: { id: place.id },
+		});
+		expect(updated!.coverMediaId).toBe(m2);
+	});
+});

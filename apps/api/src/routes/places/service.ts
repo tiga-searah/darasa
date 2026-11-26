@@ -17,7 +17,7 @@ import { schema } from "../../database/schema";
 import type { OpeningHours } from "../../database/schema/places";
 import type { Storage } from "../../lib/ports";
 import type { SessionUser } from "../../lib/session";
-import { ApiError, notFound } from "../../utils";
+import { ApiError, forbidden, notFound } from "../../utils";
 import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
 import type {
 	CreatePlaceBodyType,
@@ -563,4 +563,125 @@ export async function createPlace(
 	});
 
 	return getPlaceDetail(storage, created.id, user, { allowUnpublished: true });
+}
+
+export async function addPlacePhotos(
+	storage: Storage | undefined,
+	user: SessionUser,
+	placeId: string,
+	photoMediaIds: string[],
+): Promise<
+	Array<{ id: string; mediaId: string; url: string; sortOrder: number }>
+> {
+	if (!UUID_RE.test(placeId)) {
+		throw notFound("Place");
+	}
+	const place = await db.query.places.findFirst({
+		where: { id: placeId },
+	});
+	if (!place) {
+		throw notFound("Place");
+	}
+	if (place.status !== "published" && user.role !== "admin") {
+		const claim = await db.query.businessClaims.findFirst({
+			where: { placeId, claimantId: user.id, status: "approved" },
+		});
+		if (!claim) {
+			throw notFound("Place");
+		}
+	}
+
+	const inserted = await db.transaction(async (tx) => {
+		await assertOwnedReadyMedia(tx, user.id, photoMediaIds, "place_photo");
+		const [agg] = await tx
+			.select({
+				maxSort: sql<number>`coalesce(max(${schema.placePhotos.sortOrder}), -1)`,
+			})
+			.from(schema.placePhotos)
+			.where(eq(schema.placePhotos.placeId, place.id));
+		const baseSort = Number(agg?.maxSort ?? -1) + 1;
+
+		const rows = await tx
+			.insert(schema.placePhotos)
+			.values(
+				photoMediaIds.map((mediaId, idx) => ({
+					placeId: place.id,
+					mediaId,
+					sortOrder: baseSort + idx,
+					uploadedById: user.id,
+				})),
+			)
+			.returning({
+				id: schema.placePhotos.id,
+				mediaId: schema.placePhotos.mediaId,
+				sortOrder: schema.placePhotos.sortOrder,
+			});
+
+		if (place.coverMediaId === null) {
+			await tx
+				.update(schema.places)
+				.set({ coverMediaId: photoMediaIds[0] })
+				.where(eq(schema.places.id, place.id));
+		}
+		return rows;
+	});
+
+	const urls = await resolveCoverUrls(
+		storage,
+		inserted.map((r) => r.mediaId),
+	);
+	return inserted.map((r) => ({
+		id: r.id,
+		mediaId: r.mediaId,
+		url: urls.get(r.mediaId) ?? "",
+		sortOrder: r.sortOrder,
+	}));
+}
+
+export async function deletePlacePhoto(
+	user: SessionUser,
+	placeId: string,
+	photoId: string,
+): Promise<void> {
+	if (!UUID_RE.test(placeId) || !UUID_RE.test(photoId)) {
+		throw notFound("Photo");
+	}
+	const [place, photo] = await Promise.all([
+		db.query.places.findFirst({ where: { id: placeId } }),
+		db.query.placePhotos.findFirst({ where: { id: photoId, placeId } }),
+	]);
+	if (!place || !photo) {
+		throw notFound("Photo");
+	}
+
+	let authorized = photo.uploadedById === user.id || user.role === "admin";
+	if (!authorized) {
+		const claim = await db.query.businessClaims.findFirst({
+			where: { placeId, claimantId: user.id, status: "approved" },
+		});
+		authorized = Boolean(claim);
+	}
+	if (!authorized) {
+		throw forbidden("delete this photo");
+	}
+
+	await db.transaction(async (tx) => {
+		await tx
+			.delete(schema.placePhotos)
+			.where(eq(schema.placePhotos.id, photo.id));
+
+		if (place.coverMediaId === photo.mediaId) {
+			const [next] = await tx
+				.select({ mediaId: schema.placePhotos.mediaId })
+				.from(schema.placePhotos)
+				.where(eq(schema.placePhotos.placeId, place.id))
+				.orderBy(asc(schema.placePhotos.sortOrder))
+				.limit(1);
+
+			await tx
+				.update(schema.places)
+				.set({ coverMediaId: next?.mediaId ?? null })
+				.where(eq(schema.places.id, place.id));
+		}
+	});
 }
