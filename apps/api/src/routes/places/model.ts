@@ -229,3 +229,34 @@ export const AddPlacePhotosBody = t.Object({
 export const AddPlacePhotosResponse = t.Object({
 	data: t.Array(PlacePhotoItem),
 });
+
+export const AdminUpdatePlaceBody = t.Object({
+	name: t.Optional(t.String({ minLength: 2, maxLength: 160 })),
+	categoryId: t.Optional(t.String({ format: "uuid" })),
+	latitude: t.Optional(t.Number({ minimum: -90, maximum: 90 })),
+	longitude: t.Optional(t.Number({ minimum: -180, maximum: 180 })),
+	address: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+	description: t.Optional(t.Nullable(t.String({ maxLength: 5000 }))),
+	phone: t.Optional(t.Nullable(t.String({ maxLength: 40 }))),
+	openingHours: t.Optional(t.Nullable(OpeningHoursSchema)),
+	status: t.Optional(
+		t.Union([
+			t.Literal("pending"),
+			t.Literal("published"),
+			t.Literal("rejected"),
+			t.Literal("archived"),
+		]),
+	),
+});
+
+export type AdminUpdatePlaceBodyType = {
+	name?: string;
+	categoryId?: string;
+	latitude?: number;
+	longitude?: number;
+	address?: string | null;
+	description?: string | null;
+	phone?: string | null;
+	openingHours?: CreatePlaceBodyType["openingHours"] | null;
+	status?: "pending" | "published" | "rejected" | "archived";
+};

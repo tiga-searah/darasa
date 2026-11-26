@@ -18,9 +18,10 @@ import { schema } from "../../database/schema";
 import type { OpeningHours } from "../../database/schema/places";
 import type { Storage } from "../../lib/ports";
 import type { SessionUser } from "../../lib/session";
-import { ApiError, forbidden, notFound } from "../../utils";
+import { ApiError, conflict, forbidden, notFound } from "../../utils";
 import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
 import type {
+	AdminUpdatePlaceBodyType,
 	CreatePlaceBodyType,
 	HiddenGemsQueryType,
 	PlaceDetailType,
@@ -729,4 +730,67 @@ export async function deletePlacePhoto(
 				.where(eq(schema.places.id, place.id));
 		}
 	});
+}
+
+const ALLOWED_STATUS_TRANSITIONS: Record<string, readonly string[]> = {
+	pending: ["published", "rejected"],
+	published: ["archived"],
+	archived: ["published"],
+	rejected: [],
+};
+
+export async function adminUpdatePlace(
+	storage: Storage | undefined,
+	user: SessionUser,
+	id: string,
+	body: AdminUpdatePlaceBodyType,
+): Promise<PlaceDetailType> {
+	const [existing] = await db
+		.select()
+		.from(schema.places)
+		.where(eq(schema.places.id, id))
+		.limit(1);
+	if (!existing) throw notFound("Place not found");
+
+	if (body.status !== undefined && body.status !== existing.status) {
+		const allowed = ALLOWED_STATUS_TRANSITIONS[existing.status] ?? [];
+		if (!allowed.includes(body.status)) {
+			throw conflict("Invalid status transition");
+		}
+	}
+
+	if (body.categoryId !== undefined) {
+		const [cat] = await db
+			.select({ id: schema.categories.id })
+			.from(schema.categories)
+			.where(eq(schema.categories.id, body.categoryId))
+			.limit(1);
+		if (!cat) throw notFound("Category not found");
+	}
+
+	const updates: Partial<typeof schema.places.$inferInsert> = {
+		updatedAt: new Date(),
+	};
+	if (body.name !== undefined) updates.name = body.name;
+	if (body.categoryId !== undefined) updates.categoryId = body.categoryId;
+	if (body.latitude !== undefined) updates.latitude = body.latitude;
+	if (body.longitude !== undefined) updates.longitude = body.longitude;
+	if (body.address !== undefined) updates.address = body.address;
+	if (body.description !== undefined) updates.description = body.description;
+	if (body.phone !== undefined) updates.phone = body.phone;
+	if (body.openingHours !== undefined)
+		updates.openingHours = body.openingHours as OpeningHours | null;
+	if (body.status !== undefined) updates.status = body.status;
+
+	await db.update(schema.places).set(updates).where(eq(schema.places.id, id));
+	return getPlaceDetail(storage, id, user);
+}
+
+export async function adminArchivePlace(id: string): Promise<void> {
+	const [updated] = await db
+		.update(schema.places)
+		.set({ status: "archived", updatedAt: new Date() })
+		.where(eq(schema.places.id, id))
+		.returning({ id: schema.places.id });
+	if (!updated) throw notFound("Place not found");
 }

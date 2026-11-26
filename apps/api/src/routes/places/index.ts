@@ -1,9 +1,10 @@
 import { Elysia, t } from "elysia";
 import type { Storage } from "../../lib/ports";
-import { optionalAuth, requireAuth } from "../../plugins/guard";
+import { optionalAuth, requireAdmin, requireAuth } from "../../plugins/guard";
 import {
 	AddPlacePhotosBody,
 	AddPlacePhotosResponse,
+	AdminUpdatePlaceBody,
 	CreatePlaceBody,
 	HiddenGemsQuery,
 	PaginatedPlacesResponse,
@@ -12,6 +13,8 @@ import {
 } from "./model";
 import {
 	addPlacePhotos,
+	adminArchivePlace,
+	adminUpdatePlace,
 	createPlace,
 	deletePlacePhoto,
 	getPlaceDetail,
@@ -114,4 +117,33 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 			ctx.set.status = 204;
 			return;
 		},
+	)
+	.group("", (g) =>
+		g
+			.use(requireAdmin)
+			.patch(
+				"/:id",
+				{
+					params: t.Object({ id: t.String({ format: "uuid" }) }),
+					body: AdminUpdatePlaceBody,
+				},
+				async (ctx) => ({
+					data: await adminUpdatePlace(
+						storageFrom(ctx),
+						ctx.sessionUser,
+						ctx.params.id,
+						ctx.body,
+					),
+				}),
+			)
+			.delete(
+				"/:id",
+				{
+					params: t.Object({ id: t.String({ format: "uuid" }) }),
+				},
+				async ({ params, set }) => {
+					await adminArchivePlace(params.id);
+					set.status = 204;
+				},
+			),
 	);

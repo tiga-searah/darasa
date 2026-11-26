@@ -6,6 +6,7 @@ import { googleClient } from "./lib/google";
 import type { GoogleClient, Storage } from "./lib/ports";
 import { s3Storage } from "./lib/storage";
 import { errorPlugin } from "./plugins/errors";
+import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
 import { categoryRoutes } from "./routes/categories";
 import { claimRoutes } from "./routes/claims";
@@ -48,5 +49,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		.use(placeRoutes)
 		.use(reviewRoutes)
 		.use(claimRoutes)
-		.use(ownerRoutes);
+		.use(ownerRoutes)
+		.use(adminRoutes);
 };
