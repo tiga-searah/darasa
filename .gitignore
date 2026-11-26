@@ -55,3 +55,9 @@ yarn-error.log*
 **/*.bun
 # superpowers sdd workspace
 .superpowers
+
+# agents
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/react-router/
