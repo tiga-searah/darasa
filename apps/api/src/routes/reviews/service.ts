@@ -57,6 +57,10 @@ async function hydrateReviews(
 				authorName: schema.users.name,
 			})
 			.from(schema.ownerReplies)
+			.innerJoin(
+				schema.users,
+				eq(schema.ownerReplies.authorId, schema.users.id),
+			)
 			.where(inArray(schema.ownerReplies.reviewId, reviewIds)),
 	]);
 
