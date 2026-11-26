@@ -164,3 +164,54 @@ export const PaginatedPlacesResponse = t.Object({
 export const PlaceDetailResponse = t.Object({
 	data: PlaceDetail,
 });
+
+const OpeningHoursSlot = t.Union([
+	t.Object({ open: t.String(), close: t.String() }),
+	t.Null(),
+]);
+
+export const OpeningHoursSchema = t.Partial(
+	t.Object({
+		mon: OpeningHoursSlot,
+		tue: OpeningHoursSlot,
+		wed: OpeningHoursSlot,
+		thu: OpeningHoursSlot,
+		fri: OpeningHoursSlot,
+		sat: OpeningHoursSlot,
+		sun: OpeningHoursSlot,
+	}),
+);
+
+export const CreatePlaceBody = t.Object({
+	name: t.String({ minLength: 2, maxLength: 160 }),
+	categoryId: t.String({ format: "uuid" }),
+	latitude: t.Number({ minimum: -90, maximum: 90 }),
+	longitude: t.Number({ minimum: -180, maximum: 180 }),
+	address: t.Optional(t.String({ maxLength: 500 })),
+	description: t.Optional(t.String({ maxLength: 5000 })),
+	phone: t.Optional(t.String({ maxLength: 40 })),
+	openingHours: t.Optional(OpeningHoursSchema),
+	photoMediaIds: t.Optional(
+		t.Array(t.String({ format: "uuid" }), { maxItems: 5, uniqueItems: true }),
+	),
+});
+
+export type CreatePlaceBodyType = {
+	name: string;
+	categoryId: string;
+	latitude: number;
+	longitude: number;
+	address?: string;
+	description?: string;
+	phone?: string;
+	openingHours?: {
+		mon?: { open: string; close: string } | null;
+		tue?: { open: string; close: string } | null;
+		wed?: { open: string; close: string } | null;
+		thu?: { open: string; close: string } | null;
+		fri?: { open: string; close: string } | null;
+		sat?: { open: string; close: string } | null;
+		sun?: { open: string; close: string } | null;
+	};
+	photoMediaIds?: string[];
+};

@@ -106,4 +106,80 @@ describe("POST /places", () => {
 		expect(fourth.status).toBe(429);
 		expect((await json(fourth)).error.code).toBe("RATE_LIMITED");
 	});
+
+	test("accepts openingHours object payload", async () => {
+		const { app, cookie, cat } = await setupUserAndCat();
+		const res = await app.handle(
+			new Request("http://test/api/places", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					name: "Warung Jam",
+					categoryId: cat.id,
+					latitude: -6.91,
+					longitude: 109.73,
+					openingHours: { mon: { open: "08:00", close: "20:00" }, sun: null },
+				}),
+			}),
+		);
+		expect(res.status).toBe(201);
+	});
+
+	test("rejects >5 photoMediaIds with 422", async () => {
+		const { app, cookie, cat } = await setupUserAndCat();
+		const ids = Array.from({ length: 6 }, () => crypto.randomUUID());
+		const res = await app.handle(
+			new Request("http://test/api/places", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					name: "Warung Banyak Foto",
+					categoryId: cat.id,
+					latitude: -6.91,
+					longitude: 109.73,
+					photoMediaIds: ids,
+				}),
+			}),
+		);
+		expect(res.status).toBe(422);
+	});
+
+	test("rejects unowned or wrong-purpose photoMediaIds with 403", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const up = await app.handle(
+			new Request("http://test/api/media/uploads", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					purpose: "review_photo",
+					mime: "image/png",
+					sizeBytes: 12,
+				}),
+			}),
+		);
+		const { id: mediaId } = (await json(up)).data;
+		const row = await db.query.media.findFirst({ where: { id: mediaId } });
+		await storage.put(row!.key, PNG, "image/png");
+		await app.handle(
+			new Request(`http://test/api/media/${mediaId}/commit`, {
+				method: "POST",
+				headers: { cookie },
+			}),
+		);
+		const res = await app.handle(
+			new Request("http://test/api/places", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					name: "Warung Salah Media",
+					categoryId: cat.id,
+					latitude: -6.91,
+					longitude: 109.73,
+					photoMediaIds: [mediaId],
+				}),
+			}),
+		);
+		expect(res.status).toBe(403);
+	});
 });

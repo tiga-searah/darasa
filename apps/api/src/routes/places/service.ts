@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
+import type { OpeningHours } from "../../database/schema/places";
 import type { Storage } from "../../lib/ports";
 import type { SessionUser } from "../../lib/session";
 import { ApiError, notFound } from "../../utils";
@@ -541,7 +542,7 @@ export async function createPlace(
 				address: body.address ?? null,
 				description: body.description ?? null,
 				phone: body.phone ?? null,
-				openingHours: body.openingHours ?? null,
+				openingHours: (body.openingHours as OpeningHours) ?? null,
 				coverMediaId: photoIds[0] ?? null,
 				status: "pending",
 				createdById: user.id,
