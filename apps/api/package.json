@@ -4,11 +4,14 @@
 	"scripts": {
 		"dev": "bun run --watch src/index.ts",
 		"typecheck": "bun check",
-		"docker": "docker build -t darasa-web ."
+		"test": "bun test",
+		"docker": "docker build -t darasa-web .",
+		"smoke": "bun run scripts/smoke.ts"
 	},
 	"dependencies": {
 		"@elysia/cors": "^2.0.0-rc.1",
 		"@elysia/openapi": "^2.0.0-rc.1",
+		"arctic": "^3.7.0",
 		"drizzle-orm": "^1.0.0-rc.5",
 		"elysia": "^2.0.0-rc.3"
 	},

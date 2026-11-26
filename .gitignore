@@ -53,3 +53,5 @@ yarn-error.log*
 **/*.tgz
 **/*.log
 **/*.bun
+# superpowers sdd workspace
+.superpowers
