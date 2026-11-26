@@ -10,6 +10,7 @@ import { authRoutes } from "./routes/auth";
 import { categoryRoutes } from "./routes/categories";
 import { mediaRoutes } from "./routes/media";
 import { placeRoutes } from "./routes/places";
+import { reviewRoutes } from "./routes/reviews";
 
 export type AppDeps = {
 	storage?: Storage;
@@ -42,5 +43,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		.use(authRoutes)
 		.use(mediaRoutes)
 		.use(categoryRoutes)
-		.use(placeRoutes);
+		.use(placeRoutes)
+		.use(reviewRoutes);
 };
