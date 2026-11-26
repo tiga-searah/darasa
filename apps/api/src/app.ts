@@ -7,6 +7,7 @@ import type { GoogleClient, Storage } from "./lib/ports";
 import { s3Storage } from "./lib/storage";
 import { errorPlugin } from "./plugins/errors";
 import { authRoutes } from "./routes/auth";
+import { categoryRoutes } from "./routes/categories";
 import { mediaRoutes } from "./routes/media";
 
 export type AppDeps = {
@@ -38,5 +39,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		.decorate("deps", resolved)
 		.get("/health", () => ({ data: { ok: true } }))
 		.use(authRoutes)
-		.use(mediaRoutes);
+		.use(mediaRoutes)
+		.use(categoryRoutes);
 };
