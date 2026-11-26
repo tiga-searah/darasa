@@ -57,7 +57,8 @@ export async function recomputePlaceStats(
 			ownerVerified: schema.places.ownerVerified,
 		})
 		.from(schema.places)
-		.where(eq(schema.places.id, placeId));
+		.where(eq(schema.places.id, placeId))
+		.for("update");
 
 	if (!place) return;
 
