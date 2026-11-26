@@ -1,13 +1,15 @@
 import { Elysia, t } from "elysia";
 import type { Storage } from "../../lib/ports";
-import { optionalAuth } from "../../plugins/guard";
+import { optionalAuth, requireAuth } from "../../plugins/guard";
 import {
+	CreatePlaceBody,
 	HiddenGemsQuery,
 	PaginatedPlacesResponse,
 	PlaceDetailResponse,
 	PlaceListQuery,
 } from "./model";
 import {
+	createPlace,
 	getPlaceDetail,
 	listHiddenGems,
 	listPlaces,
@@ -58,5 +60,19 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 			await recordPlaceView(params.id);
 			set.status = 204;
 			return;
+		},
+	)
+	.use(requireAuth)
+	.post(
+		"/",
+		{
+			body: CreatePlaceBody,
+			response: { 201: PlaceDetailResponse },
+		},
+		async (ctx) => {
+			ctx.set.status = 201;
+			return {
+				data: await createPlace(storageFrom(ctx), ctx.sessionUser, ctx.body),
+			};
 		},
 	);

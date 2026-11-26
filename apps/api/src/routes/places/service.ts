@@ -17,8 +17,9 @@ import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
 import type { SessionUser } from "../../lib/session";
 import { ApiError, notFound } from "../../utils";
-import { resolveMediaUrl } from "../media/service";
+import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
 import type {
+	CreatePlaceBodyType,
 	HiddenGemsQueryType,
 	PlaceDetailType,
 	PlaceListItemType,
@@ -347,6 +348,7 @@ export async function getPlaceDetail(
 	storage: Storage | undefined,
 	idOrSlug: string,
 	viewer: SessionUser | null,
+	opts?: { allowUnpublished?: boolean },
 ): Promise<PlaceDetailType> {
 	const match = UUID_RE.test(idOrSlug)
 		? eq(schema.places.id, idOrSlug)
@@ -388,7 +390,7 @@ export async function getPlaceDetail(
 
 	if (!row) throw notFound("Place");
 
-	if (row.status !== "published") {
+	if (row.status !== "published" && !opts?.allowUnpublished) {
 		let allowed = viewer?.role === "admin";
 		if (!allowed && viewer) {
 			const [claim] = await db
@@ -483,4 +485,81 @@ export async function recordPlaceView(placeId: string): Promise<void> {
 			target: [schema.placeStats.placeId, schema.placeStats.day],
 			set: { views: sql`${schema.placeStats.views} + 1` },
 		});
+}
+
+export async function createPlace(
+	storage: Storage | undefined,
+	user: SessionUser,
+	body: CreatePlaceBodyType,
+): Promise<PlaceDetailType> {
+	const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+	const [{ total }] = await db
+		.select({ total: count() })
+		.from(schema.places)
+		.where(
+			and(
+				eq(schema.places.createdById, user.id),
+				gte(schema.places.createdAt, since),
+			),
+		);
+	if (Number(total) >= 3) {
+		throw new ApiError(
+			"RATE_LIMITED",
+			429,
+			"Daily place submission limit reached",
+		);
+	}
+
+	const [cat] = await db
+		.select({ id: schema.categories.id })
+		.from(schema.categories)
+		.where(eq(schema.categories.id, body.categoryId))
+		.limit(1);
+	if (!cat) throw notFound("Category");
+
+	const photoIds = body.photoMediaIds ?? [];
+	const baseSlug =
+		body.name
+			.toLowerCase()
+			.trim()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-|-$/g, "") || "place";
+	const slug = `${baseSlug}-${crypto.randomUUID().slice(0, 6)}`;
+
+	const created = await db.transaction(async (tx) => {
+		if (photoIds.length > 0) {
+			await assertOwnedReadyMedia(tx, user.id, photoIds, "place_photo");
+		}
+		const [place] = await tx
+			.insert(schema.places)
+			.values({
+				name: body.name,
+				slug,
+				categoryId: body.categoryId,
+				latitude: body.latitude,
+				longitude: body.longitude,
+				address: body.address ?? null,
+				description: body.description ?? null,
+				phone: body.phone ?? null,
+				openingHours: body.openingHours ?? null,
+				coverMediaId: photoIds[0] ?? null,
+				status: "pending",
+				createdById: user.id,
+			})
+			.returning({ id: schema.places.id });
+
+		if (photoIds.length > 0) {
+			await tx.insert(schema.placePhotos).values(
+				photoIds.map((mediaId, idx) => ({
+					placeId: place.id,
+					mediaId,
+					sortOrder: idx,
+					uploadedById: user.id,
+				})),
+			);
+		}
+		return place;
+	});
+
+	return getPlaceDetail(storage, created.id, user, { allowUnpublished: true });
 }
