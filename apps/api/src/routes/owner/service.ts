@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
@@ -6,6 +6,7 @@ import type { SessionUser } from "../../lib/session";
 import { ApiError, forbidden, notFound } from "../../utils";
 import { resolveMediaUrl } from "../media/service";
 import { getPlaceDetail } from "../places/service";
+import { hydrateReviews } from "../reviews/service";
 import type { UpdateOwnerPlaceInput } from "./model";
 
 const IDENTITY_FIELDS = [

@@ -35,3 +35,15 @@ export type UpdateOwnerPlaceInput = {
 	longitude?: unknown;
 	status?: unknown;
 };
+
+export const OwnerReviewsQuery = t.Object({
+	page: t.Optional(t.Integer({ minimum: 1 })),
+	limit: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
+	unanswered: t.Optional(
+		t.Union([t.Boolean(), t.Literal("true"), t.Literal("false")]),
+	),
+});
+
+export const UpsertReplyBody = t.Object({
+	body: t.String({ minLength: 1, maxLength: 1000 }),
+});

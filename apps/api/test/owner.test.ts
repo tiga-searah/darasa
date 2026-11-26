@@ -190,3 +190,69 @@ describe("owner dashboard places & stats", () => {
 		expect(body.data.daily.length).toBe(1);
 	});
 });
+
+describe("owner review replies", () => {
+	beforeEach(resetDb);
+
+	test("lists unanswered reviews, creates reply (201), updates reply (200), deletes reply (204)", async () => {
+		const { app, cookie, placeA } = await seedOwnerSetup();
+		const [reviewer] = await db
+			.insert(schema.users)
+			.values({ name: "Rev", email: "rev@b.test" })
+			.returning();
+		const [review] = await db
+			.insert(schema.reviews)
+			.values({
+				placeId: placeA.id,
+				userId: reviewer.id,
+				rating: 5,
+				body: "Mantap sekali rasanya!",
+				status: "published",
+			})
+			.returning();
+
+		const unanswered = await app.handle(
+			new Request(
+				`http://test/api/owner/places/${placeA.id}/reviews?unanswered=true`,
+				{ headers: { cookie } },
+			),
+		);
+		expect(unanswered.status).toBe(200);
+		expect((await json(unanswered)).data.length).toBe(1);
+
+		const createReply = await app.handle(
+			new Request(`http://test/api/owner/reviews/${review.id}/reply`, {
+				method: "PUT",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ body: "Terima kasih!" }),
+			}),
+		);
+		expect(createReply.status).toBe(201);
+
+		const updateReply = await app.handle(
+			new Request(`http://test/api/owner/reviews/${review.id}/reply`, {
+				method: "PUT",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ body: "Terima kasih banyak!" }),
+			}),
+		);
+		expect(updateReply.status).toBe(200);
+		expect((await json(updateReply)).data.body).toBe("Terima kasih banyak!");
+
+		const afterReply = await app.handle(
+			new Request(
+				`http://test/api/owner/places/${placeA.id}/reviews?unanswered=true`,
+				{ headers: { cookie } },
+			),
+		);
+		expect((await json(afterReply)).data.length).toBe(0);
+
+		const del = await app.handle(
+			new Request(`http://test/api/owner/reviews/${review.id}/reply`, {
+				method: "DELETE",
+				headers: { cookie },
+			}),
+		);
+		expect(del.status).toBe(204);
+	});
+});

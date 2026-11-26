@@ -18,7 +18,7 @@ import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-async function hydrateReviews(
+export async function hydrateReviews(
 	tx: DbOrTx,
 	storage: Storage | undefined,
 	rows: Array<typeof schema.reviews.$inferSelect>,

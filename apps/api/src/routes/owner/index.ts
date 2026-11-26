@@ -5,13 +5,17 @@ import { requireAuth } from "../../plugins/guard";
 import {
 	OwnerPlaceParams,
 	OwnerPlaceStatsQuery,
+	OwnerReviewsQuery,
 	UpdateOwnerPlaceBody,
+	UpsertReplyBody,
 } from "./model";
 import {
 	getOwnerPlace,
 	getOwnerPlaceStats,
 	listOwnerPlaces,
+	listOwnerReviews,
 	updateOwnerPlace,
+	upsertOwnerReply,
 } from "./service";
 
 const storageOf = (ctx: object): Storage => {
