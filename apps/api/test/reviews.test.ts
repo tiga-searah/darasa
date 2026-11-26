@@ -132,12 +132,14 @@ describe("reviews & anomaly flags", () => {
 				})),
 			)
 			.returning();
+		const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 		await db.insert(schema.reviews).values(
 			users.map((u) => ({
 				placeId: place.id,
 				userId: u.id,
 				rating: 5,
 				status: "published" as const,
+				createdAt: twoDaysAgo,
 			})),
 		);
 
@@ -163,6 +165,7 @@ describe("reviews & anomaly flags", () => {
 			userId: u12.id,
 			rating: 4,
 			status: "published",
+			createdAt: twoDaysAgo,
 		});
 
 		const c13 = await registerUser("u13@b.test");
