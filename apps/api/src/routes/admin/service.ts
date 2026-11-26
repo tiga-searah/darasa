@@ -30,13 +30,25 @@ export async function listAdminPlaces(query: AdminPlacesQueryType) {
 				id: schema.places.id,
 				slug: schema.places.slug,
 				name: schema.places.name,
-				status: schema.places.status,
+				categoryId: schema.places.categoryId,
+				description: schema.places.description,
 				address: schema.places.address,
+				latitude: schema.places.latitude,
+				longitude: schema.places.longitude,
+				phone: schema.places.phone,
+				openingHours: schema.places.openingHours,
+				coverMediaId: schema.places.coverMediaId,
+				status: schema.places.status,
+				createdById: schema.places.createdById,
 				communityVerified: schema.places.communityVerified,
 				ownerVerified: schema.places.ownerVerified,
 				ratingAvg: schema.places.ratingAvg,
 				reviewCount: schema.places.reviewCount,
+				lastReviewAt: schema.places.lastReviewAt,
+				exploreScore: schema.places.exploreScore,
+				hiddenGemScore: schema.places.hiddenGemScore,
 				createdAt: schema.places.createdAt,
+				updatedAt: schema.places.updatedAt,
 				category: {
 					id: schema.categories.id,
 					name: schema.categories.name,
@@ -65,14 +77,16 @@ export async function listAdminPlaces(query: AdminPlacesQueryType) {
 	return {
 		data: rows.map((r) => ({
 			...r,
+			lastReviewAt: r.lastReviewAt ? r.lastReviewAt.toISOString() : null,
 			createdAt: r.createdAt.toISOString(),
+			updatedAt: r.updatedAt.toISOString(),
 			createdBy: r.createdBy?.id ? r.createdBy : null,
 		})),
 		meta: {
 			page,
 			limit,
 			total,
-			totalPages: Math.ceil(total / limit),
+			totalPages: Math.max(1, Math.ceil(total / limit)),
 		},
 	};
 }
@@ -219,7 +233,7 @@ export async function listAnomalies(query: AdminAnomaliesQueryType) {
 			page,
 			limit,
 			total,
-			totalPages: Math.ceil(total / limit),
+			totalPages: Math.max(1, Math.ceil(total / limit)),
 		},
 	};
 }

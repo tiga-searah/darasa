@@ -32,3 +32,85 @@ export const ApproveClaimBody = t.Object({
 export const RejectClaimBody = t.Object({
 	note: t.String({ minLength: 5, maxLength: 500 }),
 });
+
+export const ClaimStatusSchema = t.Union([
+	t.Literal("pending"),
+	t.Literal("approved"),
+	t.Literal("rejected"),
+]);
+
+export const ClaimItem = t.Object({
+	id: t.String(),
+	placeId: t.String(),
+	claimantId: t.String(),
+	status: ClaimStatusSchema,
+	evidence: ClaimEvidenceSchema,
+	reviewedById: t.Nullable(t.String()),
+	reviewedAt: t.Nullable(t.Date()),
+	decisionNote: t.Nullable(t.String()),
+	createdAt: t.Date(),
+	updatedAt: t.Date(),
+});
+
+export const ClaimResponse = t.Object({
+	data: ClaimItem,
+});
+
+export const MyClaimItem = t.Object({
+	id: t.String(),
+	placeId: t.String(),
+	status: ClaimStatusSchema,
+	evidence: ClaimEvidenceSchema,
+	decisionNote: t.Nullable(t.String()),
+	reviewedAt: t.Nullable(t.Date()),
+	createdAt: t.Date(),
+	place: t.Nullable(
+		t.Object({
+			id: t.String(),
+			slug: t.String(),
+			name: t.String(),
+			coverUrl: t.Nullable(t.String()),
+		}),
+	),
+});
+
+export const MyClaimsResponse = t.Object({
+	data: t.Array(MyClaimItem),
+});
+
+export const AdminClaimItem = t.Object({
+	id: t.String(),
+	placeId: t.String(),
+	claimantId: t.String(),
+	status: ClaimStatusSchema,
+	evidence: ClaimEvidenceSchema,
+	reviewedById: t.Nullable(t.String()),
+	reviewedAt: t.Nullable(t.Date()),
+	decisionNote: t.Nullable(t.String()),
+	createdAt: t.Date(),
+	updatedAt: t.Date(),
+	claimant: t.Nullable(
+		t.Object({
+			id: t.String(),
+			name: t.String(),
+			email: t.String(),
+		}),
+	),
+	place: t.Nullable(
+		t.Object({
+			id: t.String(),
+			slug: t.String(),
+			name: t.String(),
+		}),
+	),
+});
+
+export const AdminClaimsResponse = t.Object({
+	data: t.Array(AdminClaimItem),
+	meta: t.Object({
+		page: t.Number(),
+		limit: t.Number(),
+		total: t.Number(),
+		totalPages: t.Number(),
+	}),
+});

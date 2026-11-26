@@ -126,6 +126,7 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 				{
 					params: t.Object({ id: t.String({ format: "uuid" }) }),
 					body: AdminUpdatePlaceBody,
+					response: { 200: PlaceDetailResponse },
 				},
 				async (ctx) => ({
 					data: await adminUpdatePlace(

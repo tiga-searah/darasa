@@ -300,4 +300,31 @@ describe("owner review replies", () => {
 		);
 		expect(missingReplyDel.status).toBe(404);
 	});
+
+	test("returns 409 when replying to an unpublished review", async () => {
+		const { app, cookie, placeA } = await seedOwnerSetup();
+		const [reviewer] = await db
+			.insert(schema.users)
+			.values({ name: "RevHidden", email: "revh@b.test" })
+			.returning();
+		const [hiddenReview] = await db
+			.insert(schema.reviews)
+			.values({
+				placeId: placeA.id,
+				userId: reviewer.id,
+				rating: 2,
+				body: "Review disembunyikan",
+				status: "hidden",
+			})
+			.returning();
+
+		const res = await app.handle(
+			new Request(`http://test/api/owner/reviews/${hiddenReview.id}/reply`, {
+				method: "PUT",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ body: "Balasan tidak boleh" }),
+			}),
+		);
+		expect(res.status).toBe(409);
+	});
 });

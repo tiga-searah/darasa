@@ -2,9 +2,14 @@ import { Elysia } from "elysia";
 import type { Storage } from "../../lib/ports";
 import { s3Storage } from "../../lib/storage";
 import { requireAuth } from "../../plugins/guard";
+import { PlaceDetailResponse } from "../places/model";
+import { PaginatedReviewsResponse } from "../reviews/model";
 import {
 	OwnerPlaceParams,
 	OwnerPlaceStatsQuery,
+	OwnerPlaceStatsResponse,
+	OwnerPlacesListResponse,
+	OwnerReplyResponse,
 	OwnerReviewsQuery,
 	UpdateOwnerPlaceBody,
 	UpsertReplyBody,
@@ -34,17 +39,31 @@ const storageOf = (ctx: object): Storage => {
 
 export const ownerRoutes = new Elysia({ prefix: "/owner" })
 	.use(requireAuth)
-	.get("/places", async (ctx) => ({
-		data: await listOwnerPlaces(storageOf(ctx), ctx.sessionUser),
-	}))
-	.get("/places/:id", { params: OwnerPlaceParams }, async (ctx) => ({
-		data: await getOwnerPlace(storageOf(ctx), ctx.sessionUser, ctx.params.id),
-	}))
+	.get(
+		"/places",
+		{
+			response: { 200: OwnerPlacesListResponse },
+		},
+		async (ctx) => ({
+			data: await listOwnerPlaces(storageOf(ctx), ctx.sessionUser),
+		}),
+	)
+	.get(
+		"/places/:id",
+		{
+			params: OwnerPlaceParams,
+			response: { 200: PlaceDetailResponse },
+		},
+		async (ctx) => ({
+			data: await getOwnerPlace(storageOf(ctx), ctx.sessionUser, ctx.params.id),
+		}),
+	)
 	.patch(
 		"/places/:id",
 		{
 			params: OwnerPlaceParams,
 			body: UpdateOwnerPlaceBody,
+			response: { 200: PlaceDetailResponse },
 		},
 		async (ctx) => ({
 			data: await updateOwnerPlace(
@@ -60,6 +79,7 @@ export const ownerRoutes = new Elysia({ prefix: "/owner" })
 		{
 			params: OwnerPlaceParams,
 			query: OwnerPlaceStatsQuery,
+			response: { 200: OwnerPlaceStatsResponse },
 		},
 		async ({ sessionUser, params, query }) => {
 			const days = query.days ? (Number(query.days) as 7 | 30 | 90) : 30;
@@ -73,6 +93,7 @@ export const ownerRoutes = new Elysia({ prefix: "/owner" })
 		{
 			params: OwnerPlaceParams,
 			query: OwnerReviewsQuery,
+			response: { 200: PaginatedReviewsResponse },
 		},
 		async (ctx) =>
 			listOwnerReviews(
@@ -87,6 +108,7 @@ export const ownerRoutes = new Elysia({ prefix: "/owner" })
 		{
 			params: OwnerPlaceParams,
 			body: UpsertReplyBody,
+			response: { 200: OwnerReplyResponse, 201: OwnerReplyResponse },
 		},
 		async ({ sessionUser, params, body, set }) => {
 			const result = await upsertOwnerReply(sessionUser, params.id, body.body);

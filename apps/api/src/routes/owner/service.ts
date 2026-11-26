@@ -3,7 +3,7 @@ import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
 import type { SessionUser } from "../../lib/session";
-import { ApiError, forbidden, notFound } from "../../utils";
+import { ApiError, conflict, forbidden, notFound } from "../../utils";
 import { resolveMediaUrl } from "../media/service";
 import { getPlaceDetail } from "../places/service";
 import { hydrateReviews } from "../reviews/service";
@@ -79,6 +79,7 @@ export async function listOwnerPlaces(storage: Storage, user: SessionUser) {
 		rows.map(async ({ coverKey, ...rest }) => ({
 			...rest,
 			coverUrl: coverKey ? await resolveMediaUrl(storage, coverKey) : null,
+			pendingClaims: 0,
 		})),
 	);
 }
@@ -287,6 +288,8 @@ export async function upsertOwnerReply(
 		.where(eq(schema.reviews.id, reviewId))
 		.limit(1);
 	if (!review) throw notFound("Review");
+	if (review.status !== "published")
+		throw conflict("Cannot reply to an unpublished review");
 	await assertPlaceOwnerOrAdmin(user, review.placeId);
 
 	const [row] = await db
