@@ -44,5 +44,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		.use(mediaRoutes)
 		.use(categoryRoutes)
 		.use(placeRoutes)
-		.use(reviewRoutes);
+		.use(reviewRoutes)
+		.use(claimRoutes);
 };
