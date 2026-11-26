@@ -87,7 +87,7 @@ export async function updatePlaceVerification(
 			.from(schema.places)
 			.where(eq(schema.places.id, placeId))
 			.for("update");
-		if (!place) throw notFound("Place not found");
+		if (!place) throw notFound("Place");
 
 		if (body.ownerVerified === false) {
 			const [approvedClaim] = await tx
@@ -117,14 +117,17 @@ export async function updatePlaceVerification(
 			updates.ownerVerified = body.ownerVerified;
 		}
 
-		const [updated] = await tx
+		await tx
 			.update(schema.places)
 			.set(updates)
-			.where(eq(schema.places.id, placeId))
-			.returning();
+			.where(eq(schema.places.id, placeId));
 
 		await recomputePlaceStats(tx, placeId);
-		return updated;
+		const [refreshed] = await tx
+			.select()
+			.from(schema.places)
+			.where(eq(schema.places.id, placeId));
+		return refreshed;
 	});
 }
 
@@ -138,7 +141,7 @@ export async function moderateReview(
 			.set({ status: body.status, updatedAt: new Date() })
 			.where(eq(schema.reviews.id, reviewId))
 			.returning();
-		if (!updated) throw notFound("Review not found");
+		if (!updated) throw notFound("Review");
 
 		await recomputePlaceStats(tx, updated.placeId);
 		return updated;
@@ -232,7 +235,7 @@ export async function resolveAnomaly(
 			.from(schema.anomalyFlags)
 			.where(eq(schema.anomalyFlags.id, flagId))
 			.for("update");
-		if (!flag) throw notFound("Anomaly flag not found");
+		if (!flag) throw notFound("Anomaly flag");
 		if (flag.status !== "open") {
 			throw conflict("Anomaly flag already resolved");
 		}

@@ -117,7 +117,9 @@ describe("admin moderation", () => {
 			}),
 		);
 		expect(community.status).toBe(200);
-		expect((await json(community)).data.communityVerified).toBe(true);
+		const communityBody = await json(community);
+		expect(communityBody.data.communityVerified).toBe(true);
+		expect(communityBody.data.exploreScore).toBeGreaterThan(0);
 	});
 
 	test("review moderation recomputes place stats and anomaly resolve does not", async () => {
@@ -208,6 +210,82 @@ describe("admin moderation", () => {
 		const updatedPlace = await db.query.places.findFirst({
 			where: { id: place.id },
 		});
-		expect(updatedPlace!.reviewCount).toBe(0);
+		expect(updatedPlace?.reviewCount).toBe(0);
+	});
+
+	test("GET /admin/places, GET /admin/anomalies, DELETE /places/:id, and 403 non-admin", async () => {
+		const admCookie = await adminCookie();
+		const app = freshApp({ storage: memoryStorage() });
+		const reg = await app.handle(
+			new Request("http://test/api/auth/register", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					name: "User",
+					email: "usr@b.test",
+					password: "min8chars",
+				}),
+			}),
+		);
+		const userCookie = cookieOf(reg) ?? "";
+
+		const forbiddenRes = await app.handle(
+			new Request("http://test/api/admin/places", {
+				headers: { cookie: userCookie },
+			}),
+		);
+		expect(forbiddenRes.status).toBe(403);
+
+		const [cat] = await db
+			.insert(schema.categories)
+			.values({ name: "Warung", slug: "warung", sortOrder: 1 })
+			.returning();
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "p-list",
+				name: "P List",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "pending",
+			})
+			.returning();
+		await db.insert(schema.anomalyFlags).values({
+			placeId: place.id,
+			kind: "review_burst",
+			metrics: {
+				zScore: 3,
+				mean: 1,
+				stdDev: 0.5,
+				windowDays: 7,
+				sampleSize: 5,
+			},
+			reason: "Burst",
+		});
+
+		const placesRes = await app.handle(
+			new Request("http://test/api/admin/places?status=pending", {
+				headers: { cookie: admCookie },
+			}),
+		);
+		expect(placesRes.status).toBe(200);
+		expect((await json(placesRes)).data).toHaveLength(1);
+
+		const anomaliesRes = await app.handle(
+			new Request("http://test/api/admin/anomalies?status=open", {
+				headers: { cookie: admCookie },
+			}),
+		);
+		expect(anomaliesRes.status).toBe(200);
+		expect((await json(anomaliesRes)).data).toHaveLength(1);
+
+		const delRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}`, {
+				method: "DELETE",
+				headers: { cookie: admCookie },
+			}),
+		);
+		expect(delRes.status).toBe(204);
 	});
 });

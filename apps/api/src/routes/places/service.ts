@@ -745,44 +745,68 @@ export async function adminUpdatePlace(
 	id: string,
 	body: AdminUpdatePlaceBodyType,
 ): Promise<PlaceDetailType> {
-	const [existing] = await db
-		.select()
-		.from(schema.places)
-		.where(eq(schema.places.id, id))
-		.limit(1);
-	if (!existing) throw notFound("Place not found");
+	await db.transaction(async (tx) => {
+		const [existing] = await tx
+			.select()
+			.from(schema.places)
+			.where(eq(schema.places.id, id))
+			.for("update");
+		if (!existing) throw notFound("Place");
 
-	if (body.status !== undefined && body.status !== existing.status) {
-		const allowed = ALLOWED_STATUS_TRANSITIONS[existing.status] ?? [];
-		if (!allowed.includes(body.status)) {
-			throw conflict("Invalid status transition");
+		if (body.status !== undefined && body.status !== existing.status) {
+			const allowed = ALLOWED_STATUS_TRANSITIONS[existing.status] ?? [];
+			if (!allowed.includes(body.status)) {
+				throw conflict("Invalid status transition");
+			}
 		}
-	}
 
-	if (body.categoryId !== undefined) {
-		const [cat] = await db
-			.select({ id: schema.categories.id })
-			.from(schema.categories)
-			.where(eq(schema.categories.id, body.categoryId))
-			.limit(1);
-		if (!cat) throw notFound("Category not found");
-	}
+		if (body.categoryId !== undefined) {
+			const [cat] = await tx
+				.select({ id: schema.categories.id })
+				.from(schema.categories)
+				.where(eq(schema.categories.id, body.categoryId))
+				.limit(1);
+			if (!cat) throw notFound("Category");
+		}
 
-	const updates: Partial<typeof schema.places.$inferInsert> = {
-		updatedAt: new Date(),
-	};
-	if (body.name !== undefined) updates.name = body.name;
-	if (body.categoryId !== undefined) updates.categoryId = body.categoryId;
-	if (body.latitude !== undefined) updates.latitude = body.latitude;
-	if (body.longitude !== undefined) updates.longitude = body.longitude;
-	if (body.address !== undefined) updates.address = body.address;
-	if (body.description !== undefined) updates.description = body.description;
-	if (body.phone !== undefined) updates.phone = body.phone;
-	if (body.openingHours !== undefined)
-		updates.openingHours = body.openingHours as OpeningHours | null;
-	if (body.status !== undefined) updates.status = body.status;
+		if (body.coverMediaId !== undefined && body.coverMediaId !== null) {
+			const [photo] = await tx
+				.select({ id: schema.placePhotos.id })
+				.from(schema.placePhotos)
+				.where(
+					and(
+						eq(schema.placePhotos.placeId, id),
+						eq(schema.placePhotos.mediaId, body.coverMediaId),
+					),
+				)
+				.limit(1);
+			if (!photo) {
+				throw new ApiError(
+					"VALIDATION_ERROR",
+					422,
+					"coverMediaId must belong to this place",
+				);
+			}
+		}
 
-	await db.update(schema.places).set(updates).where(eq(schema.places.id, id));
+		const updates: Partial<typeof schema.places.$inferInsert> = {
+			updatedAt: new Date(),
+		};
+		if (body.name !== undefined) updates.name = body.name;
+		if (body.categoryId !== undefined) updates.categoryId = body.categoryId;
+		if (body.latitude !== undefined) updates.latitude = body.latitude;
+		if (body.longitude !== undefined) updates.longitude = body.longitude;
+		if (body.address !== undefined) updates.address = body.address;
+		if (body.description !== undefined) updates.description = body.description;
+		if (body.phone !== undefined) updates.phone = body.phone;
+		if (body.openingHours !== undefined)
+			updates.openingHours = body.openingHours as OpeningHours | null;
+		if (body.coverMediaId !== undefined)
+			updates.coverMediaId = body.coverMediaId;
+		if (body.status !== undefined) updates.status = body.status;
+
+		await tx.update(schema.places).set(updates).where(eq(schema.places.id, id));
+	});
 	return getPlaceDetail(storage, id, user);
 }
 
@@ -792,5 +816,5 @@ export async function adminArchivePlace(id: string): Promise<void> {
 		.set({ status: "archived", updatedAt: new Date() })
 		.where(eq(schema.places.id, id))
 		.returning({ id: schema.places.id });
-	if (!updated) throw notFound("Place not found");
+	if (!updated) throw notFound("Place");
 }

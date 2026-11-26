@@ -239,6 +239,7 @@ export const AdminUpdatePlaceBody = t.Object({
 	description: t.Optional(t.Nullable(t.String({ maxLength: 5000 }))),
 	phone: t.Optional(t.Nullable(t.String({ maxLength: 40 }))),
 	openingHours: t.Optional(t.Nullable(OpeningHoursSchema)),
+	coverMediaId: t.Optional(t.Nullable(t.String({ format: "uuid" }))),
 	status: t.Optional(
 		t.Union([
 			t.Literal("pending"),
@@ -258,5 +259,6 @@ export type AdminUpdatePlaceBodyType = {
 	description?: string | null;
 	phone?: string | null;
 	openingHours?: CreatePlaceBodyType["openingHours"] | null;
+	coverMediaId?: string | null;
 	status?: "pending" | "published" | "rejected" | "archived";
 };
