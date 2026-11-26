@@ -23,7 +23,7 @@ export const reviewRoutes = new Elysia()
 	.get(
 		"/places/:id/reviews",
 		{
-			params: t.Object({ id: t.String() }),
+			params: t.Object({ id: t.String({ format: "uuid" }) }),
 			query: ReviewListQuery,
 			response: { 200: PaginatedReviewsResponse },
 		},
@@ -39,7 +39,7 @@ export const reviewRoutes = new Elysia()
 	.post(
 		"/places/:id/reviews",
 		{
-			params: t.Object({ id: t.String() }),
+			params: t.Object({ id: t.String({ format: "uuid" }) }),
 			body: CreateReviewBody,
 			response: { 201: ReviewResponse },
 		},
@@ -58,7 +58,7 @@ export const reviewRoutes = new Elysia()
 	.patch(
 		"/reviews/:id",
 		{
-			params: t.Object({ id: t.String() }),
+			params: t.Object({ id: t.String({ format: "uuid" }) }),
 			body: UpdateReviewBody,
 			response: { 200: ReviewResponse },
 		},
@@ -74,7 +74,7 @@ export const reviewRoutes = new Elysia()
 	.delete(
 		"/reviews/:id",
 		{
-			params: t.Object({ id: t.String() }),
+			params: t.Object({ id: t.String({ format: "uuid" }) }),
 		},
 		async ({ params, sessionUser, set }) => {
 			await deleteReview(params.id, sessionUser);

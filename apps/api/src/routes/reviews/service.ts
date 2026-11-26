@@ -4,7 +4,9 @@ import { schema } from "../../database/schema";
 import { evaluateReviewAnomalies } from "../../lib/anomaly";
 import type { Storage } from "../../lib/ports";
 import { type DbOrTx, recomputePlaceStats } from "../../lib/ranking";
+
 type SessionUser = { id: string; role?: string };
+
 import { ApiError, conflict, forbidden, notFound } from "../../utils";
 import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
 
@@ -202,23 +204,35 @@ export async function createReview(
 			);
 		}
 
-		const [inserted] = await tx
-			.insert(schema.reviews)
-			.values({
-				placeId,
-				userId: user.id,
-				rating: input.rating,
-				body: input.body ?? null,
-				status: "published",
-			})
-			.returning();
+		let inserted: typeof schema.reviews.$inferSelect;
+		try {
+			const [row] = await tx
+				.insert(schema.reviews)
+				.values({
+					placeId,
+					userId: user.id,
+					rating: input.rating,
+					body: input.body ?? null,
+					status: "published",
+				})
+				.returning();
+			inserted = row;
+		} catch (err) {
+			const code =
+				typeof err === "object" && err !== null && "code" in err
+					? (err as { code?: string }).code
+					: undefined;
+			if (code === "23505") {
+				throw conflict("You have already reviewed this place");
+			}
+			throw err;
+		}
 
 		if (input.photoMediaIds?.length) {
 			await tx.insert(schema.reviewPhotos).values(
-				input.photoMediaIds.map((mediaId, idx) => ({
+				input.photoMediaIds.map((mediaId) => ({
 					reviewId: inserted.id,
 					mediaId,
-					sortOrder: idx,
 				})),
 			);
 		}
@@ -278,10 +292,9 @@ export async function updateReview(
 
 			if (input.photoMediaIds.length > 0) {
 				await tx.insert(schema.reviewPhotos).values(
-					input.photoMediaIds.map((mediaId, idx) => ({
+					input.photoMediaIds.map((mediaId) => ({
 						reviewId,
 						mediaId,
-						sortOrder: idx,
 					})),
 				);
 			}

@@ -1,8 +1,8 @@
 import { t } from "elysia";
 
 export const ReviewListQuery = t.Object({
-	page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
-	limit: t.Optional(t.Numeric({ minimum: 1, maximum: 50, default: 20 })),
+	page: t.Optional(t.Integer({ minimum: 1 })),
+	limit: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
 	sort: t.Optional(
 		t.Union([t.Literal("recent"), t.Literal("highest"), t.Literal("lowest")]),
 	),
@@ -11,14 +11,20 @@ export const ReviewListQuery = t.Object({
 
 export const CreateReviewBody = t.Object({
 	rating: t.Integer({ minimum: 1, maximum: 5 }),
-	body: t.Optional(t.String({ maxLength: 4000 })),
-	photoMediaIds: t.Optional(t.Array(t.String(), { maxItems: 5 })),
+	body: t.Optional(t.String({ minLength: 10, maxLength: 2000 })),
+	photoMediaIds: t.Optional(
+		t.Array(t.String({ format: "uuid" }), { maxItems: 5, uniqueItems: true }),
+	),
 });
 
 export const UpdateReviewBody = t.Object({
 	rating: t.Optional(t.Integer({ minimum: 1, maximum: 5 })),
-	body: t.Optional(t.Union([t.String({ maxLength: 4000 }), t.Null()])),
-	photoMediaIds: t.Optional(t.Array(t.String(), { maxItems: 5 })),
+	body: t.Optional(
+		t.Union([t.String({ minLength: 10, maxLength: 2000 }), t.Null()]),
+	),
+	photoMediaIds: t.Optional(
+		t.Array(t.String({ format: "uuid" }), { maxItems: 5, uniqueItems: true }),
+	),
 });
 
 export const ReviewPhotoSchema = t.Object({

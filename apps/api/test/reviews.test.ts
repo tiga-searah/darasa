@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { db } from "../src/database";
 import { schema } from "../src/database/schema";
 import { memoryStorage } from "../src/lib/storage";
@@ -12,7 +13,9 @@ async function registerUser(email: string, name = "User") {
 			body: JSON.stringify({ name, email, password: "min8chars" }),
 		}),
 	);
-	return cookieOf(res)!;
+	const cookie = cookieOf(res);
+	if (!cookie) throw new Error("Expected auth cookie");
+	return cookie;
 }
 
 async function seedPublishedPlace() {
@@ -72,8 +75,8 @@ describe("reviews & anomaly flags", () => {
 		);
 		expect(patched.status).toBe(200);
 		let p = await db.query.places.findFirst({ where: { id: place.id } });
-		expect(p!.ratingAvg).toBe(3);
-		expect(p!.reviewCount).toBe(1);
+		expect(p?.ratingAvg).toBe(3);
+		expect(p?.reviewCount).toBe(1);
 
 		// delete -> soft removed, place avg resets to 0
 		const del = await app.handle(
@@ -84,8 +87,8 @@ describe("reviews & anomaly flags", () => {
 		);
 		expect(del.status).toBe(204);
 		p = await db.query.places.findFirst({ where: { id: place.id } });
-		expect(p!.ratingAvg).toBe(0);
-		expect(p!.reviewCount).toBe(0);
+		expect(p?.ratingAvg).toBe(0);
+		expect(p?.reviewCount).toBe(0);
 	});
 
 	test("rejects unowned or wrong-purpose photoMediaIds with 403", async () => {
@@ -179,5 +182,177 @@ describe("reviews & anomaly flags", () => {
 		expect(outlier.status).toBe(201);
 		const flags = await db.select().from(schema.anomalyFlags);
 		expect(flags.some((f) => f.kind === "rating_outlier")).toBe(true);
+	});
+
+	test("GET list supports sort, withPhotos, and mine", async () => {
+		const place = await seedPublishedPlace();
+		const c1 = await registerUser("l1@b.test", "L1");
+		const c2 = await registerUser("l2@b.test", "L2");
+		const app = freshApp({ storage: memoryStorage() });
+
+		await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: c1 },
+				body: JSON.stringify({ rating: 2, body: "Lumayan tapi agak lama." }),
+			}),
+		);
+		await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: c2 },
+				body: JSON.stringify({ rating: 5, body: "Enak banget dan cepat." }),
+			}),
+		);
+
+		const highest = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews?sort=highest`, {
+				headers: { cookie: c1 },
+			}),
+		);
+		expect(highest.status).toBe(200);
+		const highestBody = await json(highest);
+		expect(highestBody.data.length).toBe(2);
+		expect(highestBody.data[0].rating).toBe(5);
+		expect(highestBody.data[0].mine).toBe(false);
+		expect(highestBody.data[1].mine).toBe(true);
+
+		const withPhotos = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews?withPhotos=true`),
+		);
+		expect(withPhotos.status).toBe(200);
+		expect((await json(withPhotos)).data.length).toBe(0);
+	});
+
+	test("validates body bounds and UUID params with 422", async () => {
+		const place = await seedPublishedPlace();
+		const cookie = await registerUser("val@b.test");
+		const app = freshApp({ storage: memoryStorage() });
+
+		const shortBody = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ rating: 5, body: "short" }),
+			}),
+		);
+		expect(shortBody.status).toBe(422);
+
+		const badUuid = await app.handle(
+			new Request("http://test/api/places/not-a-uuid/reviews"),
+		);
+		expect(badUuid.status).toBe(422);
+	});
+
+	test("enforces 5/day rate limit (429) and triggers review_burst", async () => {
+		const [cat] = await db
+			.insert(schema.categories)
+			.values({ name: "Kafe", slug: "kafe", sortOrder: 1 })
+			.returning();
+		const places = await db
+			.insert(schema.places)
+			.values(
+				Array.from({ length: 6 }, (_, i) => ({
+					slug: `place-${i}`,
+					name: `Place ${i}`,
+					categoryId: cat.id,
+					latitude: -6.91,
+					longitude: 109.73,
+					status: "published" as const,
+				})),
+			)
+			.returning();
+		const app = freshApp({ storage: memoryStorage() });
+		const cookie = await registerUser("burst@b.test");
+
+		for (let i = 0; i < 5; i++) {
+			const res = await app.handle(
+				new Request(`http://test/api/places/${places[i].id}/reviews`, {
+					method: "POST",
+					headers: { "content-type": "application/json", cookie },
+					body: JSON.stringify({ rating: 5 }),
+				}),
+			);
+			expect(res.status).toBe(201);
+		}
+
+		const sixth = await app.handle(
+			new Request(`http://test/api/places/${places[5].id}/reviews`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ rating: 5 }),
+			}),
+		);
+		expect(sixth.status).toBe(429);
+
+		// 5 distinct users on places[0] within 24h -> review_burst
+		for (let i = 0; i < 4; i++) {
+			const c = await registerUser(`bu${i}@b.test`);
+			const r = await app.handle(
+				new Request(`http://test/api/places/${places[0].id}/reviews`, {
+					method: "POST",
+					headers: { "content-type": "application/json", cookie: c },
+					body: JSON.stringify({ rating: 4 }),
+				}),
+			);
+			expect(r.status).toBe(201);
+		}
+		const flags = await db.select().from(schema.anomalyFlags);
+		expect(flags.some((f) => f.kind === "review_burst")).toBe(true);
+	});
+
+	test("foreign PATCH/DELETE 403, admin DELETE 204, and PATCH removed 409", async () => {
+		const place = await seedPublishedPlace();
+		const authorCookie = await registerUser("auth@b.test");
+		const otherCookie = await registerUser("oth@b.test");
+		const adminCookie = await registerUser("adm@b.test");
+		await db
+			.update(schema.users)
+			.set({ role: "admin" })
+			.where(eq(schema.users.email, "adm@b.test"));
+
+		const app = freshApp({ storage: memoryStorage() });
+		const created = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: authorCookie },
+				body: JSON.stringify({ rating: 4 }),
+			}),
+		);
+		const reviewId = (await json(created)).data.id;
+
+		const foreignPatch = await app.handle(
+			new Request(`http://test/api/reviews/${reviewId}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json", cookie: otherCookie },
+				body: JSON.stringify({ rating: 2 }),
+			}),
+		);
+		expect(foreignPatch.status).toBe(403);
+
+		const foreignDel = await app.handle(
+			new Request(`http://test/api/reviews/${reviewId}`, {
+				method: "DELETE",
+				headers: { cookie: otherCookie },
+			}),
+		);
+		expect(foreignDel.status).toBe(403);
+
+		const adminDel = await app.handle(
+			new Request(`http://test/api/reviews/${reviewId}`, {
+				method: "DELETE",
+				headers: { cookie: adminCookie },
+			}),
+		);
+		expect(adminDel.status).toBe(204);
+
+		const patchRemoved = await app.handle(
+			new Request(`http://test/api/reviews/${reviewId}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json", cookie: authorCookie },
+				body: JSON.stringify({ rating: 5 }),
+			}),
+		);
+		expect(patchRemoved.status).toBe(409);
 	});
 });
