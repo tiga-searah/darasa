@@ -14,15 +14,15 @@ export const PlaceVerified = t.Union([
 ]);
 
 export const PlaceListQuery = t.Object({
-	q: t.Optional(t.String()),
+	q: t.Optional(t.String({ maxLength: 80 })),
 	category: t.Optional(t.String()),
 	sort: t.Optional(PlaceSort),
 	lat: t.Optional(t.Numeric({ minimum: -90, maximum: 90 })),
 	lng: t.Optional(t.Numeric({ minimum: -180, maximum: 180 })),
 	radiusKm: t.Optional(t.Numeric({ minimum: 1, maximum: 50 })),
 	verified: t.Optional(PlaceVerified),
-	page: t.Optional(t.Numeric({ minimum: 1 })),
-	limit: t.Optional(t.Numeric({ minimum: 1, maximum: 50 })),
+	page: t.Optional(t.Integer({ minimum: 1 })),
+	limit: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
 });
 
 export type PlaceListQueryType = {
@@ -39,8 +39,8 @@ export type PlaceListQueryType = {
 
 export const HiddenGemsQuery = t.Object({
 	category: t.Optional(t.String()),
-	page: t.Optional(t.Numeric({ minimum: 1 })),
-	limit: t.Optional(t.Numeric({ minimum: 1, maximum: 50 })),
+	page: t.Optional(t.Integer({ minimum: 1 })),
+	limit: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
 });
 
 export type HiddenGemsQueryType = {

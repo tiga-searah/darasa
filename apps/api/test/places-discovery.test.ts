@@ -16,6 +16,7 @@ async function seedPlaces() {
 			name: "Warung Bu Tini",
 			categoryId: cat.id,
 			address: "Jl. Raya Batang",
+			description: "Authentic Soto Batang",
 			latitude: -6.9123,
 			longitude: 109.7301,
 			status: "published",
@@ -163,5 +164,31 @@ describe("place discovery", () => {
 		const rows = await db.select().from(schema.placeStats);
 		expect(rows.length).toBe(1);
 		expect(rows[0].views).toBe(2);
+	});
+
+	test("GET /places rejects fractional page, searches description, and defaults radiusKm to 5", async () => {
+		await seedPlaces();
+		const app = freshApp({ storage: memoryStorage() });
+
+		const floatPage = await app.handle(
+			new Request("http://test/api/places?page=1.5"),
+		);
+		expect(floatPage.status).toBe(422);
+
+		const byDesc = await app.handle(
+			new Request("http://test/api/places?q=Soto%20Batang"),
+		);
+		expect(byDesc.status).toBe(200);
+		expect(
+			(await json(byDesc)).data.map((p: { slug: string }) => p.slug),
+		).toEqual(["warung-bu-tini"]);
+
+		const defaultRadius = await app.handle(
+			new Request("http://test/api/places?lat=-6.912&lng=109.73"),
+		);
+		expect(defaultRadius.status).toBe(200);
+		expect(
+			(await json(defaultRadius)).data.map((p: { slug: string }) => p.slug),
+		).toEqual(["warung-bu-tini"]);
 	});
 });

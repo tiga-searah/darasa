@@ -76,7 +76,6 @@ export async function listPlaces(
 			{ "/lat": "required", "/lng": "required" },
 		);
 	}
-
 	const page = query.page ?? 1;
 	const limit = query.limit ?? 20;
 	const offset = (page - 1) * limit;
@@ -87,7 +86,7 @@ export async function listPlaces(
 		const pattern = `%${query.q.trim()}%`;
 		const qCond = or(
 			ilike(schema.places.name, pattern),
-			ilike(schema.places.address, pattern),
+			ilike(schema.places.description, pattern),
 		);
 		if (qCond) conditions.push(qCond);
 	}
@@ -111,7 +110,6 @@ export async function listPlaces(
 		);
 		if (vCond) conditions.push(vCond);
 	}
-
 	const hasCoords = query.lat !== undefined && query.lng !== undefined;
 	const distExpr = hasCoords
 		? haversineSql(query.lat as number, query.lng as number)
@@ -120,7 +118,7 @@ export async function listPlaces(
 	if (hasCoords) {
 		const lat = query.lat as number;
 		const lng = query.lng as number;
-		const radiusKm = query.radiusKm ?? (sort === "nearby" ? 10 : undefined);
+		const radiusKm = query.radiusKm ?? 5;
 		if (radiusKm !== undefined) {
 			const latDelta = radiusKm / 111;
 			const cosLat = Math.max(0.01, Math.cos((lat * Math.PI) / 180));
