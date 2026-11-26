@@ -255,4 +255,49 @@ describe("owner review replies", () => {
 		);
 		expect(del.status).toBe(204);
 	});
+
+	test("returns 403 for another place review and 404 for missing review or reply", async () => {
+		const { app, cookie, placeB } = await seedOwnerSetup();
+		const [reviewer] = await db
+			.insert(schema.users)
+			.values({ name: "Rev2", email: "rev2@b.test" })
+			.returning();
+		const [otherReview] = await db
+			.insert(schema.reviews)
+			.values({
+				placeId: placeB.id,
+				userId: reviewer.id,
+				rating: 4,
+				body: "Review for place B",
+				status: "published",
+			})
+			.returning();
+
+		const forbiddenReply = await app.handle(
+			new Request(`http://test/api/owner/reviews/${otherReview.id}/reply`, {
+				method: "PUT",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ body: "Not my place" }),
+			}),
+		);
+		expect(forbiddenReply.status).toBe(403);
+
+		const missingId = "00000000-0000-0000-0000-000000000000";
+		const missingReview = await app.handle(
+			new Request(`http://test/api/owner/reviews/${missingId}/reply`, {
+				method: "PUT",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ body: "Missing" }),
+			}),
+		);
+		expect(missingReview.status).toBe(404);
+
+		const missingReplyDel = await app.handle(
+			new Request(`http://test/api/owner/reviews/${missingId}/reply`, {
+				method: "DELETE",
+				headers: { cookie },
+			}),
+		);
+		expect(missingReplyDel.status).toBe(404);
+	});
 });

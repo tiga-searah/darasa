@@ -10,6 +10,7 @@ import {
 	UpsertReplyBody,
 } from "./model";
 import {
+	deleteOwnerReply,
 	getOwnerPlace,
 	getOwnerPlaceStats,
 	listOwnerPlaces,
@@ -65,5 +66,41 @@ export const ownerRoutes = new Elysia({ prefix: "/owner" })
 			return {
 				data: await getOwnerPlaceStats(sessionUser, params.id, days),
 			};
+		},
+	)
+	.get(
+		"/places/:id/reviews",
+		{
+			params: OwnerPlaceParams,
+			query: OwnerReviewsQuery,
+		},
+		async (ctx) =>
+			listOwnerReviews(
+				storageOf(ctx),
+				ctx.sessionUser,
+				ctx.params.id,
+				ctx.query,
+			),
+	)
+	.put(
+		"/reviews/:id/reply",
+		{
+			params: OwnerPlaceParams,
+			body: UpsertReplyBody,
+		},
+		async ({ sessionUser, params, body, set }) => {
+			const result = await upsertOwnerReply(sessionUser, params.id, body.body);
+			set.status = result.created ? 201 : 200;
+			return { data: result.data };
+		},
+	)
+	.delete(
+		"/reviews/:id/reply",
+		{
+			params: OwnerPlaceParams,
+		},
+		async ({ sessionUser, params, set }) => {
+			await deleteOwnerReply(sessionUser, params.id);
+			set.status = 204;
 		},
 	);

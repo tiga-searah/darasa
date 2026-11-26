@@ -223,3 +223,118 @@ export async function getOwnerPlaceStats(
 		daily,
 	};
 }
+
+export async function listOwnerReviews(
+	storage: Storage,
+	user: SessionUser,
+	placeId: string,
+	opts: {
+		page?: number;
+		limit?: number;
+		unanswered?: boolean | "true" | "false";
+	},
+) {
+	await assertPlaceOwnerOrAdmin(user, placeId);
+	const page = opts.page ?? 1;
+	const limit = opts.limit ?? 20;
+	const unanswered = opts.unanswered === true || opts.unanswered === "true";
+
+	const conditions = [
+		eq(schema.reviews.placeId, placeId),
+		eq(schema.reviews.status, "published"),
+	];
+	if (unanswered) {
+		conditions.push(
+			sql`NOT EXISTS (SELECT 1 FROM owner_replies WHERE owner_replies.review_id = ${schema.reviews.id})`,
+		);
+	}
+
+	const where = and(...conditions);
+	const [countRow] = await db
+		.select({ count: sql<number>`count(*)::int` })
+		.from(schema.reviews)
+		.where(where);
+	const total = countRow?.count ?? 0;
+
+	const rows = await db
+		.select()
+		.from(schema.reviews)
+		.where(where)
+		.orderBy(desc(schema.reviews.createdAt))
+		.limit(limit)
+		.offset((page - 1) * limit);
+
+	const data = await hydrateReviews(db, storage, rows, user.id);
+	return {
+		data,
+		meta: {
+			page,
+			limit,
+			total,
+			totalPages: Math.max(1, Math.ceil(total / limit)),
+		},
+	};
+}
+
+export async function upsertOwnerReply(
+	user: SessionUser,
+	reviewId: string,
+	body: string,
+) {
+	const [review] = await db
+		.select()
+		.from(schema.reviews)
+		.where(eq(schema.reviews.id, reviewId))
+		.limit(1);
+	if (!review) throw notFound("Review");
+	await assertPlaceOwnerOrAdmin(user, review.placeId);
+
+	const [row] = await db
+		.insert(schema.ownerReplies)
+		.values({
+			reviewId,
+			placeId: review.placeId,
+			authorId: user.id,
+			body,
+		})
+		.onConflictDoUpdate({
+			target: schema.ownerReplies.reviewId,
+			set: {
+				body,
+				authorId: user.id,
+				updatedAt: new Date(),
+			},
+		})
+		.returning({
+			id: schema.ownerReplies.id,
+			body: schema.ownerReplies.body,
+			createdAt: schema.ownerReplies.createdAt,
+			updatedAt: schema.ownerReplies.updatedAt,
+			inserted: sql<boolean>`(xmax = 0)`,
+		});
+
+	return {
+		created: row.inserted,
+		data: {
+			id: row.id,
+			body: row.body,
+			authorName: user.name,
+			createdAt: row.createdAt,
+			updatedAt: row.updatedAt,
+		},
+	};
+}
+
+export async function deleteOwnerReply(user: SessionUser, reviewId: string) {
+	const [reply] = await db
+		.select()
+		.from(schema.ownerReplies)
+		.where(eq(schema.ownerReplies.reviewId, reviewId))
+		.limit(1);
+	if (!reply) throw notFound("Reply");
+	await assertPlaceOwnerOrAdmin(user, reply.placeId);
+
+	await db
+		.delete(schema.ownerReplies)
+		.where(eq(schema.ownerReplies.id, reply.id));
+}
