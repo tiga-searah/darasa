@@ -8,7 +8,9 @@ import { s3Storage } from "./lib/storage";
 import { errorPlugin } from "./plugins/errors";
 import { authRoutes } from "./routes/auth";
 import { categoryRoutes } from "./routes/categories";
+import { claimRoutes } from "./routes/claims";
 import { mediaRoutes } from "./routes/media";
+import { ownerRoutes } from "./routes/owner";
 import { placeRoutes } from "./routes/places";
 import { reviewRoutes } from "./routes/reviews";
 
@@ -45,5 +47,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		.use(categoryRoutes)
 		.use(placeRoutes)
 		.use(reviewRoutes)
-		.use(claimRoutes);
+		.use(claimRoutes)
+		.use(ownerRoutes);
 };
