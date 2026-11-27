@@ -1,5 +1,6 @@
 import {
 	index,
+	integer,
 	pgTable,
 	text,
 	timestamp,
@@ -21,6 +22,7 @@ export const users = pgTable(
 		// still comes from business_claims, never from this flag alone.
 		role: userRole("role").notNull().default("user"),
 		avatarUrl: text("avatar_url"),
+		xpTotal: integer("xp_total").notNull().default(0),
 		...timestamps(),
 	},
 	(t) => [uniqueIndex("users_email_uq").on(t.email)],

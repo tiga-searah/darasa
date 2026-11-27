@@ -89,6 +89,7 @@ export default function PlaceDetailPage() {
 	const recordedPlaceIdRef = useRef<string | null>(null);
 
 	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+	const [ratingFilter, setRatingFilter] = useState<number | null>(null);
 	const [lightboxOpen, setLightboxOpen] = useState(false);
 	const [reviewModalOpen, setReviewModalOpen] = useState(false);
 	const [rating, setRating] = useState(5);
@@ -111,6 +112,7 @@ export default function PlaceDetailPage() {
 	useEffect(() => {
 		if (!place?.id) return;
 		setActivePhotoIndex(0);
+		setRatingFilter(null);
 	}, [place?.id]);
 
 	useEffect(() => {
@@ -160,6 +162,14 @@ export default function PlaceDetailPage() {
 	const isVisitor = currentUser.role === "visitor";
 	const isClaimed = Boolean(place.ownerId);
 	const saved = isBookmarked(place.id);
+	const ratingCounts = [5, 4, 3, 2, 1].map((star) => ({
+		star,
+		count: place.reviews.filter((r) => r.rating === star).length,
+	}));
+	const filteredReviews =
+		ratingFilter === null
+			? place.reviews
+			: place.reviews.filter((r) => r.rating === ratingFilter);
 
 	const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -549,91 +559,124 @@ export default function PlaceDetailPage() {
 			{/* Map & Reviews Split (Open divided sections, minimal card) */}
 			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
 				<section className="lg:col-span-7 space-y-6">
-					{/* Darasa Rating Summary */}
+					{/* Darasa Rating Summary & Distribution */}
 					<div className="space-y-4 border-b border-border pb-6">
-						<div className="flex flex-wrap items-center justify-between gap-2">
-							<h2 className="text-lg font-bold text-foreground">
-								Rating &amp; Rincian Skor
-							</h2>
-							<span className="text-xs text-muted-foreground">
-								Ditambahkan oleh {place.submittedByName}
-							</span>
-						</div>
-
-						<div className="grid grid-cols-1 gap-6 sm:grid-cols-12 sm:items-center">
-							<div className="sm:col-span-4 space-y-1.5">
-								<p className="text-4xl font-bold tracking-tight text-foreground tabular-nums">
-									{place.reviewCount > 0 ? place.averageRating.toFixed(1) : "—"}
-								</p>
-								<div
-									role="img"
-									className="flex items-center gap-0.5"
-									aria-label={`Rata-rata ${place.averageRating.toFixed(1)} dari 5 bintang`}
-								>
-									{[1, 2, 3, 4, 5].map((starValue) => {
-										const filled =
-											place.reviewCount > 0 &&
-											starValue <= Math.round(place.averageRating);
-										return (
-											<Star
-												key={starValue}
-												className={cn(
-													"size-4",
-													filled
-														? "fill-accent-yellow text-accent-yellow"
-														: "text-border",
-												)}
-												aria-hidden="true"
-											/>
-										);
-									})}
+						<div className="flex flex-wrap items-start justify-between gap-3">
+							<div className="space-y-1">
+								<h2 className="text-lg font-bold text-foreground">
+									Rating &amp; Rincian Skor
+								</h2>
+								<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+									<div className="flex items-baseline gap-1 tabular-nums">
+										<span className="text-3xl font-bold tracking-tight text-foreground">
+											{place.reviewCount > 0
+												? place.averageRating.toFixed(1)
+												: "0.0"}
+										</span>
+										<span className="text-xs font-medium text-muted-foreground">
+											/ 5
+										</span>
+									</div>
+									<div
+										role="img"
+										className="flex items-center gap-0.5"
+										aria-label={`Rata-rata ${place.averageRating.toFixed(1)} dari 5 bintang`}
+									>
+										{[1, 2, 3, 4, 5].map((starValue) => {
+											const filled =
+												place.reviewCount > 0 &&
+												starValue <= Math.round(place.averageRating);
+											return (
+												<Star
+													key={starValue}
+													className={cn(
+														"size-4",
+														filled
+															? "fill-accent-yellow text-accent-yellow"
+															: "text-border",
+													)}
+													aria-hidden="true"
+												/>
+											);
+										})}
+									</div>
+									<span className="text-xs text-muted-foreground tabular-nums">
+										{place.reviewCount} ulasan komunitas
+									</span>
 								</div>
-								<p className="text-xs text-muted-foreground tabular-nums">
-									{place.reviewCount} ulasan komunitas
-								</p>
 							</div>
 
-							<div className="sm:col-span-8 space-y-1.5">
-								{[5, 4, 3, 2, 1].map((star) => {
-									const count = place.reviews.filter(
-										(r) => r.rating === star,
-									).length;
+							<div className="flex flex-col items-start gap-1.5 sm:items-end">
+								<span className="text-xs text-muted-foreground">
+									Ditambahkan oleh {place.submittedByName}
+								</span>
+								{ratingFilter !== null ? (
+									<button
+										type="button"
+										onClick={() => setRatingFilter(null)}
+										className="text-xs font-semibold text-primary hover:text-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+									>
+										Reset filter ({ratingFilter} bintang)
+									</button>
+								) : null}
+							</div>
+						</div>
+
+						{place.reviews.length > 0 ? (
+							<fieldset className="m-0 space-y-1.5 border-0 p-0">
+								<legend className="sr-only">
+									Rincian dan filter ulasan berdasarkan rating bintang
+								</legend>
+								{ratingCounts.map(({ star, count }) => {
 									const pct =
 										place.reviewCount > 0
 											? Math.round((count / place.reviewCount) * 100)
 											: 0;
+									const active = ratingFilter === star;
 									return (
-										<div
+										<button
 											key={star}
-											className="flex items-center gap-2.5 text-xs"
+											type="button"
+											aria-pressed={active}
+											onClick={() => setRatingFilter(active ? null : star)}
+											className={cn(
+												"flex min-h-[34px] w-full items-center gap-3 rounded-[8px] px-2 py-1 text-left text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+												active
+													? "bg-yellow-soft/80 font-semibold text-foreground ring-1 ring-accent-yellow/60"
+													: "hover:bg-muted/60",
+											)}
 										>
-											<span className="inline-flex w-7 items-center gap-1 font-semibold text-foreground tabular-nums">
-												{star}
+											<span className="inline-flex w-12 shrink-0 items-center gap-1 font-medium text-foreground tabular-nums">
+												<span>{star}</span>
 												<Star
-													className="size-3 fill-accent-yellow text-accent-yellow"
+													className="size-3.5 fill-accent-yellow text-accent-yellow"
 													aria-hidden="true"
 												/>
 											</span>
-											<div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+											<div className="h-2.5 flex-1 overflow-hidden rounded-[4px] bg-muted">
 												<div
 													style={{ width: `${pct}%` }}
-													className="h-full rounded-full bg-primary transition-[width] duration-300"
+													className="h-full rounded-[4px] bg-accent-yellow transition-[width] duration-300"
 												/>
 											</div>
-											<span className="w-6 text-right text-muted-foreground tabular-nums">
-												{count}
+											<span className="w-16 shrink-0 text-right text-muted-foreground tabular-nums">
+												{count} ({pct}%)
 											</span>
-										</div>
+										</button>
 									);
 								})}
-							</div>
-						</div>
+							</fieldset>
+						) : null}
 					</div>
 
 					{/* Darasa Community Reviews Feed */}
 					<div className="space-y-2">
 						<h2 className="text-lg font-bold text-foreground">
-							Ulasan Komunitas ({place.reviews.length})
+							Ulasan Komunitas (
+							{ratingFilter === null
+								? place.reviews.length
+								: `${filteredReviews.length} dari ${place.reviews.length}`}
+							)
 						</h2>
 
 						{place.reviews.length === 0 ? (
@@ -646,9 +689,27 @@ export default function PlaceDetailPage() {
 									dan harga di sini.
 								</p>
 							</div>
+						) : filteredReviews.length === 0 ? (
+							<div className="py-10 text-center space-y-3">
+								<h3 className="text-base font-semibold text-foreground">
+									Belum ada ulasan dengan rating {ratingFilter} bintang
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Pilih filter bintang lain atau tampilkan semua ulasan
+									komunitas.
+								</p>
+								<Button
+									type="button"
+									variant="secondary"
+									size="sm"
+									onClick={() => setRatingFilter(null)}
+								>
+									Tampilkan Semua Ulasan
+								</Button>
+							</div>
 						) : (
 							<ul className="divide-y divide-border">
-								{place.reviews.map((rev) => {
+								{filteredReviews.map((rev) => {
 									const liked = isReviewLiked(rev.id);
 									const likeCount = getReviewLikeCount(rev.id);
 									return (

@@ -7,6 +7,7 @@ import {
 	useMemo,
 	useState,
 } from "react";
+import { XP_REWARDS } from "~/components/contribute/xp";
 import {
 	DEMO_ACCOUNTS,
 	INITIAL_CLAIMS,
@@ -554,7 +555,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				...prev,
 				places: [newPlace, ...prev.places],
 			}));
-			notify(`Tempat "${newPlace.name}" berhasil ditambahkan ke direktori!`);
+			notify(
+				`Tempat "${newPlace.name}" berhasil ditambahkan ke direktori (+${XP_REWARDS.place} XP)!`,
+			);
 			return newPlace;
 		},
 		[currentUser, notify],
@@ -606,7 +609,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					reviews: [newReview, ...prev.reviews],
 				};
 			});
-			notify("Ulasan dan rating Anda berhasil disimpan.");
+			notify(
+				`Ulasan dan rating Anda berhasil disimpan (+${XP_REWARDS.review} XP).`,
+			);
 			return newReview;
 		},
 		[currentUser, notify],
@@ -727,9 +732,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 		(placeId: string, photoUrl: string) => {
 			if (!photoUrl) return;
 			const targetPlace = state.places.find((p) => p.id === placeId);
-			if (!targetPlace) return;
+			if (!targetPlace || targetPlace.photos.includes(photoUrl)) return;
 			const activity: ContributionActivity = {
-				id: `ctb-${Date.now()}`,
+				id: `ctb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
 				userId: currentUser.id,
 				type: "photo",
 				placeId,
@@ -746,7 +751,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				),
 				contributions: [activity, ...prev.contributions],
 			}));
-			notify(`Foto untuk "${targetPlace.name}" berhasil ditambahkan.`);
+			notify(
+				`Foto untuk "${targetPlace.name}" berhasil ditambahkan (+${XP_REWARDS.photo} XP).`,
+			);
 		},
 		[currentUser.id, notify, state.places],
 	);
@@ -757,7 +764,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				const targetPlace = state.places.find((p) => p.id === placeId);
 				if (!targetPlace) return;
 				const activity: ContributionActivity = {
-					id: `ctb-${Date.now()}`,
+					id: `ctb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
 					userId: currentUser.id,
 					type: "edit",
 					placeId,
@@ -773,7 +780,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					),
 					contributions: [activity, ...prev.contributions],
 				}));
-				notify(`Pembaruan info untuk "${targetPlace.name}" berhasil disimpan.`);
+				notify(
+					`Pembaruan info untuk "${targetPlace.name}" berhasil disimpan (+${XP_REWARDS.edit} XP).`,
+				);
 			},
 			[currentUser.id, notify, state.places],
 		);

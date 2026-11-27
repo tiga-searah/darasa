@@ -1,6 +1,5 @@
 import { Bookmark, Clock, Compass, Eye, Gem, MapPin, Star } from "lucide-react";
 import { Link } from "react-router";
-import { Badge } from "~/components/ui/badge";
 import { VerificationBadge } from "~/components/verification-badge";
 import { type PlaceWithMetrics, useDarasa } from "~/context/darasa-store";
 import { cn } from "~/lib/utils";
@@ -48,6 +47,53 @@ export function BookmarkIconButton({
 	);
 }
 
+interface PlaceScoreBadgeProps {
+	mode: "explore" | "hidden-gem";
+	score: number;
+	surface?: "overlay" | "inline";
+}
+
+/** Displays a place's ranking metric as a clean photo-corner tag or inline readout. */
+export function PlaceScoreBadge({
+	mode,
+	score,
+	surface = "overlay",
+}: PlaceScoreBadgeProps) {
+	const isHiddenGem = mode === "hidden-gem";
+	const label = isHiddenGem ? "Skor Hidden Gem" : "Skor Explore";
+	const Icon = isHiddenGem ? Gem : Compass;
+	const iconColor = isHiddenGem
+		? "fill-[#f7c95c] text-yellow-text dark:fill-[#f7c95c]/30"
+		: "text-primary";
+
+	if (surface === "inline") {
+		return (
+			<span
+				title={label}
+				className={cn(
+					"inline-flex shrink-0 items-center gap-1 text-xs font-semibold tabular-nums",
+					isHiddenGem ? "text-yellow-text" : "text-primary",
+				)}
+			>
+				<Icon className={cn("size-3.5", iconColor)} aria-hidden="true" />
+				<span className="sr-only">{label} </span>
+				<span>{score.toFixed(2)}</span>
+			</span>
+		);
+	}
+
+	return (
+		<span
+			title={label}
+			className="inline-flex items-center gap-1 rounded-[6px] bg-card/95 px-2 py-1 text-xs font-semibold leading-none text-foreground shadow-sm tabular-nums"
+		>
+			<Icon className={cn("size-3.5", iconColor)} aria-hidden="true" />
+			<span className="sr-only">{label} </span>
+			<span>{score.toFixed(2)}</span>
+		</span>
+	);
+}
+
 export function PlaceCard({
 	place,
 	mode = "explore",
@@ -56,21 +102,8 @@ export function PlaceCard({
 }: PlaceCardProps) {
 	const { isBookmarked, toggleBookmark } = useDarasa();
 	const saved = isBookmarked(place.id);
-
-	const scoreBadge =
-		mode === "hidden-gem" ? (
-			<Badge variant="yellow" className="bg-yellow-soft/95">
-				<Gem className="size-3.5" aria-hidden="true" />
-				<span className="tabular-nums">
-					Gem {place.hiddenGemScore.toFixed(2)}
-				</span>
-			</Badge>
-		) : (
-			<Badge variant="default" className="bg-primary-soft/95">
-				<Compass className="size-3.5" aria-hidden="true" />
-				<span className="tabular-nums">{place.exploreScore.toFixed(2)}</span>
-			</Badge>
-		);
+	const scoreValue =
+		mode === "hidden-gem" ? place.hiddenGemScore : place.exploreScore;
 
 	const bookmarkButton = (
 		<BookmarkIconButton
@@ -93,11 +126,6 @@ export function PlaceCard({
 						fetchPriority={prioritizeImage ? "high" : "auto"}
 						className="h-full w-full object-cover"
 					/>
-					<div className="absolute left-2.5 top-2.5">
-						<Badge variant="outline" className="bg-card/95 text-foreground">
-							{place.category}
-						</Badge>
-					</div>
 				</div>
 
 				<div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -110,8 +138,12 @@ export function PlaceCard({
 								{place.name}
 							</Link>
 						</h2>
-						<div className="flex shrink-0 items-center gap-1.5">
-							{scoreBadge}
+						<div className="flex shrink-0 items-center gap-2">
+							<PlaceScoreBadge
+								mode={mode}
+								score={scoreValue}
+								surface="inline"
+							/>
 							{bookmarkButton}
 						</div>
 					</div>
@@ -127,6 +159,10 @@ export function PlaceCard({
 								({place.reviewCount})
 							</span>
 						</span>
+						<span aria-hidden="true" className="text-border">
+							·
+						</span>
+						<span>{place.category}</span>
 						<span aria-hidden="true" className="text-border">
 							·
 						</span>
@@ -183,11 +219,8 @@ export function PlaceCard({
 					fetchPriority={prioritizeImage ? "high" : "auto"}
 					className="h-full w-full object-cover"
 				/>
-				<div className="absolute inset-x-2.5 top-2.5 flex flex-wrap items-center justify-between gap-2">
-					<Badge variant="outline" className="bg-card/95 text-foreground">
-						{place.category}
-					</Badge>
-					{scoreBadge}
+				<div className="absolute right-2.5 top-2.5">
+					<PlaceScoreBadge mode={mode} score={scoreValue} />
 				</div>
 			</div>
 
@@ -204,6 +237,10 @@ export function PlaceCard({
 						</h2>
 						{bookmarkButton}
 					</div>
+
+					<p className="truncate text-xs font-medium text-muted-foreground">
+						{place.category}
+					</p>
 
 					<div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm text-muted-foreground">
 						<span className="inline-flex items-center gap-1 font-semibold text-foreground tabular-nums">

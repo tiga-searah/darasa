@@ -20,6 +20,7 @@ export const relations = defineRelations(schema, (r) => ({
 			from: r.users.id,
 			to: r.reviewLikes.userId,
 		}),
+		xpEvents: r.many.xpEvents({ from: r.users.id, to: r.xpEvents.userId }),
 	},
 	sessions: {
 		user: r.one.users({ from: r.sessions.userId, to: r.users.id }),
@@ -58,6 +59,7 @@ export const relations = defineRelations(schema, (r) => ({
 		}),
 		stats: r.many.placeStats({ from: r.places.id, to: r.placeStats.placeId }),
 		bookmarks: r.many.bookmarks({ from: r.places.id, to: r.bookmarks.placeId }),
+		xpEvents: r.many.xpEvents({ from: r.places.id, to: r.xpEvents.placeId }),
 	},
 	placePhotos: {
 		place: r.one.places({ from: r.placePhotos.placeId, to: r.places.id }),
@@ -126,5 +128,9 @@ export const relations = defineRelations(schema, (r) => ({
 	reviewLikes: {
 		user: r.one.users({ from: r.reviewLikes.userId, to: r.users.id }),
 		review: r.one.reviews({ from: r.reviewLikes.reviewId, to: r.reviews.id }),
+	},
+	xpEvents: {
+		user: r.one.users({ from: r.xpEvents.userId, to: r.users.id }),
+		place: r.one.places({ from: r.xpEvents.placeId, to: r.places.id }),
 	},
 }));

@@ -43,3 +43,10 @@ export const mediaPurpose = pgEnum("media_purpose", [
 
 /** pending = signed URL issued, not yet verified; ready = sniffed + copied. */
 export const mediaStatus = pgEnum("media_status", ["pending", "ready"]);
+
+export const contributionAction = pgEnum("contribution_action", [
+	"add_place",
+	"write_review",
+	"add_photo",
+	"update_info",
+]);

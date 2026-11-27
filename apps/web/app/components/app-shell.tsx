@@ -179,7 +179,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 				mobileLabel: "Hidden Gem",
 				icon: Gem,
 			},
-			{ to: "/submit-place", label: "Kontribusi", icon: PlusCircle },
+			{ to: "/contribute", label: "Kontribusi", icon: PlusCircle },
 			{
 				to: "/bookmarks",
 				label: "Disimpan",

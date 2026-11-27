@@ -1,0 +1,140 @@
+import type { LucideIcon } from "lucide-react";
+import {
+	Camera,
+	MapPinPlus,
+	MessageSquarePlus,
+	PencilLine,
+} from "lucide-react";
+import type { PlaceWithMetrics } from "~/context/darasa-store";
+import { XP_REWARDS } from "./xp";
+
+export {
+	CONTRIBUTOR_LEVELS,
+	type ContributorLevelInfo,
+	type ContributorLevelTier,
+	calculateContributorXp,
+	getContributorLevel,
+	XP_REWARDS,
+} from "./xp";
+
+export type ContributeActionId =
+	| "add_place"
+	| "write_review"
+	| "add_photo"
+	| "update_info";
+
+export interface ContributeActionMeta {
+	id: ContributeActionId;
+	to: string;
+	label: string;
+	shortDesc: string;
+	xpReward: number;
+	icon: LucideIcon;
+}
+
+export const CONTRIBUTE_ACTIONS: ContributeActionMeta[] = [
+	{
+		id: "add_place",
+		to: "/contribute/add-place",
+		label: "Tambah Tempat",
+		shortDesc: "Daftarkan warung atau kedai baru ke peta",
+		xpReward: XP_REWARDS.place,
+		icon: MapPinPlus,
+	},
+	{
+		id: "write_review",
+		to: "/contribute/write-review",
+		label: "Tulis Ulasan",
+		shortDesc: "Beri bintang dan ceritakan rasa serta porsi",
+		xpReward: XP_REWARDS.review,
+		icon: MessageSquarePlus,
+	},
+	{
+		id: "add_photo",
+		to: "/contribute/add-photo",
+		label: "Tambah Foto",
+		shortDesc: "Bagikan foto menu, hidangan, atau depan warung",
+		xpReward: XP_REWARDS.photo,
+		icon: Camera,
+	},
+	{
+		id: "update_info",
+		to: "/contribute/update-info",
+		label: "Perbarui Info",
+		shortDesc: "Koreksi alamat, jam buka, harga, atau kontak",
+		xpReward: XP_REWARDS.edit,
+		icon: PencilLine,
+	},
+];
+
+export const RATING_LABELS: Record<number, string> = {
+	1: "Kurang",
+	2: "Cukup",
+	3: "Lumayan",
+	4: "Enak",
+	5: "Sangat Enak",
+};
+
+export const MAX_IMAGE_FILE_BYTES = 5 * 1024 * 1024;
+
+export function readImageFiles(
+	files: FileList | File[],
+): Promise<{ urls: string[]; error: string | null }> {
+	const list = Array.from(files);
+	if (list.length === 0) {
+		return Promise.resolve({ urls: [], error: null });
+	}
+
+	const invalidType = list.find((f) => !f.type.startsWith("image/"));
+	if (invalidType) {
+		return Promise.resolve({
+			urls: [],
+			error: `Berkas "${invalidType.name}" bukan gambar. Pilih JPG, PNG, atau WebP.`,
+		});
+	}
+
+	const tooBig = list.find((f) => f.size > MAX_IMAGE_FILE_BYTES);
+	if (tooBig) {
+		return Promise.resolve({
+			urls: [],
+			error: `Ukuran "${tooBig.name}" melebihi 5 MB. Pilih foto yang lebih ringan.`,
+		});
+	}
+
+	return Promise.all(
+		list.map(
+			(file) =>
+				new Promise<string>((resolve, reject) => {
+					const reader = new FileReader();
+					reader.onload = () => {
+						if (typeof reader.result === "string") resolve(reader.result);
+						else reject(new Error("Gagal membaca gambar"));
+					};
+					reader.onerror = () => reject(new Error("Gagal membaca gambar"));
+					reader.readAsDataURL(file);
+				}),
+		),
+	)
+		.then((urls) => ({ urls, error: null }))
+		.catch(() => ({
+			urls: [],
+			error: "Terjadi kendala saat membaca berkas gambar.",
+		}));
+}
+
+export function formatRelativeContributionDate(isoDate: string): string {
+	const parsed = Date.parse(isoDate);
+	if (Number.isNaN(parsed)) return "Baru saja";
+	return new Intl.DateTimeFormat("id-ID", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+	}).format(new Date(parsed));
+}
+
+export function getPlacePhotoCount(place: PlaceWithMetrics): number {
+	return (
+		place.photos.filter((src) => !src.endsWith(".svg")).length ||
+		place.photos.length
+	);
+}

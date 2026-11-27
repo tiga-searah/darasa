@@ -1,45 +1,60 @@
 import { BadgeCheck, Clock, ShieldCheck } from "lucide-react";
-import { Badge } from "~/components/ui/badge";
 import type { VerificationStatus } from "~/lib/types";
+import { cn } from "~/lib/utils";
 
 interface VerificationBadgeProps {
 	status: VerificationStatus;
 	isPendingModeration?: boolean;
 }
 
+const VERIFICATION_META: Record<
+	VerificationStatus | "pending",
+	{
+		label: string;
+		icon?: typeof BadgeCheck;
+		className: string;
+	}
+> = {
+	pending: {
+		label: "Menunggu Validasi",
+		icon: Clock,
+		className: "font-medium text-yellow-text",
+	},
+	owner_verified: {
+		label: "Terverifikasi Pemilik",
+		icon: ShieldCheck,
+		className: "font-semibold text-primary",
+	},
+	community_verified: {
+		label: "Terverifikasi Komunitas",
+		icon: BadgeCheck,
+		className: "font-medium text-primary",
+	},
+	unverified: {
+		label: "Belum Terverifikasi",
+		className: "font-medium text-muted-foreground",
+	},
+};
+
+/** Displays place verification status as a plain inline icon + label without a box wrapper. */
 export function VerificationBadge({
 	status,
 	isPendingModeration = false,
 }: VerificationBadgeProps) {
-	if (isPendingModeration) {
-		return (
-			<Badge variant="yellow">
-				<Clock className="size-3.5" aria-hidden="true" />
-				<span>Menunggu Validasi</span>
-			</Badge>
-		);
-	}
+	const meta = isPendingModeration
+		? VERIFICATION_META.pending
+		: (VERIFICATION_META[status] ?? VERIFICATION_META.unverified);
+	const Icon = meta.icon;
 
-	switch (status) {
-		case "owner_verified":
-			return (
-				<Badge variant="default">
-					<ShieldCheck className="size-3.5" aria-hidden="true" />
-					<span>Terverifikasi Pemilik</span>
-				</Badge>
-			);
-		case "community_verified":
-			return (
-				<Badge variant="default">
-					<BadgeCheck className="size-3.5" aria-hidden="true" />
-					<span>Terverifikasi Komunitas</span>
-				</Badge>
-			);
-		default:
-			return (
-				<Badge variant="secondary">
-					<span>Belum Terverifikasi</span>
-				</Badge>
-			);
-	}
+	return (
+		<span
+			className={cn(
+				"inline-flex items-center gap-1.5 text-xs leading-none whitespace-nowrap",
+				meta.className,
+			)}
+		>
+			{Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+			<span>{meta.label}</span>
+		</span>
+	);
 }

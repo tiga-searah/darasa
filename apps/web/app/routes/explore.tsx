@@ -949,7 +949,7 @@ export default function ExplorePage() {
 							Tampilkan Semua Tempat
 						</Button>
 						<Button asChild>
-							<Link to="/submit-place">Contribute Tempat Baru</Link>
+							<Link to="/contribute/add-place">Tambah Tempat Baru</Link>
 						</Button>
 					</div>
 				</div>

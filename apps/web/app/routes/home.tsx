@@ -23,8 +23,7 @@ import {
 	useState,
 } from "react";
 import { Link, useNavigate } from "react-router";
-import { BookmarkIconButton } from "~/components/place-card";
-import { Badge } from "~/components/ui/badge";
+import { BookmarkIconButton, PlaceScoreBadge } from "~/components/place-card";
 import { Button } from "~/components/ui/button";
 import { type PlaceWithMetrics, useDarasa } from "~/context/darasa-store";
 import { BATANG_DISTRICTS, PLACE_CATEGORIES } from "~/data/batang-places";
@@ -293,28 +292,14 @@ function HorizontalPlaceShelf({
 											loading="lazy"
 											className="h-full w-full object-cover"
 										/>
-										<div className="absolute left-2.5 top-2.5">
-											{mode === "hidden-gem" ? (
-												<Badge
-													variant="yellow"
-													className="rounded-[6px] bg-yellow-soft"
-												>
-													<Gem className="size-3" aria-hidden="true" />
-													<span className="tabular-nums">
-														Gem {place.hiddenGemScore.toFixed(2)}
-													</span>
-												</Badge>
-											) : (
-												<Badge
-													variant="default"
-													className="rounded-[6px] bg-primary-soft"
-												>
-													<span className="tabular-nums">
-														{formatShortDate(place.createdAt)}
-													</span>
-												</Badge>
-											)}
-										</div>
+										{mode === "hidden-gem" ? (
+											<div className="absolute right-2.5 top-2.5">
+												<PlaceScoreBadge
+													mode="hidden-gem"
+													score={place.hiddenGemScore}
+												/>
+											</div>
+										) : null}
 									</div>
 
 									<div className="flex flex-1 flex-col gap-2 p-3.5">
@@ -752,7 +737,7 @@ export default function HomePage() {
 				</p>
 				<div className="mt-5 flex flex-wrap items-center justify-center gap-3">
 					<Button asChild className="min-h-[44px] rounded-[8px]">
-						<Link to="/submit-place">
+						<Link to="/contribute/add-place">
 							<PlusCircle className="size-4" aria-hidden="true" />
 							Tambahkan Tempat Kuliner
 						</Link>
@@ -865,9 +850,15 @@ export default function HomePage() {
 												{place.hiddenGemEligible ? (
 													<>
 														<span aria-hidden="true">·</span>
-														<span className="inline-flex items-center gap-1 font-semibold text-yellow-text">
-															<Gem className="size-3" aria-hidden="true" />
-															Hidden Gems
+														<span
+															title="Hidden Gems"
+															className="inline-flex items-center text-yellow-text"
+														>
+															<Gem
+																className="size-4 fill-[#f7c95c] dark:fill-[#f7c95c]/30"
+																aria-hidden="true"
+															/>
+															<span className="sr-only">Hidden Gems</span>
 														</span>
 													</>
 												) : null}
@@ -1124,7 +1115,7 @@ export default function HomePage() {
 						variant="outline"
 						className="min-h-[44px] rounded-[8px] border-input text-xs font-semibold"
 					>
-						<Link to="/submit-place">
+						<Link to="/contribute/add-place">
 							<PlusCircle className="size-4 text-primary" aria-hidden="true" />
 							Ajukan Tempat Baru
 						</Link>

@@ -187,7 +187,7 @@ export default function HiddenGemPage() {
 							Lihat Semua Hidden Gems
 						</Button>
 						<Button asChild>
-							<Link to="/submit-place">Tambah Tempat Kuliner</Link>
+							<Link to="/contribute/add-place">Tambah Tempat Kuliner</Link>
 						</Button>
 					</div>
 				</div>
