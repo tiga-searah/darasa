@@ -59,4 +59,24 @@ describe("computeScores", () => {
 		const expectedExplore = 0.5 * 1 + 0.2 * 1 + 0.2 * Math.exp(-1) + 0.1 * 1;
 		expect(res.exploreScore).toBeCloseTo(expectedExplore, 6);
 	});
+
+	test("computeScores applies view exposure decay to hiddenGemScore when viewsTotal > 0", () => {
+		const noViews = computeScores({
+			ratingAvg: 4.5,
+			reviewCount: 4,
+			lastReviewAt: now,
+			communityVerified: false,
+			ownerVerified: false,
+			viewsTotal: 0,
+		});
+		const highViews = computeScores({
+			ratingAvg: 4.5,
+			reviewCount: 4,
+			lastReviewAt: now,
+			communityVerified: false,
+			ownerVerified: false,
+			viewsTotal: 999,
+		});
+		expect(highViews.hiddenGemScore).toBeLessThan(noViews.hiddenGemScore);
+	});
 });

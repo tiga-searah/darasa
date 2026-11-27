@@ -15,6 +15,7 @@ export function computeScores(input: {
 	lastReviewAt: Date | null;
 	communityVerified: boolean;
 	ownerVerified: boolean;
+	viewsTotal?: number;
 	now?: Date;
 }): { exploreScore: number; hiddenGemScore: number } {
 	const now = input.now ?? new Date();
@@ -40,7 +41,8 @@ export function computeScores(input: {
 
 	const hiddenGemScore =
 		input.ratingAvg >= 4.0 && input.reviewCount > 0
-			? input.ratingAvg * (1 / (1 + input.reviewCount))
+			? input.ratingAvg *
+				(1 / (1 + input.reviewCount + Math.log10(1 + (input.viewsTotal ?? 0))))
 			: 0;
 
 	return { exploreScore, hiddenGemScore };
@@ -55,6 +57,7 @@ export async function recomputePlaceStats(
 		.select({
 			communityVerified: schema.places.communityVerified,
 			ownerVerified: schema.places.ownerVerified,
+			viewsTotal: schema.places.viewsTotal,
 		})
 		.from(schema.places)
 		.where(eq(schema.places.id, placeId))
@@ -89,6 +92,7 @@ export async function recomputePlaceStats(
 		lastReviewAt,
 		communityVerified: place.communityVerified,
 		ownerVerified: place.ownerVerified,
+		viewsTotal: place.viewsTotal,
 		now,
 	});
 

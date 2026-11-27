@@ -485,13 +485,20 @@ export async function recordPlaceView(placeId: string): Promise<void> {
 	if (!place) throw notFound("Place");
 
 	const day = jakartaDayInt();
-	await db
-		.insert(schema.placeStats)
-		.values({ placeId, day, views: 1 })
-		.onConflictDoUpdate({
-			target: [schema.placeStats.placeId, schema.placeStats.day],
-			set: { views: sql`${schema.placeStats.views} + 1` },
-		});
+	await db.transaction(async (tx) => {
+		await tx
+			.update(schema.places)
+			.set({ viewsTotal: sql`${schema.places.viewsTotal} + 1` })
+			.where(eq(schema.places.id, placeId));
+
+		await tx
+			.insert(schema.placeStats)
+			.values({ placeId, day, views: 1 })
+			.onConflictDoUpdate({
+				target: [schema.placeStats.placeId, schema.placeStats.day],
+				set: { views: sql`${schema.placeStats.views} + 1` },
+			});
+	});
 }
 
 export async function createPlace(
