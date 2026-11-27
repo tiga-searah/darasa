@@ -288,4 +288,51 @@ describe("admin moderation", () => {
 		);
 		expect(delRes.status).toBe(204);
 	});
+
+	test("resolve anomaly with status cleared and omitted note persists dismissed", async () => {
+		const cookie = await adminCookie();
+		const app = freshApp({ storage: memoryStorage() });
+		const [cat] = await db
+			.insert(schema.categories)
+			.values({ name: "Warung", slug: "warung-anom", sortOrder: 1 })
+			.returning();
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "p-anom",
+				name: "P Anom",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+		const [anom] = await db
+			.insert(schema.anomalyFlags)
+			.values({
+				placeId: place.id,
+				kind: "review_burst",
+				status: "open",
+				reason: "burst",
+				metrics: {
+					zScore: 2,
+					mean: 1,
+					stdDev: 0.5,
+					windowDays: 7,
+					sampleSize: 5,
+				},
+			})
+			.returning();
+
+		const res = await app.handle(
+			new Request(`http://test/api/admin/anomalies/${anom.id}/resolve`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ status: "cleared" }),
+			}),
+		);
+		expect(res.status).toBe(200);
+		const body = await json(res);
+		expect(body.data.status).toBe("dismissed");
+	});
 });
