@@ -19,6 +19,7 @@ import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { OpeningHours } from "../../database/schema/places";
 import type { Storage } from "../../lib/ports";
+import { type PriceTier, parsePriceBounds } from "../../lib/price";
 import type { SessionUser } from "../../lib/session";
 import { ApiError, conflict, forbidden, notFound } from "../../utils";
 import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
