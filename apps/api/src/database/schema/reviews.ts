@@ -113,3 +113,23 @@ export const placeStats = pgTable(
 	},
 	(t) => [uniqueIndex("place_stats_place_day_uq").on(t.placeId, t.day)],
 );
+
+export const reviewLikes = pgTable(
+	"review_likes",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		reviewId: uuid("review_id")
+			.notNull()
+			.references(() => reviews.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(t) => [
+		uniqueIndex("review_likes_user_review_uq").on(t.userId, t.reviewId),
+		index("review_likes_review_idx").on(t.reviewId),
+	],
+);

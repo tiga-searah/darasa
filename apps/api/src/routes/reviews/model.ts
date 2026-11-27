@@ -57,10 +57,19 @@ export const ReviewItem = t.Object({
 	photos: t.Array(ReviewPhotoSchema),
 	ownerReply: t.Nullable(OwnerReplySchema),
 	mine: t.Boolean(),
+	likeCount: t.Number(),
+	liked: t.Boolean(),
 });
 
 export const ReviewResponse = t.Object({
 	data: ReviewItem,
+});
+
+export const ReviewLikeResponse = t.Object({
+	data: t.Object({
+		liked: t.Boolean(),
+		likeCount: t.Number(),
+	}),
 });
 
 export const PaginatedReviewsResponse = t.Object({

@@ -29,7 +29,7 @@ export async function hydrateReviews(
 	const reviewIds = rows.map((r) => r.id);
 	const userIds = [...new Set(rows.map((r) => r.userId))];
 
-	const [users, photos, replies] = await Promise.all([
+	const [users, photos, replies, likeCounts, viewerLikes] = await Promise.all([
 		tx
 			.select({
 				id: schema.users.id,
@@ -62,9 +62,30 @@ export async function hydrateReviews(
 				eq(schema.ownerReplies.authorId, schema.users.id),
 			)
 			.where(inArray(schema.ownerReplies.reviewId, reviewIds)),
+		tx
+			.select({
+				reviewId: schema.reviewLikes.reviewId,
+				total: count(),
+			})
+			.from(schema.reviewLikes)
+			.where(inArray(schema.reviewLikes.reviewId, reviewIds))
+			.groupBy(schema.reviewLikes.reviewId),
+		viewerId
+			? tx
+					.select({ reviewId: schema.reviewLikes.reviewId })
+					.from(schema.reviewLikes)
+					.where(
+						and(
+							inArray(schema.reviewLikes.reviewId, reviewIds),
+							eq(schema.reviewLikes.userId, viewerId),
+						),
+					)
+			: Promise.resolve([]),
 	]);
 
 	const userMap = new Map(users.map((u) => [u.id, u]));
+	const likeCountMap = new Map(likeCounts.map((l) => [l.reviewId, l.total]));
+	const likedSet = new Set(viewerLikes.map((l) => l.reviewId));
 	const replyMap = new Map(
 		replies.map((rep) => [
 			rep.reviewId,
@@ -102,6 +123,8 @@ export async function hydrateReviews(
 			photos: photosByReview.get(r.id) ?? [],
 			ownerReply: replyMap.get(r.id) ?? null,
 			mine: viewerId === r.userId,
+			likeCount: likeCountMap.get(r.id) ?? 0,
+			liked: likedSet.has(r.id),
 		};
 	});
 }
@@ -349,4 +372,46 @@ export async function deleteReview(reviewId: string, user: SessionUser) {
 
 		await recomputePlaceStats(tx, existing.placeId);
 	});
+}
+
+export async function likeReview(reviewId: string, user: SessionUser) {
+	const review = await db.query.reviews.findFirst({
+		where: { id: reviewId, status: "published" },
+	});
+	if (!review) throw notFound("Review");
+
+	await db
+		.insert(schema.reviewLikes)
+		.values({ userId: user.id, reviewId })
+		.onConflictDoNothing();
+
+	const [row] = await db
+		.select({ total: count() })
+		.from(schema.reviewLikes)
+		.where(eq(schema.reviewLikes.reviewId, reviewId));
+
+	return { liked: true, likeCount: row?.total ?? 0 };
+}
+
+export async function unlikeReview(reviewId: string, user: SessionUser) {
+	const review = await db.query.reviews.findFirst({
+		where: { id: reviewId },
+	});
+	if (!review) throw notFound("Review");
+
+	await db
+		.delete(schema.reviewLikes)
+		.where(
+			and(
+				eq(schema.reviewLikes.userId, user.id),
+				eq(schema.reviewLikes.reviewId, reviewId),
+			),
+		);
+
+	const [row] = await db
+		.select({ total: count() })
+		.from(schema.reviewLikes)
+		.where(eq(schema.reviewLikes.reviewId, reviewId));
+
+	return { liked: false, likeCount: row?.total ?? 0 };
 }

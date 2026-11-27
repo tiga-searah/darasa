@@ -10,13 +10,16 @@ export const OwnerPlaceStatsQuery = t.Object({
 });
 
 export const UpdateOwnerPlaceBody = t.Object({
+	name: t.Optional(t.String({ minLength: 2, maxLength: 120 })),
 	address: t.Optional(t.Union([t.String({ maxLength: 500 }), t.Null()])),
 	description: t.Optional(t.Union([t.String({ maxLength: 5000 }), t.Null()])),
 	phone: t.Optional(t.Union([t.String({ maxLength: 40 }), t.Null()])),
-	openingHours: t.Optional(t.Union([OpeningHoursSchema, t.Null()])),
+	priceRange: t.Optional(t.Union([t.String({ maxLength: 100 }), t.Null()])),
+	openingHours: t.Optional(
+		t.Union([OpeningHoursSchema, t.String({ maxLength: 200 }), t.Null()]),
+	),
 	coverMediaId: t.Optional(t.Union([t.String({ format: "uuid" }), t.Null()])),
 	// Identity fields: accepted in schema so handler can reject with 403 + fields
-	name: t.Optional(t.Unknown()),
 	categoryId: t.Optional(t.Unknown()),
 	latitude: t.Optional(t.Unknown()),
 	longitude: t.Optional(t.Unknown()),
@@ -24,12 +27,16 @@ export const UpdateOwnerPlaceBody = t.Object({
 });
 
 export type UpdateOwnerPlaceInput = {
+	name?: string;
 	address?: string | null;
 	description?: string | null;
 	phone?: string | null;
-	openingHours?: Record<string, { open: string; close: string } | null> | null;
+	priceRange?: string | null;
+	openingHours?:
+		| Record<string, { open: string; close: string } | null>
+		| string
+		| null;
 	coverMediaId?: string | null;
-	name?: unknown;
 	categoryId?: unknown;
 	latitude?: unknown;
 	longitude?: unknown;
@@ -63,6 +70,13 @@ export const OwnerPlaceListItem = t.Object({
 	]),
 	ownerVerified: t.Boolean(),
 	coverUrl: t.Nullable(t.String()),
+	district: t.Nullable(t.String()),
+	priceRange: t.Nullable(t.String()),
+	views: t.Number(),
+	exploreScore: t.Number(),
+	hiddenGemScore: t.Number(),
+	description: t.Nullable(t.String()),
+	openingHours: t.Nullable(t.Any()),
 	ratingAvg: t.Number(),
 	reviewCount: t.Number(),
 	pendingClaims: t.Number(),

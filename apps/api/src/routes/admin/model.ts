@@ -68,13 +68,18 @@ export type AdminAnomaliesQueryType = {
 };
 
 export const ResolveAnomalyBody = t.Object({
-	status: t.Union([t.Literal("dismissed"), t.Literal("confirmed")]),
-	note: t.String({ minLength: 5, maxLength: 500 }),
+	status: t.Union([
+		t.Literal("dismissed"),
+		t.Literal("confirmed"),
+		t.Literal("cleared"),
+		t.Literal("flagged_hold"),
+	]),
+	note: t.Optional(t.String({ maxLength: 500 })),
 });
 
 export type ResolveAnomalyBodyType = {
-	status: "dismissed" | "confirmed";
-	note: string;
+	status: "dismissed" | "confirmed" | "cleared" | "flagged_hold";
+	note?: string;
 };
 
 const PlaceStatusSchema = t.Union([
@@ -123,6 +128,9 @@ export const AdminPlaceItem = t.Object({
 	categoryId: t.String(),
 	description: t.Nullable(t.String()),
 	address: t.Nullable(t.String()),
+	district: t.Nullable(t.String()),
+	priceRange: t.Nullable(t.String()),
+	views: t.Number(),
 	latitude: t.Number(),
 	longitude: t.Number(),
 	phone: t.Nullable(t.String()),

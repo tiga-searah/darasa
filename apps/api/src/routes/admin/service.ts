@@ -33,6 +33,9 @@ export async function listAdminPlaces(query: AdminPlacesQueryType) {
 				categoryId: schema.places.categoryId,
 				description: schema.places.description,
 				address: schema.places.address,
+				district: schema.places.district,
+				priceRange: schema.places.priceRange,
+				views: schema.places.viewsTotal,
 				latitude: schema.places.latitude,
 				longitude: schema.places.longitude,
 				phone: schema.places.phone,
@@ -254,13 +257,20 @@ export async function resolveAnomaly(
 			throw conflict("Anomaly flag already resolved");
 		}
 
+		const mappedStatus =
+			body.status === "cleared"
+				? "dismissed"
+				: body.status === "flagged_hold"
+					? "confirmed"
+					: body.status;
+
 		const [updated] = await tx
 			.update(schema.anomalyFlags)
 			.set({
-				status: body.status,
+				status: mappedStatus,
 				resolvedById: user.id,
 				resolvedAt: new Date(),
-				resolutionNote: body.note,
+				resolutionNote: body.note ?? null,
 			})
 			.where(eq(schema.anomalyFlags.id, flagId))
 			.returning();

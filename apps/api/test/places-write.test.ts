@@ -126,6 +126,63 @@ describe("POST /places", () => {
 		expect(res.status).toBe(201);
 	});
 
+	test("persists district, priceRange (with parsed priceMin/priceMax), and string openingHours on POST and PATCH", async () => {
+		const { app, cookie, cat } = await setupUserAndCat();
+		const res = await app.handle(
+			new Request("http://test/api/places", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					name: "Warung Harga",
+					categoryId: cat.id,
+					latitude: -6.91,
+					longitude: 109.73,
+					district: "Batang",
+					priceRange: "Rp 10.000 - 25.000",
+					openingHours: "08:00 - 21:00 setiap hari",
+				}),
+			}),
+		);
+		expect(res.status).toBe(201);
+		const created = (await json(res)).data;
+		expect(created.district).toBe("Batang");
+		expect(created.priceRange).toBe("Rp 10.000 - 25.000");
+		expect(created.openingHours).toBe("08:00 - 21:00 setiap hari");
+
+		const row = await db.query.places.findFirst({
+			where: { id: created.id },
+		});
+		expect(row?.priceMin).toBe(10000);
+		expect(row?.priceMax).toBe(25000);
+
+		// Promote user to admin and PATCH district & priceRange
+		await db
+			.update(schema.users)
+			.set({ role: "admin" })
+			.where(eq(schema.users.email, "p@b.test"));
+
+		const patchRes = await app.handle(
+			new Request(`http://test/api/places/${created.id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					district: "Subah",
+					priceRange: "30rb - 60rb",
+				}),
+			}),
+		);
+		expect(patchRes.status).toBe(200);
+		const patched = (await json(patchRes)).data;
+		expect(patched.district).toBe("Subah");
+		expect(patched.priceRange).toBe("30rb - 60rb");
+
+		const updatedRow = await db.query.places.findFirst({
+			where: { id: created.id },
+		});
+		expect(updatedRow?.priceMin).toBe(30000);
+		expect(updatedRow?.priceMax).toBe(60000);
+	});
+
 	test("rejects >5 photoMediaIds with 422", async () => {
 		const { app, cookie, cat } = await setupUserAndCat();
 		const ids = Array.from({ length: 6 }, () => crypto.randomUUID());

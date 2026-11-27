@@ -4,6 +4,7 @@ import { optionalAuth, requireAuth } from "../../plugins/guard";
 import {
 	CreateReviewBody,
 	PaginatedReviewsResponse,
+	ReviewLikeResponse,
 	ReviewListQuery,
 	ReviewResponse,
 	UpdateReviewBody,
@@ -11,7 +12,9 @@ import {
 import {
 	createReview,
 	deleteReview,
+	likeReview,
 	listPlaceReviews,
+	unlikeReview,
 	updateReview,
 } from "./service";
 
@@ -84,5 +87,25 @@ export const reviewRoutes = new Elysia()
 					set.status = 204;
 					return null;
 				},
+			)
+			.post(
+				"/reviews/:id/like",
+				{
+					params: t.Object({ id: t.String({ format: "uuid" }) }),
+					response: { 200: ReviewLikeResponse },
+				},
+				async ({ params, sessionUser }) => ({
+					data: await likeReview(params.id, sessionUser),
+				}),
+			)
+			.delete(
+				"/reviews/:id/like",
+				{
+					params: t.Object({ id: t.String({ format: "uuid" }) }),
+					response: { 200: ReviewLikeResponse },
+				},
+				async ({ params, sessionUser }) => ({
+					data: await unlikeReview(params.id, sessionUser),
+				}),
 			),
 	);

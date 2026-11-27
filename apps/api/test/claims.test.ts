@@ -336,4 +336,50 @@ describe("business claims", () => {
 		);
 		expect(reReject.status).toBe(409);
 	});
+
+	test("submit claim with businessRole, reject without note, GET /claims/mine includes placeName, claimantName, evidence", async () => {
+		const place = await seedPlace("published");
+		const userCookie = await registerAs("claimant@b.test");
+		const adminCookie = await registerAs("admin2@b.test", "admin");
+		const app = freshApp({ storage: memoryStorage() });
+
+		const submitRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/claims`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: userCookie },
+				body: JSON.stringify({
+					evidence: {
+						note: "Owner",
+						documentMediaIds: [],
+						contactPhone: "+6281234",
+						businessRole: "Founder",
+					},
+				}),
+			}),
+		);
+		expect(submitRes.status).toBe(201);
+		const claimId = (await json(submitRes)).data.id;
+
+		const mineRes = await app.handle(
+			new Request("http://test/api/claims/mine", {
+				headers: { cookie: userCookie },
+			}),
+		);
+		expect(mineRes.status).toBe(200);
+		const mineBody = await json(mineRes);
+		expect(mineBody.data).toHaveLength(1);
+		expect(mineBody.data[0].placeName).toBe("Warung Klaim");
+		expect(mineBody.data[0].claimantName).toBe("claimant@b.test");
+		expect(mineBody.data[0].evidence.businessRole).toBe("Founder");
+
+		const rejRes = await app.handle(
+			new Request(`http://test/api/admin/claims/${claimId}/reject`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: adminCookie },
+				body: JSON.stringify({}),
+			}),
+		);
+		expect(rejRes.status).toBe(200);
+		expect((await json(rejRes)).data.status).toBe("rejected");
+	});
 });

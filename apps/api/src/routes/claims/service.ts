@@ -14,6 +14,7 @@ export async function submitClaim(
 			note: string;
 			documentMediaIds: string[];
 			contactPhone: string;
+			businessRole?: string;
 		};
 	},
 ) {
@@ -63,6 +64,7 @@ export async function listMyClaims(
 		where: { claimantId: userId },
 		orderBy: { createdAt: "desc" },
 		with: {
+			claimant: { columns: { name: true } },
 			place: {
 				columns: { id: true, slug: true, name: true },
 				with: { coverMedia: true },
@@ -74,6 +76,8 @@ export async function listMyClaims(
 		rows.map(async (row) => ({
 			id: row.id,
 			placeId: row.placeId,
+			placeName: row.place?.name ?? "",
+			claimantName: row.claimant?.name ?? "",
 			status: row.status,
 			evidence: row.evidence,
 			decisionNote: row.decisionNote,
@@ -186,7 +190,7 @@ export async function approveClaim(
 export async function rejectClaim(
 	claimId: string,
 	adminId: string,
-	body: { note: string },
+	body: { note?: string },
 ) {
 	return db.transaction(async (tx) => {
 		const [claim] = await tx
@@ -208,7 +212,7 @@ export async function rejectClaim(
 				status: "rejected",
 				reviewedById: adminId,
 				reviewedAt: new Date(),
-				decisionNote: body.note,
+				decisionNote: body.note ?? null,
 			})
 			.where(eq(schema.businessClaims.id, claimId))
 			.returning();
