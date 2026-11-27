@@ -4,6 +4,7 @@ import { optionalAuth, requireAuth } from "../../plugins/guard";
 import {
 	CreateReviewBody,
 	PaginatedReviewsResponse,
+	ReviewLikeResponse,
 	ReviewListQuery,
 	ReviewResponse,
 	UpdateReviewBody,
