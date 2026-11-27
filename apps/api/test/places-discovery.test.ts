@@ -484,4 +484,50 @@ describe("place discovery", () => {
 		expect(anon.status).toBe(200);
 		expect((await json(anon)).data.bookmarked).toBe(false);
 	});
+
+	test("GET /places filters priceTier=25k_50k and 50k_100k and excludes null priceRange", async () => {
+		const { cat } = await seedPlaces();
+		await db.insert(schema.places).values([
+			{
+				slug: "bakso-sedang",
+				name: "Bakso Sedang",
+				categoryId: cat.id,
+				priceRange: "Rp 30.000 - 45.000",
+				priceMin: 30000,
+				priceMax: 45000,
+				latitude: -6.92,
+				longitude: 109.74,
+				status: "published",
+			},
+			{
+				slug: "resto-menengah",
+				name: "Resto Menengah",
+				categoryId: cat.id,
+				priceRange: "Rp 60.000 - 90.000",
+				priceMin: 60000,
+				priceMax: 90000,
+				latitude: -6.93,
+				longitude: 109.75,
+				status: "published",
+			},
+		]);
+
+		const app = freshApp({ storage: memoryStorage() });
+
+		for (const [tier, expected] of [
+			["25k_50k", ["bakso-sedang"]],
+			["50k_100k", ["resto-menengah"]],
+			["under_25k", []],
+			["over_100k", []],
+		] as const) {
+			const res = await app.handle(
+				new Request(`http://test/api/places?priceTier=${tier}`),
+			);
+			expect(res.status).toBe(200);
+			const slugs = (await json(res)).data.map((p: { slug: string }) => p.slug);
+			expect(slugs).toEqual([...expected]);
+			expect(slugs).not.toContain("warung-bu-tini");
+			expect(slugs).not.toContain("warung-biasa");
+		}
+	});
 });
