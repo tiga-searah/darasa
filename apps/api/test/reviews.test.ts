@@ -418,4 +418,113 @@ describe("reviews & anomaly flags", () => {
 		expect(listBody.data[0]?.ownerReply?.body).toBe("Thanks for visiting!");
 		expect(listBody.data[0]?.ownerReply?.authorName).toBe(ownerUser.name);
 	});
+
+	test("POST and DELETE /reviews/:id/like update likeCount and liked", async () => {
+		const place = await seedPublishedPlace();
+		const authorCookie = await registerUser("like-author@b.test", "Author");
+		const liker1Cookie = await registerUser("liker1@b.test", "Liker1");
+		const liker2Cookie = await registerUser("liker2@b.test", "Liker2");
+		const app = freshApp({ storage: memoryStorage() });
+
+		const createRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: authorCookie },
+				body: JSON.stringify({ rating: 5, body: "Mantap betul rasanya." }),
+			}),
+		);
+		expect(createRes.status).toBe(201);
+		const created = (await json(createRes)).data;
+		expect(created.likeCount).toBe(0);
+		expect(created.liked).toBe(false);
+
+		// Unauthenticated -> 401
+		const unauthLike = await app.handle(
+			new Request(`http://test/api/reviews/${created.id}/like`, {
+				method: "POST",
+			}),
+		);
+		expect(unauthLike.status).toBe(401);
+
+		// Unknown review -> 404
+		const missingLike = await app.handle(
+			new Request(
+				"http://test/api/reviews/00000000-0000-4000-8000-000000000000/like",
+				{ method: "POST", headers: { cookie: liker1Cookie } },
+			),
+		);
+		expect(missingLike.status).toBe(404);
+
+		// Like by liker1 (and idempotent repeat)
+		const like1 = await app.handle(
+			new Request(`http://test/api/reviews/${created.id}/like`, {
+				method: "POST",
+				headers: { cookie: liker1Cookie },
+			}),
+		);
+		expect(like1.status).toBe(200);
+		expect((await json(like1)).data).toEqual({ liked: true, likeCount: 1 });
+
+		const like1Repeat = await app.handle(
+			new Request(`http://test/api/reviews/${created.id}/like`, {
+				method: "POST",
+				headers: { cookie: liker1Cookie },
+			}),
+		);
+		expect(like1Repeat.status).toBe(200);
+		expect((await json(like1Repeat)).data).toEqual({
+			liked: true,
+			likeCount: 1,
+		});
+
+		// Like by liker2
+		const like2 = await app.handle(
+			new Request(`http://test/api/reviews/${created.id}/like`, {
+				method: "POST",
+				headers: { cookie: liker2Cookie },
+			}),
+		);
+		expect(like2.status).toBe(200);
+		expect((await json(like2)).data).toEqual({ liked: true, likeCount: 2 });
+
+		// GET reviews as liker1 -> liked: true, likeCount: 2
+		const listAsLiker1 = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				headers: { cookie: liker1Cookie },
+			}),
+		);
+		expect(listAsLiker1.status).toBe(200);
+		const itemLiker1 = (await json(listAsLiker1)).data[0];
+		expect(itemLiker1.likeCount).toBe(2);
+		expect(itemLiker1.liked).toBe(true);
+
+		// GET reviews unauthenticated -> liked: false, likeCount: 2
+		const listAnon = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`),
+		);
+		expect(listAnon.status).toBe(200);
+		const itemAnon = (await json(listAnon)).data[0];
+		expect(itemAnon.likeCount).toBe(2);
+		expect(itemAnon.liked).toBe(false);
+
+		// Unlike by liker1
+		const unlike1 = await app.handle(
+			new Request(`http://test/api/reviews/${created.id}/like`, {
+				method: "DELETE",
+				headers: { cookie: liker1Cookie },
+			}),
+		);
+		expect(unlike1.status).toBe(200);
+		expect((await json(unlike1)).data).toEqual({ liked: false, likeCount: 1 });
+
+		// GET reviews as liker1 -> liked: false, likeCount: 1
+		const listAfterUnlike = await app.handle(
+			new Request(`http://test/api/places/${place.id}/reviews`, {
+				headers: { cookie: liker1Cookie },
+			}),
+		);
+		const itemAfter = (await json(listAfterUnlike)).data[0];
+		expect(itemAfter.likeCount).toBe(1);
+		expect(itemAfter.liked).toBe(false);
+	});
 });
