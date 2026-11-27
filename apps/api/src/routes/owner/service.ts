@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
+import { parsePriceBounds } from "../../lib/price";
 import type { SessionUser } from "../../lib/session";
 import { ApiError, conflict, forbidden, notFound } from "../../utils";
 import { resolveMediaUrl } from "../media/service";
@@ -10,7 +11,6 @@ import { hydrateReviews } from "../reviews/service";
 import type { UpdateOwnerPlaceInput } from "./model";
 
 const IDENTITY_FIELDS = [
-	"name",
 	"categoryId",
 	"latitude",
 	"longitude",
@@ -56,6 +56,13 @@ export async function listOwnerPlaces(storage: Storage, user: SessionUser) {
 			status: schema.places.status,
 			ownerVerified: schema.places.ownerVerified,
 			coverKey: schema.media.key,
+			district: schema.places.district,
+			priceRange: schema.places.priceRange,
+			views: schema.places.viewsTotal,
+			exploreScore: schema.places.exploreScore,
+			hiddenGemScore: schema.places.hiddenGemScore,
+			description: schema.places.description,
+			openingHours: schema.places.openingHours,
 			ratingAvg: schema.places.ratingAvg,
 			reviewCount: schema.places.reviewCount,
 			createdAt: schema.places.createdAt,
@@ -140,9 +147,21 @@ export async function updateOwnerPlace(
 	const patch: Partial<typeof schema.places.$inferInsert> = {
 		updatedAt: new Date(),
 	};
+	if (body.name !== undefined) patch.name = body.name;
 	if (body.address !== undefined) patch.address = body.address;
 	if (body.description !== undefined) patch.description = body.description;
 	if (body.phone !== undefined) patch.phone = body.phone;
+	if (body.priceRange !== undefined) {
+		patch.priceRange = body.priceRange;
+		if (body.priceRange === null) {
+			patch.priceMin = null;
+			patch.priceMax = null;
+		} else {
+			const { min, max } = parsePriceBounds(body.priceRange);
+			patch.priceMin = min;
+			patch.priceMax = max;
+		}
+	}
 	if (body.openingHours !== undefined) patch.openingHours = body.openingHours;
 	if (body.coverMediaId !== undefined) patch.coverMediaId = body.coverMediaId;
 

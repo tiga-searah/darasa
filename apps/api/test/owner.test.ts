@@ -73,9 +73,13 @@ describe("owner dashboard places & stats", () => {
 			new Request("http://test/api/owner/places", { headers: { cookie } }),
 		);
 		expect(list.status).toBe(200);
-		expect((await json(list)).data.map((p: { id: string }) => p.id)).toEqual([
-			placeA.id,
-		]);
+		const listBody = await json(list);
+		expect(listBody.data.map((p: { id: string }) => p.id)).toEqual([placeA.id]);
+		expect(listBody.data[0]).toHaveProperty("district");
+		expect(listBody.data[0]).toHaveProperty("priceRange");
+		expect(listBody.data[0]).toHaveProperty("views");
+		expect(listBody.data[0]).toHaveProperty("exploreScore");
+		expect(listBody.data[0]).toHaveProperty("hiddenGemScore");
 
 		// owner role cannot touch Place B without approved claim
 		const other = await app.handle(
@@ -92,12 +96,15 @@ describe("owner dashboard places & stats", () => {
 			new Request(`http://test/api/owner/places/${placeA.id}`, {
 				method: "PATCH",
 				headers: { "content-type": "application/json", cookie },
-				body: JSON.stringify({ name: "New Name", status: "archived" }),
+				body: JSON.stringify({
+					categoryId: "00000000-0000-0000-0000-000000000000",
+					status: "archived",
+				}),
 			}),
 		);
 		expect(identity.status).toBe(403);
 		const idBody = await json(identity);
-		expect(idBody.error.fields).toHaveProperty("name");
+		expect(idBody.error.fields).toHaveProperty("categoryId");
 		expect(idBody.error.fields).toHaveProperty("status");
 
 		// valid update
@@ -106,13 +113,18 @@ describe("owner dashboard places & stats", () => {
 				method: "PATCH",
 				headers: { "content-type": "application/json", cookie },
 				body: JSON.stringify({
+					name: "Place A Renamed",
 					address: "Jl. Baru 1",
 					phone: "+628123",
+					priceRange: "Rp 20.000 - Rp 50.000",
+					openingHours: "08:00 - 21:00",
 				}),
 			}),
 		);
 		expect(ok.status).toBe(200);
-		expect((await json(ok)).data.address).toBe("Jl. Baru 1");
+		const okData = (await json(ok)).data;
+		expect(okData.address).toBe("Jl. Baru 1");
+		expect(okData.name).toBe("Place A Renamed");
 
 		// invalid coverMediaId (not in place_photos) -> 422
 		const badCover = await app.handle(

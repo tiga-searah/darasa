@@ -7,6 +7,7 @@ export const ClaimEvidenceSchema = t.Object({
 		uniqueItems: true,
 	}),
 	contactPhone: t.String({ minLength: 1, maxLength: 40 }),
+	businessRole: t.Optional(t.String({ maxLength: 100 })),
 });
 
 export const SubmitClaimBody = t.Object({
@@ -30,7 +31,7 @@ export const ApproveClaimBody = t.Object({
 });
 
 export const RejectClaimBody = t.Object({
-	note: t.String({ minLength: 5, maxLength: 500 }),
+	note: t.Optional(t.String({ maxLength: 500 })),
 });
 
 export const ClaimStatusSchema = t.Union([
@@ -59,6 +60,8 @@ export const ClaimResponse = t.Object({
 export const MyClaimItem = t.Object({
 	id: t.String(),
 	placeId: t.String(),
+	placeName: t.String(),
+	claimantName: t.String(),
 	status: ClaimStatusSchema,
 	evidence: ClaimEvidenceSchema,
 	decisionNote: t.Nullable(t.String()),
