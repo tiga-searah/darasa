@@ -28,12 +28,14 @@ export const categories = pgTable(
 );
 
 /** Weekly opening hours; `null` day = closed. Times are "HH:mm" local (WIB). */
-export type OpeningHours = Partial<
-	Record<
-		"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun",
-		{ open: string; close: string }
-	>
->;
+export type OpeningHours =
+	| Partial<
+			Record<
+				"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun",
+				{ open: string; close: string }
+			>
+	  >
+	| string;
 
 export const places = pgTable(
 	"places",
@@ -68,6 +70,11 @@ export const places = pgTable(
 		lastReviewAt: timestamp("last_review_at", { withTimezone: true }),
 		exploreScore: doublePrecision("explore_score").notNull().default(0),
 		hiddenGemScore: doublePrecision("hidden_gem_score").notNull().default(0),
+		district: text("district"),
+		priceRange: text("price_range"),
+		priceMin: integer("price_min"),
+		priceMax: integer("price_max"),
+		viewsTotal: integer("views_total").notNull().default(0),
 		...timestamps(),
 	},
 	(t) => [
@@ -99,4 +106,24 @@ export const placePhotos = pgTable(
 			.defaultNow(),
 	},
 	(t) => [index("place_photos_place_idx").on(t.placeId, t.sortOrder)],
+);
+
+export const bookmarks = pgTable(
+	"bookmarks",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		placeId: uuid("place_id")
+			.notNull()
+			.references(() => places.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(t) => [
+		uniqueIndex("bookmarks_user_place_uq").on(t.userId, t.placeId),
+		index("bookmarks_user_idx").on(t.userId),
+	],
 );

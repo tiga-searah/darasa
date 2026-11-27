@@ -19,6 +19,7 @@ export type ClaimEvidence = {
 	/** media ids with purpose='claim_document', private bucket. */
 	documentMediaIds: string[];
 	contactPhone: string;
+	businessRole?: string;
 };
 
 export const businessClaims = pgTable(
