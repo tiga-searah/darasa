@@ -306,6 +306,7 @@ export const AdminUpdatePlaceBody = t.Object({
 	phone: t.Optional(t.Nullable(t.String({ maxLength: 40 }))),
 	priceRange: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
 	openingHours: t.Optional(t.Nullable(OpeningHoursInput)),
+	coverMediaId: t.Optional(t.Nullable(t.String({ format: "uuid" }))),
 	status: t.Optional(
 		t.Union([
 			t.Literal("pending"),
