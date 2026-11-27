@@ -307,21 +307,36 @@ describe("admin moderation", () => {
 				status: "published",
 			})
 			.returning();
-		const [anom] = await db
+		const [anom, otherAnom] = await db
 			.insert(schema.anomalyFlags)
-			.values({
-				placeId: place.id,
-				kind: "review_burst",
-				status: "open",
-				reason: "burst",
-				metrics: {
-					zScore: 2,
-					mean: 1,
-					stdDev: 0.5,
-					windowDays: 7,
-					sampleSize: 5,
+			.values([
+				{
+					placeId: place.id,
+					kind: "review_burst",
+					status: "open",
+					reason: "burst",
+					metrics: {
+						zScore: 2,
+						mean: 1,
+						stdDev: 0.5,
+						windowDays: 7,
+						sampleSize: 5,
+					},
 				},
-			})
+				{
+					placeId: place.id,
+					kind: "rating_outlier",
+					status: "open",
+					reason: "outlier",
+					metrics: {
+						zScore: 3,
+						mean: 1,
+						stdDev: 0.5,
+						windowDays: 7,
+						sampleSize: 5,
+					},
+				},
+			])
 			.returning();
 
 		const res = await app.handle(
@@ -334,5 +349,10 @@ describe("admin moderation", () => {
 		expect(res.status).toBe(200);
 		const body = await json(res);
 		expect(body.data.status).toBe("dismissed");
+		const [untouched] = await db
+			.select({ status: schema.anomalyFlags.status })
+			.from(schema.anomalyFlags)
+			.where(eq(schema.anomalyFlags.id, otherAnom.id));
+		expect(untouched?.status).toBe("open");
 	});
 });

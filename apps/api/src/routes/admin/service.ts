@@ -272,6 +272,7 @@ export async function resolveAnomaly(
 				resolvedAt: new Date(),
 				resolutionNote: body.note ?? null,
 			})
+			.where(eq(schema.anomalyFlags.id, flagId))
 			.returning();
 
 		return updated;
