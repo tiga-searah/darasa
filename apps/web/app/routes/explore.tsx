@@ -786,7 +786,7 @@ export default function ExplorePage() {
 							<strong className="font-semibold text-foreground tabular-nums">
 								{filteredPlaces.length}
 							</strong>{" "}
-							tempat kuliner
+							tempat ditemukan
 						</span>
 					</div>
 

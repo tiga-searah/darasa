@@ -1,8 +1,8 @@
+import gsap from "gsap";
 import {
 	ArrowRight,
 	Bookmark,
 	Coffee,
-	Compass,
 	Cookie,
 	Eye,
 	Gem,
@@ -26,7 +26,6 @@ import { Link, useNavigate } from "react-router";
 import { BookmarkIconButton } from "~/components/place-card";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { VerificationBadge } from "~/components/verification-badge";
 import { type PlaceWithMetrics, useDarasa } from "~/context/darasa-store";
 import { BATANG_DISTRICTS, PLACE_CATEGORIES } from "~/data/batang-places";
 import type { PlaceCategory } from "~/lib/types";
@@ -292,7 +291,7 @@ function HorizontalPlaceShelf({
 											width={544}
 											height={340}
 											loading="lazy"
-											className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+											className="h-full w-full object-cover"
 										/>
 										<div className="absolute left-2.5 top-2.5">
 											{mode === "hidden-gem" ? (
@@ -320,7 +319,7 @@ function HorizontalPlaceShelf({
 
 									<div className="flex flex-1 flex-col gap-2 p-3.5">
 										<div className="flex items-start justify-between gap-2">
-											<h3 className="min-w-0 flex-1 line-clamp-2 text-sm font-bold leading-snug text-foreground group-hover:text-primary">
+											<h3 className="min-w-0 flex-1 line-clamp-2 text-sm font-bold leading-snug text-foreground">
 												<Link
 													to={`/places/${place.slug}`}
 													className="after:absolute after:inset-0 after:rounded-[12px] focus-visible:outline-none"
@@ -393,8 +392,10 @@ export default function HomePage() {
 	const [spotlightIndex, setSpotlightIndex] = useState(0);
 	const spotlightIndexRef = useRef(0);
 	const spotlightTrackRef = useRef<HTMLDivElement>(null);
+	const spotlightBgTrackRef = useRef<HTMLDivElement>(null);
 	const lastSpotlightWheelAtRef = useRef(0);
 	const spotlightWrapTimerRef = useRef<number | null>(null);
+	const spotlightTweenRef = useRef<gsap.core.Tween | null>(null);
 	const programmaticTargetSlotRef = useRef<number | null>(null);
 	const [spotlightAutoTick, setSpotlightAutoTick] = useState(0);
 
@@ -492,14 +493,30 @@ export default function HomePage() {
 			window.clearTimeout(spotlightWrapTimerRef.current);
 			spotlightWrapTimerRef.current = null;
 		}
+		if (spotlightTweenRef.current) {
+			spotlightTweenRef.current.kill();
+			spotlightTweenRef.current = null;
+		}
+	}, []);
+
+	const syncBgTrackScroll = useCallback(() => {
+		const track = spotlightTrackRef.current;
+		const bgTrack = spotlightBgTrackRef.current;
+		if (!track || !bgTrack || track.clientWidth <= 0) return;
+		const ratio = track.scrollLeft / track.clientWidth;
+		bgTrack.scrollLeft = ratio * bgTrack.clientWidth;
 	}, []);
 
 	const resetSpotlightToStartInstant = useCallback(() => {
 		const track = spotlightTrackRef.current;
 		if (!track) return;
 		programmaticTargetSlotRef.current = null;
+		track.style.scrollSnapType = "";
 		track.style.scrollBehavior = "auto";
 		track.scrollLeft = 0;
+		if (spotlightBgTrackRef.current) {
+			spotlightBgTrackRef.current.scrollLeft = 0;
+		}
 		window.requestAnimationFrame(() => {
 			if (spotlightTrackRef.current) {
 				spotlightTrackRef.current.style.scrollBehavior = "";
@@ -525,34 +542,47 @@ export default function HomePage() {
 			if (!track) return;
 
 			const behavior = getScrollBehavior();
-			if (isCloneWrap && behavior === "auto") {
-				resetSpotlightToStartInstant();
+			if (behavior === "auto") {
+				if (isCloneWrap) {
+					resetSpotlightToStartInstant();
+				} else {
+					programmaticTargetSlotRef.current = null;
+					track.style.scrollSnapType = "";
+					track.style.scrollBehavior = "auto";
+					track.scrollLeft = logicalIndex * track.clientWidth;
+					syncBgTrackScroll();
+				}
 				return;
 			}
 
 			const targetSlot = isCloneWrap ? total : logicalIndex;
 			programmaticTargetSlotRef.current = targetSlot;
-			track.scrollTo({
-				left: targetSlot * track.clientWidth,
-				behavior,
-			});
+			track.style.scrollSnapType = "none";
+			track.style.scrollBehavior = "auto";
 
-			if (isCloneWrap) {
-				spotlightWrapTimerRef.current = window.setTimeout(() => {
-					spotlightWrapTimerRef.current = null;
-					resetSpotlightToStartInstant();
-				}, 750);
-			} else {
-				spotlightWrapTimerRef.current = window.setTimeout(() => {
-					spotlightWrapTimerRef.current = null;
-					programmaticTargetSlotRef.current = null;
-				}, 750);
-			}
+			spotlightTweenRef.current = gsap.to(track, {
+				scrollLeft: targetSlot * track.clientWidth,
+				duration: 0.8,
+				ease: "power3.inOut",
+				onUpdate: syncBgTrackScroll,
+				onComplete: () => {
+					spotlightTweenRef.current = null;
+					if (isCloneWrap) {
+						resetSpotlightToStartInstant();
+					} else {
+						track.style.scrollSnapType = "";
+						track.style.scrollBehavior = "";
+						programmaticTargetSlotRef.current = null;
+						syncBgTrackScroll();
+					}
+				},
+			});
 		},
 		[
 			clearSpotlightWrapTimer,
 			popularSpotlightPlaces.length,
 			resetSpotlightToStartInstant,
+			syncBgTrackScroll,
 		],
 	);
 
@@ -569,6 +599,8 @@ export default function HomePage() {
 		const total = popularSpotlightPlaces.length;
 		if (!track || track.clientWidth <= 0 || total === 0) return;
 
+		syncBgTrackScroll();
+
 		if (programmaticTargetSlotRef.current !== null) {
 			const targetLeft = programmaticTargetSlotRef.current * track.clientWidth;
 			if (Math.abs(track.scrollLeft - targetLeft) < 2) {
@@ -584,7 +616,7 @@ export default function HomePage() {
 			setSpotlightIndex(nextIdx);
 			setSpotlightAutoTick((tick) => tick + 1);
 		}
-	}, [popularSpotlightPlaces.length]);
+	}, [popularSpotlightPlaces.length, syncBgTrackScroll]);
 
 	useEffect(() => {
 		return () => clearSpotlightWrapTimer();
@@ -653,7 +685,7 @@ export default function HomePage() {
 		const timer = window.setInterval(() => {
 			if (document.hidden) return;
 			scrollSpotlightTo(spotlightIndexRef.current + 1);
-		}, 5000);
+		}, 7000);
 
 		return () => window.clearInterval(timer);
 	}, [
@@ -745,39 +777,57 @@ export default function HomePage() {
 			<section
 				aria-labelledby="home-popular-heading"
 				onKeyDown={handleSpotlightKeyDown}
-				className="space-y-3"
+				className="relative -mt-[6rem] space-y-3 pt-[6.5rem] pb-6 xl:-mt-[6rem] xl:pt-[6.5rem]"
 			>
-				<div className="flex flex-wrap items-center justify-between gap-3">
+				{/* Dynamic Food Photo Backdrop matching current spotlight place */}
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-y-0 left-1/2 w-[100vw] -translate-x-1/2 overflow-hidden"
+				>
+					<div
+						ref={spotlightBgTrackRef}
+						className="flex h-full w-full overflow-hidden"
+					>
+						{spotlightSlides.map((spot, idx) => {
+							const isClone =
+								popularSpotlightPlaces.length > 1 &&
+								idx === popularSpotlightPlaces.length;
+							return (
+								<div
+									key={isClone ? `bg-${spot.id}-clone` : `bg-${spot.id}`}
+									className="h-full w-full shrink-0"
+								>
+									<img
+										src={spot.photos[0] ?? "/images/megono-batang.svg"}
+										alt=""
+										className="h-full w-full object-cover opacity-95 dark:opacity-85"
+									/>
+								</div>
+							);
+						})}
+					</div>
+					<div className="absolute inset-0 bg-gradient-to-b from-transparent via-card/55 to-card" />
+				</div>
+
+				<div className="relative z-10">
 					<h1
 						id="home-popular-heading"
 						className="text-2xl font-bold tracking-tight text-foreground sm:text-[30px] sm:leading-tight"
 					>
 						Kuliner Populer Batang
 					</h1>
-
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => openExploreWith({ sortBy: "reviews" })}
-						className="min-h-[44px] rounded-[8px] border-input text-xs font-semibold"
-					>
-						<Compass className="size-4 text-primary" aria-hidden="true" />
-						Buka Direktori Jelajah
-					</Button>
 				</div>
 
 				<div
 					ref={spotlightTrackRef}
 					onScroll={handleSpotlightScroll}
-					className="darasa-shelf-scroll flex overflow-x-auto scroll-smooth snap-x snap-mandatory"
+					className="darasa-shelf-scroll relative z-10 flex overflow-x-auto snap-x snap-mandatory"
 				>
 					{spotlightSlides.map((place, idx) => {
 						const isClone =
 							popularSpotlightPlaces.length > 1 &&
 							idx === popularSpotlightPlaces.length;
 						const displayRank = isClone ? 1 : idx + 1;
-						const quoteReview =
-							place.reviews.find((r) => r.rating >= 4) ?? place.reviews[0];
 						const saved = isBookmarked(place.id);
 
 						return (
@@ -790,7 +840,7 @@ export default function HomePage() {
 								<div className="grid grid-cols-1 gap-5 py-2 md:grid-cols-12 md:items-center md:gap-7">
 									<Link
 										to={`/places/${place.slug}`}
-										className="group relative block overflow-hidden rounded-[12px] border border-border bg-muted md:col-span-5 lg:col-span-4"
+										className="group relative block overflow-hidden rounded-[12px] bg-muted md:col-span-5 lg:col-span-4"
 									>
 										<div className="aspect-[16/10] w-full overflow-hidden">
 											<img
@@ -799,99 +849,93 @@ export default function HomePage() {
 												width={800}
 												height={500}
 												fetchPriority={idx === 0 ? "high" : "auto"}
-												className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+												className="h-full w-full object-cover"
 											/>
-										</div>
-										<div className="flex items-center justify-between gap-2 border-t border-border bg-card px-3 py-2 text-xs">
-											<span className="inline-flex flex-wrap items-center gap-1.5 font-semibold text-primary tabular-nums">
-												<span>
-													Populer #{displayRank} · {place.reviewCount} ulasan ·
-												</span>
-												<span className="inline-flex items-center gap-1">
-													<Eye className="size-3.5" aria-hidden="true" />
-													{place.views.toLocaleString("id-ID")}
-												</span>
-											</span>
-											<span className="inline-flex items-center gap-1 font-semibold text-foreground tabular-nums">
-												<Star
-													className="size-3.5 fill-accent-yellow text-accent-yellow"
-													aria-hidden="true"
-												/>
-												{place.reviewCount > 0
-													? place.averageRating.toFixed(1)
-													: "Baru"}
-											</span>
 										</div>
 									</Link>
 
-									<div className="flex min-w-0 flex-col justify-between gap-4 md:col-span-7 lg:col-span-8">
+									<div className="flex min-w-0 flex-col justify-between gap-5 md:col-span-7 lg:col-span-8">
 										<div className="space-y-3">
-											<div className="flex flex-wrap items-center gap-2">
-												<Badge
-													variant="outline"
-													className="rounded-[6px] border-input bg-background text-foreground"
-												>
-													{place.category}
-												</Badge>
-												<VerificationBadge
-													status={place.verificationStatus}
-													isPendingModeration={place.isPendingModeration}
-												/>
+											<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-foreground">
+												<span className="text-primary tabular-nums">
+													Populer #{displayRank}
+												</span>
+												<span aria-hidden="true">·</span>
+												<span>{place.category}</span>
 												{place.hiddenGemEligible ? (
-													<Badge variant="yellow" className="rounded-[6px]">
-														<Gem className="size-3" aria-hidden="true" />
-														Hidden Gem
-													</Badge>
+													<>
+														<span aria-hidden="true">·</span>
+														<span className="inline-flex items-center gap-1 font-semibold text-yellow-text">
+															<Gem className="size-3" aria-hidden="true" />
+															Hidden Gems
+														</span>
+													</>
 												) : null}
 											</div>
 
 											<h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-[28px] lg:leading-tight">
-												<Link
-													to={`/places/${place.slug}`}
-													className="transition-colors hover:text-primary"
-												>
-													{place.name}
-												</Link>
+												<Link to={`/places/${place.slug}`}>{place.name}</Link>
 											</h2>
 
-											<div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs sm:text-sm text-muted-foreground">
-												<span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+											<div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs sm:text-sm text-foreground">
+												<span className="inline-flex items-center gap-1 font-semibold text-foreground tabular-nums">
+													<Star
+														className="size-3.5 fill-accent-yellow text-accent-yellow"
+														aria-hidden="true"
+													/>
+													{place.reviewCount > 0
+														? place.averageRating.toFixed(1)
+														: "Baru"}
+													<span className="font-medium text-foreground/90">
+														({place.reviewCount} ulasan)
+													</span>
+												</span>
+												<span className="inline-flex items-center gap-1 font-semibold text-foreground">
 													<MapPin
 														className="size-4 shrink-0 text-primary"
 														aria-hidden="true"
 													/>
 													{place.district}
 												</span>
-												<span className="inline-flex items-center gap-1.5">
-													{place.openingHours}
-												</span>
 												<span className="font-semibold text-foreground tabular-nums">
 													{place.priceRange}
 												</span>
 											</div>
 
-											<p className="max-w-2xl text-sm leading-relaxed text-muted-foreground line-clamp-3">
+											<p className="max-w-2xl text-sm font-medium leading-relaxed text-foreground line-clamp-2">
 												{place.description}
 											</p>
 
-											{quoteReview ? (
-												<p className="border-l-2 border-primary/40 pl-3 py-0.5 text-xs leading-relaxed text-muted-foreground">
-													<span className="font-semibold text-foreground">
-														Ulasan {quoteReview.authorName}:
-													</span>{" "}
-													&ldquo;{quoteReview.comment}&rdquo;
-												</p>
-											) : null}
+											<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-foreground/90">
+												<span>{place.openingHours}</span>
+												<span aria-hidden="true">·</span>
+												<span className="inline-flex items-center gap-1 tabular-nums">
+													<Eye
+														className="size-3.5 text-primary"
+														aria-hidden="true"
+													/>
+													{place.views.toLocaleString("id-ID")} dilihat
+												</span>
+												<span aria-hidden="true">·</span>
+												<span>
+													{place.isPendingModeration
+														? "Menunggu Validasi"
+														: place.verificationStatus === "owner_verified"
+															? "Terverifikasi Pemilik"
+															: place.verificationStatus ===
+																	"community_verified"
+																? "Terverifikasi Komunitas"
+																: "Belum Terverifikasi"}
+												</span>
+											</div>
 										</div>
 
-										<div className="flex flex-wrap items-center gap-2.5 border-t border-border pt-3.5">
+										<div className="flex flex-wrap items-center gap-2.5 pt-2">
 											<Button
 												asChild
 												className="min-h-[44px] rounded-[8px] px-5"
 											>
-												<Link to={`/places/${place.slug}`}>
-													Lihat Detail Warung
-												</Link>
+												<Link to={`/places/${place.slug}`}>Lihat Detail</Link>
 											</Button>
 											<button
 												type="button"
@@ -906,7 +950,7 @@ export default function HomePage() {
 													"inline-flex min-h-[44px] items-center gap-2 rounded-[8px] border px-3.5 text-sm font-semibold transition-colors",
 													saved
 														? "border-primary bg-primary-soft text-primary-hover"
-														: "border-input bg-background text-foreground hover:bg-muted",
+														: "border-input bg-background/85 text-foreground hover:bg-background",
 												)}
 											>
 												<Bookmark
@@ -926,12 +970,14 @@ export default function HomePage() {
 					})}
 				</div>
 
-				<CarouselDots
-					count={popularSpotlightPlaces.length}
-					activeIndex={safeSpotlightIndex}
-					labelPrefix="Sorotan populer"
-					onSelect={scrollSpotlightManual}
-				/>
+				<div className="relative z-10">
+					<CarouselDots
+						count={popularSpotlightPlaces.length}
+						activeIndex={safeSpotlightIndex}
+						labelPrefix="Sorotan populer"
+						onSelect={scrollSpotlightManual}
+					/>
+				</div>
 			</section>
 
 			{/* 2. Pembaruan Terbaru (MangaDex Latest Updates) */}
@@ -970,13 +1016,13 @@ export default function HomePage() {
 									width={176}
 									height={110}
 									loading="lazy"
-									className="aspect-[16/10] w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+									className="aspect-[16/10] w-full object-cover"
 								/>
 							</div>
 
 							<div className="min-w-0 flex-1 space-y-1">
 								<div className="flex items-start justify-between gap-2">
-									<h3 className="min-w-0 flex-1 truncate text-sm font-bold text-foreground group-hover:text-primary">
+									<h3 className="min-w-0 flex-1 truncate text-sm font-bold text-foreground">
 										<Link
 											to={`/places/${entry.place.slug}`}
 											className="after:absolute after:inset-0 after:rounded-[10px] focus-visible:outline-none"

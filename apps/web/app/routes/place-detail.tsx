@@ -15,6 +15,7 @@ import {
 	Phone,
 	Star,
 	Store,
+	ThumbsUp,
 	X,
 } from "lucide-react";
 import {
@@ -44,6 +45,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { VerificationBadge } from "~/components/verification-badge";
 import { useDarasa } from "~/context/darasa-store";
 import { INITIAL_PLACES } from "~/data/batang-places";
+import { cn } from "~/lib/utils";
 import type { Route } from "./+types/place-detail";
 
 function formatSlugTitle(slug?: string): string {
@@ -79,6 +81,9 @@ export default function PlaceDetailPage() {
 		submitReview,
 		isBookmarked,
 		toggleBookmark,
+		isReviewLiked,
+		toggleReviewLike,
+		getReviewLikeCount,
 	} = useDarasa();
 	const place = places.find((p) => p.slug === slug);
 	const recordedPlaceIdRef = useRef<string | null>(null);
@@ -252,15 +257,12 @@ export default function PlaceDetailPage() {
 								width={800}
 								height={500}
 								fetchPriority="high"
-								className="aspect-[16/10] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+								className="aspect-[16/10] w-full object-cover"
 							/>
 						</button>
 
 						{hasMultiplePhotos ? (
 							<>
-								<span className="pointer-events-none absolute top-3 right-3 rounded-full border border-border bg-card/95 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm tabular-nums">
-									{safePhotoIndex + 1} / {photos.length}
-								</span>
 								<button
 									type="button"
 									onClick={showPrevPhoto}
@@ -547,7 +549,7 @@ export default function PlaceDetailPage() {
 			{/* Map & Reviews Split (Open divided sections, minimal card) */}
 			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
 				<section className="lg:col-span-7 space-y-6">
-					{/* Play Store Style Rating Breakdown */}
+					{/* Darasa Rating Summary */}
 					<div className="space-y-4 border-b border-border pb-6">
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<h2 className="text-lg font-bold text-foreground">
@@ -559,10 +561,33 @@ export default function PlaceDetailPage() {
 						</div>
 
 						<div className="grid grid-cols-1 gap-6 sm:grid-cols-12 sm:items-center">
-							<div className="sm:col-span-4 space-y-1">
+							<div className="sm:col-span-4 space-y-1.5">
 								<p className="text-4xl font-bold tracking-tight text-foreground tabular-nums">
 									{place.reviewCount > 0 ? place.averageRating.toFixed(1) : "—"}
 								</p>
+								<div
+									role="img"
+									className="flex items-center gap-0.5"
+									aria-label={`Rata-rata ${place.averageRating.toFixed(1)} dari 5 bintang`}
+								>
+									{[1, 2, 3, 4, 5].map((starValue) => {
+										const filled =
+											place.reviewCount > 0 &&
+											starValue <= Math.round(place.averageRating);
+										return (
+											<Star
+												key={starValue}
+												className={cn(
+													"size-4",
+													filled
+														? "fill-accent-yellow text-accent-yellow"
+														: "text-border",
+												)}
+												aria-hidden="true"
+											/>
+										);
+									})}
+								</div>
 								<p className="text-xs text-muted-foreground tabular-nums">
 									{place.reviewCount} ulasan komunitas
 								</p>
@@ -582,8 +607,12 @@ export default function PlaceDetailPage() {
 											key={star}
 											className="flex items-center gap-2.5 text-xs"
 										>
-											<span className="w-6 font-semibold text-foreground tabular-nums">
-												{star}★
+											<span className="inline-flex w-7 items-center gap-1 font-semibold text-foreground tabular-nums">
+												{star}
+												<Star
+													className="size-3 fill-accent-yellow text-accent-yellow"
+													aria-hidden="true"
+												/>
 											</span>
 											<div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
 												<div
@@ -601,7 +630,7 @@ export default function PlaceDetailPage() {
 						</div>
 					</div>
 
-					{/* Divided Reviews Feed (No Cards per Review) */}
+					{/* Darasa Community Reviews Feed */}
 					<div className="space-y-2">
 						<h2 className="text-lg font-bold text-foreground">
 							Ulasan Komunitas ({place.reviews.length})
@@ -619,65 +648,108 @@ export default function PlaceDetailPage() {
 							</div>
 						) : (
 							<ul className="divide-y divide-border">
-								{place.reviews.map((rev) => (
-									<li key={rev.id} className="py-5 space-y-2.5">
-										<div className="flex flex-wrap items-center justify-between gap-2">
-											<div className="flex items-center gap-2.5">
-												<span className="flex size-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
-													{rev.authorName.slice(0, 1).toUpperCase()}
-												</span>
-												<div>
-													<p className="text-sm font-semibold text-foreground">
-														{rev.authorName}
-													</p>
-													<p className="text-xs text-muted-foreground">
-														{new Date(rev.createdAt).toLocaleDateString(
-															"id-ID",
-															{
-																day: "numeric",
-																month: "short",
-																year: "numeric",
-															},
-														)}
-													</p>
+								{place.reviews.map((rev) => {
+									const liked = isReviewLiked(rev.id);
+									const likeCount = getReviewLikeCount(rev.id);
+									return (
+										<li key={rev.id} className="py-5 space-y-3">
+											<div className="flex flex-wrap items-center justify-between gap-2">
+												<div className="flex items-center gap-2.5">
+													<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
+														{rev.authorName.slice(0, 1).toUpperCase()}
+													</span>
+													<div>
+														<p className="text-sm font-semibold text-foreground">
+															{rev.authorName}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															{new Date(rev.createdAt).toLocaleDateString(
+																"id-ID",
+																{
+																	day: "numeric",
+																	month: "short",
+																	year: "numeric",
+																},
+															)}
+														</p>
+													</div>
+												</div>
+
+												<div
+													role="img"
+													className="flex items-center gap-0.5"
+													aria-label={`${rev.rating} dari 5 bintang`}
+												>
+													{[1, 2, 3, 4, 5].map((starValue) => (
+														<Star
+															key={starValue}
+															className={cn(
+																"size-4",
+																starValue <= rev.rating
+																	? "fill-accent-yellow text-accent-yellow"
+																	: "text-border",
+															)}
+															aria-hidden="true"
+														/>
+													))}
 												</div>
 											</div>
 
-											<Badge variant="yellow">
-												<Star
-													className="size-3.5 fill-accent-yellow text-yellow-text"
-													aria-hidden="true"
+											<p className="text-sm leading-relaxed text-foreground">
+												{rev.comment}
+											</p>
+
+											{rev.photoUrl ? (
+												<img
+													src={rev.photoUrl}
+													alt={`Foto ulasan oleh ${rev.authorName}`}
+													width={360}
+													height={220}
+													className="mt-2 h-44 w-full max-w-xs rounded-[10px] border border-border object-cover"
 												/>
-												<span className="tabular-nums">{rev.rating} / 5</span>
-											</Badge>
-										</div>
+											) : null}
 
-										<p className="text-sm leading-relaxed text-foreground">
-											{rev.comment}
-										</p>
-
-										{rev.photoUrl ? (
-											<img
-												src={rev.photoUrl}
-												alt={`Foto ulasan oleh ${rev.authorName}`}
-												width={360}
-												height={220}
-												className="mt-2 h-44 w-full max-w-xs rounded-[10px] border border-border object-cover"
-											/>
-										) : null}
-
-										{rev.ownerReply ? (
-											<div className="mt-2 border-l-2 border-primary pl-3.5 py-0.5 space-y-1">
-												<p className="text-xs font-semibold text-primary-hover">
-													Balasan {rev.ownerReply.authorName}
-												</p>
-												<p className="text-sm text-muted-foreground">
-													{rev.ownerReply.message}
-												</p>
+											<div className="flex items-center justify-between gap-3 pt-0.5">
+												<button
+													type="button"
+													onClick={() => toggleReviewLike(rev.id)}
+													aria-pressed={liked}
+													aria-label={
+														liked
+															? `Batal suka ulasan ${rev.authorName}`
+															: `Suka ulasan ${rev.authorName}`
+													}
+													className={cn(
+														"group/like inline-flex items-center gap-1.5 bg-transparent p-0 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+														liked
+															? "text-primary"
+															: "text-muted-foreground hover:text-primary",
+													)}
+												>
+													<ThumbsUp
+														className={cn(
+															"size-4 transition-[color,transform,fill] duration-150 group-hover/like:scale-110",
+															liked ? "fill-primary text-primary" : "",
+														)}
+														aria-hidden="true"
+													/>
+													<span className="tabular-nums">{likeCount}</span>
+												</button>
 											</div>
-										) : null}
-									</li>
-								))}
+
+											{rev.ownerReply ? (
+												<div className="mt-2 rounded-[10px] border border-border bg-muted/45 p-3.5 space-y-1">
+													<p className="text-xs font-semibold text-primary-hover">
+														{rev.ownerReply.authorName}
+													</p>
+													<p className="text-sm text-muted-foreground leading-relaxed">
+														{rev.ownerReply.message}
+													</p>
+												</div>
+											) : null}
+										</li>
+									);
+								})}
 							</ul>
 						)}
 					</div>

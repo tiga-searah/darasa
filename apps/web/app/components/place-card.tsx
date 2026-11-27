@@ -12,7 +12,7 @@ interface PlaceCardProps {
 	prioritizeImage?: boolean;
 }
 
-/** Shared icon-only bookmark toggle matching the Explore card style. */
+/** Shared icon-only bookmark toggle without wrapper box (hover affects icon only). */
 export function BookmarkIconButton({
 	placeName,
 	saved,
@@ -33,15 +33,15 @@ export function BookmarkIconButton({
 					: `Simpan ${placeName} ke bookmark`
 			}
 			title={saved ? "Hapus dari Bookmark" : "Simpan ke Bookmark"}
-			className={cn(
-				"relative z-10 inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border transition-colors",
-				saved
-					? "border-primary/40 bg-primary-soft text-primary"
-					: "border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground",
-			)}
+			className="group/bookmark relative z-10 inline-flex shrink-0 items-center justify-center bg-transparent p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 		>
 			<Bookmark
-				className={cn("size-4", saved ? "fill-primary" : "")}
+				className={cn(
+					"size-5 transition-[color,transform,fill] duration-150 group-hover/bookmark:scale-110",
+					saved
+						? "fill-primary text-primary group-hover/bookmark:fill-primary-hover group-hover/bookmark:text-primary-hover"
+						: "text-muted-foreground group-hover/bookmark:text-primary",
+				)}
 				aria-hidden="true"
 			/>
 		</button>
@@ -91,7 +91,7 @@ export function PlaceCard({
 						height={250}
 						loading={prioritizeImage ? "eager" : "lazy"}
 						fetchPriority={prioritizeImage ? "high" : "auto"}
-						className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+						className="h-full w-full object-cover"
 					/>
 					<div className="absolute left-2.5 top-2.5">
 						<Badge variant="outline" className="bg-card/95 text-foreground">
@@ -102,7 +102,7 @@ export function PlaceCard({
 
 				<div className="flex min-w-0 flex-1 flex-col gap-2">
 					<div className="flex items-start justify-between gap-2">
-						<h2 className="min-w-0 flex-1 text-base sm:text-[18px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+						<h2 className="min-w-0 flex-1 text-base sm:text-[18px] font-semibold leading-snug text-foreground">
 							<Link
 								to={`/places/${place.slug}`}
 								className="after:absolute after:inset-0 after:rounded-[12px] focus-visible:outline-none"
@@ -181,7 +181,7 @@ export function PlaceCard({
 					height={500}
 					loading={prioritizeImage ? "eager" : "lazy"}
 					fetchPriority={prioritizeImage ? "high" : "auto"}
-					className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+					className="h-full w-full object-cover"
 				/>
 				<div className="absolute inset-x-2.5 top-2.5 flex flex-wrap items-center justify-between gap-2">
 					<Badge variant="outline" className="bg-card/95 text-foreground">
@@ -194,7 +194,7 @@ export function PlaceCard({
 			<div className="flex flex-1 flex-col gap-2 pt-3">
 				<div className="space-y-1">
 					<div className="flex items-start justify-between gap-2">
-						<h2 className="min-w-0 flex-1 text-[17px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary line-clamp-2">
+						<h2 className="min-w-0 flex-1 text-[17px] font-semibold leading-snug text-foreground line-clamp-2">
 							<Link
 								to={`/places/${place.slug}`}
 								className="after:absolute after:inset-0 after:rounded-[14px] focus-visible:outline-none"

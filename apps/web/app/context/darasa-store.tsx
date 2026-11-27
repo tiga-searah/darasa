@@ -104,6 +104,7 @@ interface PersistedState {
 	currentUserId: string;
 	anomalyOverrides: Record<string, AnomalyResolution>;
 	bookmarkedPlaceIds: string[];
+	likedReviewIds: string[];
 	contributions: ContributionActivity[];
 }
 
@@ -142,6 +143,9 @@ interface DarasaContextValue {
 	resetExploreFilters: () => void;
 	isBookmarked: (placeId: string) => boolean;
 	toggleBookmark: (placeId: string) => void;
+	isReviewLiked: (reviewId: string) => boolean;
+	toggleReviewLike: (reviewId: string) => void;
+	getReviewLikeCount: (reviewId: string) => number;
 	notify: (message: string, tone?: "success" | "info") => void;
 	dismissToast: () => void;
 	loginWithCredentials: (
@@ -269,6 +273,7 @@ const DEFAULT_STATE: PersistedState = {
 	currentUserId: "usr-visitor",
 	anomalyOverrides: {},
 	bookmarkedPlaceIds: [],
+	likedReviewIds: [],
 	contributions: [],
 };
 
@@ -354,6 +359,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 						anomalyOverrides: parsed.anomalyOverrides ?? {},
 						bookmarkedPlaceIds: Array.isArray(parsed.bookmarkedPlaceIds)
 							? parsed.bookmarkedPlaceIds
+							: [],
+						likedReviewIds: Array.isArray(parsed.likedReviewIds)
+							? parsed.likedReviewIds
 							: [],
 						contributions: Array.isArray(parsed.contributions)
 							? parsed.contributions
@@ -863,6 +871,38 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 		[state.bookmarkedPlaceIds, notify],
 	);
 
+	const isReviewLiked = useCallback(
+		(reviewId: string) => state.likedReviewIds.includes(reviewId),
+		[state.likedReviewIds],
+	);
+
+	const toggleReviewLike = useCallback((reviewId: string) => {
+		setState((prev) => {
+			const exists = prev.likedReviewIds.includes(reviewId);
+			return {
+				...prev,
+				likedReviewIds: exists
+					? prev.likedReviewIds.filter((id) => id !== reviewId)
+					: [reviewId, ...prev.likedReviewIds],
+			};
+		});
+	}, []);
+
+	const getReviewLikeCount = useCallback(
+		(reviewId: string) => {
+			let hash = 0;
+			for (let i = 0; i < reviewId.length; i++) {
+				hash = (hash * 31 + reviewId.charCodeAt(i)) % 17;
+			}
+			const base =
+				reviewId.startsWith("rev-") && reviewId.length > 10
+					? 0
+					: (hash % 8) + 1;
+			return base + (state.likedReviewIds.includes(reviewId) ? 1 : 0);
+		},
+		[state.likedReviewIds],
+	);
+
 	const value = useMemo<DarasaContextValue>(
 		() => ({
 			hydrated,
@@ -879,6 +919,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			resetExploreFilters,
 			isBookmarked,
 			toggleBookmark,
+			isReviewLiked,
+			toggleReviewLike,
+			getReviewLikeCount,
 			notify,
 			dismissToast,
 			loginWithCredentials,
@@ -913,6 +956,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			resetExploreFilters,
 			isBookmarked,
 			toggleBookmark,
+			isReviewLiked,
+			toggleReviewLike,
+			getReviewLikeCount,
 			notify,
 			dismissToast,
 			loginWithCredentials,

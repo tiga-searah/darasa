@@ -112,6 +112,40 @@ export function AppShell({ children }: { children: ReactNode }) {
 	const [globalQuery, setGlobalQuery] = useState("");
 	const [globalSearchFocused, setGlobalSearchFocused] = useState(false);
 
+	const headerRef = useRef<HTMLElement>(null);
+
+	useEffect(() => {
+		let rafId = 0;
+		const updateHeaderOnScroll = () => {
+			rafId = 0;
+			const header = headerRef.current;
+			if (!header) return;
+			const progress = Math.min(1, Math.max(0, window.scrollY / 96));
+			const pct = (progress * 100).toFixed(1);
+			header.style.backgroundColor =
+				progress <= 0
+					? "transparent"
+					: `color-mix(in srgb, var(--card) ${pct}%, transparent)`;
+			header.style.borderBottomColor =
+				progress <= 0
+					? "transparent"
+					: `color-mix(in srgb, var(--border) ${pct}%, transparent)`;
+		};
+
+		const handleScroll = () => {
+			if (!rafId) {
+				rafId = window.requestAnimationFrame(updateHeaderOnScroll);
+			}
+		};
+
+		updateHeaderOnScroll();
+		window.addEventListener("scroll", handleScroll, { passive: true });
+		return () => {
+			window.removeEventListener("scroll", handleScroll);
+			if (rafId) window.cancelAnimationFrame(rafId);
+		};
+	}, []);
+
 	const sidebarRef = useRef<HTMLElement>(null);
 	const navContainerRef = useRef<HTMLElement>(null);
 	const activeIndicatorRef = useRef<HTMLSpanElement>(null);
@@ -137,7 +171,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 	const discoveryLinks = useMemo<NavItem[]>(
 		() => [
-			{ to: "/", label: "Home", icon: Home },
+			{ to: "/", label: "Beranda", icon: Home },
 			{ to: "/explore", label: "Jelajah", icon: Compass },
 			{
 				to: "/hidden-gem",
@@ -145,10 +179,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 				mobileLabel: "Hidden Gem",
 				icon: Gem,
 			},
-			{ to: "/submit-place", label: "Contribute", icon: PlusCircle },
+			{ to: "/submit-place", label: "Kontribusi", icon: PlusCircle },
 			{
 				to: "/bookmarks",
-				label: "Bookmark",
+				label: "Disimpan",
 				icon: Bookmark,
 				badge:
 					bookmarkedPlaceIds.length > 0
@@ -538,34 +572,29 @@ export function AppShell({ children }: { children: ReactNode }) {
 					<div
 						className={cn(
 							"flex items-center",
-							collapsed ? "justify-center gap-1" : "justify-between gap-2",
+							collapsed ? "justify-center" : "justify-between gap-2",
 						)}
 					>
 						<Link
 							to="/"
 							aria-label="Darasa Beranda"
+							aria-hidden={collapsed}
+							tabIndex={collapsed ? -1 : undefined}
 							className={cn(
-								"flex min-w-0 items-center rounded-[8px] transition-colors hover:bg-background",
-								collapsed ? "p-0.5" : "gap-2.5 p-1",
+								"flex min-w-0 items-center gap-2.5 rounded-[8px] p-1 transition-colors hover:bg-background",
+								collapsed && "hidden",
 							)}
 						>
 							{/* TODO: Replace temporary Darasa mark with final brand logo SVG */}
 							<span
 								aria-hidden="true"
-								className={cn(
-									"flex shrink-0 items-center justify-center rounded-[8px] bg-primary font-bold text-primary-foreground transition-[width,height,font-size] duration-200",
-									collapsed ? "size-8 text-sm" : "size-9 text-base",
-								)}
+								className="flex size-9 shrink-0 items-center justify-center rounded-[8px] bg-primary text-base font-bold text-primary-foreground"
 							>
 								D
 							</span>
 							<div
 								ref={brandTextRef}
-								aria-hidden={collapsed}
-								className={cn(
-									"overflow-hidden whitespace-nowrap leading-tight transition-[max-width,opacity] duration-200 motion-reduce:transition-none",
-									collapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100",
-								)}
+								className="overflow-hidden whitespace-nowrap leading-tight"
 							>
 								<span className="block text-base font-bold tracking-tight text-foreground">
 									Darasa
@@ -608,23 +637,41 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 			{/* Main Column + Mobile Bottom Tab Bar */}
 			<div className="flex min-w-0 flex-1 flex-col bg-card">
-				<header className="sticky top-0 z-30 border-b border-border bg-card">
-					<div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 md:px-8 xl:px-10">
+				<header
+					ref={headerRef}
+					className="sticky top-0 z-30 border-b border-transparent bg-transparent"
+				>
+					<div className="flex h-16 w-full items-center justify-between gap-3 px-4 md:px-8 xl:px-10">
 						<div className="flex items-center gap-2.5 shrink-0">
 							<Link
 								to="/"
-								className="flex items-center gap-2 lg:hidden"
+								className={cn(
+									"flex items-center gap-2.5 rounded-[8px] p-1 transition-colors hover:bg-background",
+									!collapsed && "lg:hidden",
+								)}
 								aria-label="Darasa Beranda"
 							>
 								<span
 									aria-hidden="true"
-									className="flex size-8 items-center justify-center rounded-[6px] bg-primary text-sm font-bold text-primary-foreground"
+									className="flex size-8 items-center justify-center rounded-[8px] bg-primary text-sm font-bold text-primary-foreground"
 								>
 									D
 								</span>
-								<span className="hidden sm:inline text-base font-bold text-foreground">
-									Darasa
-								</span>
+								<div
+									className={cn(
+										"leading-tight",
+										collapsed ? "block" : "hidden sm:block",
+									)}
+								>
+									<span className="block text-base font-bold tracking-tight text-foreground">
+										Darasa
+									</span>
+									{collapsed ? (
+										<span className="hidden lg:block text-[11px] text-muted-foreground">
+											Kuliner Batang
+										</span>
+									) : null}
+								</div>
 							</Link>
 						</div>
 
@@ -887,7 +934,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</div>
 				</header>
 
-				<main id="main-content" tabIndex={-1} className="flex-1 bg-card">
+				<main
+					id="main-content"
+					tabIndex={-1}
+					className="-mt-16 flex-1 overflow-x-clip bg-card pt-16"
+				>
 					<div
 						ref={mainContentRef}
 						className="mx-auto max-w-[1440px] px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-6 xl:px-10 xl:py-7"

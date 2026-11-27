@@ -1,11 +1,4 @@
-import {
-	Gem,
-	Info,
-	LayoutGrid,
-	List,
-	RotateCcw,
-	SlidersHorizontal,
-} from "lucide-react";
+import { LayoutGrid, List, RotateCcw } from "lucide-react";
 import { useId, useMemo } from "react";
 import { Link } from "react-router";
 import { PlaceCard } from "~/components/place-card";
@@ -27,7 +20,7 @@ import type { Route } from "./+types/hidden-gem";
 
 export function meta(_args: Route.MetaArgs) {
 	return [
-		{ title: "Hidden Gem Batang | Darasa" },
+		{ title: "Hidden Gems Batang | Darasa" },
 		{
 			name: "description",
 			content:
@@ -74,49 +67,35 @@ export default function HiddenGemPage() {
 
 	return (
 		<div className="space-y-6">
-			{/* Open Editorial Header (Cardless) */}
-			<section className="border-b border-border pb-5 space-y-4">
-				<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-					<div className="max-w-2xl space-y-2">
-						<Badge variant="yellow">
-							<Gem className="size-3.5" aria-hidden="true" />
-							<span>Mode Kurasi Hidden Gem</span>
-						</Badge>
-						<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
-							Hidden Gem Kuliner Batang
-						</h1>
-						<p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-							Kuliner berating minimal{" "}
-							<strong className="font-semibold text-foreground">4,0</strong>{" "}
-							dengan ulasan tertulis yang masih minim eksposur dan kunjungan.
-						</p>
-					</div>
-
-					<details className="rounded-[10px] border border-border bg-background px-4 py-2.5 text-xs max-w-sm">
-						<summary className="flex items-center gap-1.5 font-semibold text-foreground">
-							<Info className="size-4 text-primary" aria-hidden="true" />
-							Rumus Hidden Gem Score
-						</summary>
-						<p className="mt-2 text-muted-foreground leading-relaxed tabular-nums">
-							Skor = Rata-rata Rating x (1 / (1 + Ulasan + log10(1 + Views))),
-							syarat rating &ge; 4,0 dan wajib ada ulasan tertulis.
-						</p>
-					</details>
+			{/* Cardless Golden Highlight Header with Smooth Bottom Fade */}
+			<section className="relative -mt-[6rem] pt-[6.5rem] pb-10 xl:-mt-[6rem] xl:pt-[6.5rem]">
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-y-0 left-1/2 w-[100vw] -translate-x-1/2 overflow-hidden"
+				>
+					<div className="absolute inset-0 bg-gradient-to-b from-accent-yellow/30 via-yellow-soft/80 to-transparent" />
+					<div className="absolute -top-16 left-1/4 h-44 w-80 -translate-x-1/2 rounded-full bg-accent-yellow/30 blur-3xl" />
+				</div>
+				<div className="relative max-w-2xl space-y-2">
+					<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
+						<span className="text-yellow-text">Hidden Gems</span> Kuliner Batang
+					</h1>
+					<p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+						Kuliner berating minimal{" "}
+						<strong className="font-semibold text-yellow-text">4,0</strong>{" "}
+						dengan ulasan tertulis yang masih minim eksposur dan kunjungan.
+					</p>
 				</div>
 			</section>
 
 			{/* Slim Filter & View Controls */}
 			<div className="flex flex-wrap items-center justify-between gap-4">
 				<div className="flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
-					<SlidersHorizontal
-						className="size-4 text-primary"
-						aria-hidden="true"
-					/>
 					<span>
 						<strong className="font-semibold text-foreground tabular-nums">
 							{hiddenGems.length}
 						</strong>{" "}
-						hidden gem memenuhi syarat
+						tempat ditemukan
 					</span>
 					{categoryFilter !== "all" ? (
 						<Badge variant="default">{categoryFilter}</Badge>
@@ -197,7 +176,7 @@ export default function HiddenGemPage() {
 			{hiddenGems.length === 0 ? (
 				<div className="border-t border-border py-14 text-center space-y-4">
 					<h2 className="text-lg font-semibold text-foreground">
-						Belum ada hidden gem yang cocok dengan filter ini
+						Belum ada hidden gems yang cocok dengan filter ini
 					</h2>
 					<p className="mx-auto max-w-md text-sm text-muted-foreground">
 						Bantu warga menemukan warung atau kedai terbaik yang belum banyak
@@ -205,7 +184,7 @@ export default function HiddenGemPage() {
 					</p>
 					<div className="flex flex-wrap justify-center gap-3">
 						<Button variant="secondary" onClick={() => resetExploreFilters()}>
-							Lihat Semua Hidden Gem
+							Lihat Semua Hidden Gems
 						</Button>
 						<Button asChild>
 							<Link to="/submit-place">Tambah Tempat Kuliner</Link>
