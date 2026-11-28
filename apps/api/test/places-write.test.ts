@@ -754,6 +754,20 @@ describe("POST /api/places/:id/suggestions", () => {
 		const updatedUser = await db.query.users.findFirst({
 			where: { id: user.id },
 		});
+		const updatedPlace = await db.query.places.findFirst({
+			where: { id: place.id },
+		});
+		expect(updatedPlace?.priceMin).toBe(20000);
+		expect(updatedPlace?.priceMax).toBe(40000);
+
+		const notFoundRes = await app.handle(
+			new Request("http://test/api/places/not-a-uuid/suggestions", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ address: "Jl. Baru" }),
+			}),
+		);
+		expect(notFoundRes.status).toBe(404);
 		expect(updatedUser?.xpTotal).toBe(user.xpTotal + 4);
 	});
 });

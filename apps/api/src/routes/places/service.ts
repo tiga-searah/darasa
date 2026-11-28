@@ -1001,6 +1001,7 @@ export async function suggestPlaceUpdate(
 			"At least one field or note is required",
 		);
 	}
+	if (!UUID_RE.test(id)) throw notFound("Place");
 
 	await db.transaction(async (tx) => {
 		const [existing] = await tx
