@@ -35,36 +35,37 @@ export function ContributorHeroCard({
 	return (
 		<section
 			aria-labelledby="contribute-dashboard-heading"
-			className="rounded-[12px] border border-border bg-card p-5 sm:p-6 space-y-5"
+			className="flex flex-col items-center pb-2 pt-1 text-center"
 		>
-			<div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-				<div className="flex min-w-0 items-center gap-4">
-					<img
-						src="/images/avatar-profile.svg"
-						alt={`Avatar ${currentUser.name}`}
-						width={52}
-						height={52}
-						className={cn(
-							"size-[52px] shrink-0 rounded-full border-2 object-cover bg-muted",
-							isVisitor ? "border-border" : "border-primary",
-						)}
-					/>
-					<div className="min-w-0 space-y-1">
-						<h1
-							id="contribute-dashboard-heading"
-							className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight"
-						>
-							Kontribusi
-						</h1>
-						<p className="truncate text-sm text-muted-foreground">
-							{currentUser.name} ·{" "}
-							{ROLE_DISPLAY[currentUser.role] ?? currentUser.role}
-						</p>
-					</div>
+			<div className="flex w-full max-w-lg flex-col items-center space-y-3.5">
+				<img
+					src="/images/avatar-profile.svg"
+					alt={`Avatar ${currentUser.name}`}
+					width={56}
+					height={56}
+					className={cn(
+						"size-14 shrink-0 rounded-full border-2 object-cover bg-muted",
+						isVisitor ? "border-border" : "border-primary",
+					)}
+				/>
+
+				<div className="min-w-0 space-y-1">
+					<h1
+						id="contribute-dashboard-heading"
+						className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight"
+					>
+						Kontribusi
+					</h1>
+					<p className="text-sm text-muted-foreground">
+						<span className="font-medium text-foreground">
+							{currentUser.name}
+						</span>{" "}
+						· {ROLE_DISPLAY[currentUser.role] ?? currentUser.role}
+					</p>
 				</div>
 
 				{isVisitor ? (
-					<div className="flex flex-wrap items-center gap-2.5">
+					<div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
 						<Button type="button" onClick={onTryAsWarga}>
 							<UserCheck className="size-4" aria-hidden="true" />
 							Coba sebagai Warga
@@ -77,61 +78,58 @@ export function ContributorHeroCard({
 						</Button>
 					</div>
 				) : (
-					<div className="w-full shrink-0 space-y-2.5 rounded-[10px] border border-border bg-background p-4 lg:w-[340px]">
-						<div className="flex items-center justify-between gap-2 text-sm">
-							<span className="font-semibold text-foreground">
-								Level {levelInfo.level} · {levelInfo.title}
-							</span>
-							<span className="shrink-0 font-semibold text-primary-hover tabular-nums">
-								{levelInfo.xp} XP
-							</span>
-						</div>
+					<>
+						<div className="w-full max-w-md space-y-2 pt-1">
+							<div className="flex items-center justify-between gap-2 text-sm">
+								<span className="font-semibold text-foreground">
+									Level {levelInfo.level} · {levelInfo.title}
+								</span>
+								<span className="shrink-0 text-xs font-semibold text-primary-hover tabular-nums">
+									{levelInfo.progressPercent}%
+								</span>
+							</div>
 
-						<div
-							role="progressbar"
-							aria-valuenow={levelInfo.progressPercent}
-							aria-valuemin={0}
-							aria-valuemax={100}
-							aria-label="Progres level kontributor"
-							className="h-2 w-full overflow-hidden rounded-full bg-muted"
-						>
 							<div
-								className="h-full rounded-full bg-primary transition-[width] duration-300"
-								style={{ width: `${levelInfo.progressPercent}%` }}
-							/>
+								role="progressbar"
+								aria-valuenow={levelInfo.progressPercent}
+								aria-valuemin={0}
+								aria-valuemax={100}
+								aria-label="Progres level kontributor"
+								className="h-2 w-full overflow-hidden rounded-full bg-muted"
+							>
+								<div
+									className="h-full rounded-full bg-primary transition-[width] duration-300"
+									style={{ width: `${levelInfo.progressPercent}%` }}
+								/>
+							</div>
+
+							<p className="text-xs text-muted-foreground">
+								{levelInfo.nextLevelTitle !== null
+									? `Menuju Level ${levelInfo.level + 1}: ${levelInfo.nextLevelTitle}`
+									: "Anda mencapai tingkat tertinggi kontributor Darasa."}
+							</p>
 						</div>
 
-						<p className="text-xs text-muted-foreground">
-							{levelInfo.nextLevelTitle !== null
-								? `${levelInfo.xpToNext} XP lagi ke Level ${levelInfo.level + 1} (${levelInfo.nextLevelTitle})`
-								: "Anda mencapai tingkat tertinggi kontributor Darasa."}
-						</p>
-					</div>
+						<dl className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-1 text-sm">
+							{[
+								{ label: "Tempat", value: counts.places },
+								{ label: "Ulasan", value: counts.reviews },
+								{ label: "Foto", value: counts.photos },
+								{ label: "Info diperbarui", value: counts.edits },
+							].map((metric) => (
+								<div key={metric.label} className="flex items-baseline gap-1.5">
+									<dt className="text-xs text-muted-foreground">
+										{metric.label}
+									</dt>
+									<dd className="font-bold text-foreground tabular-nums">
+										{metric.value}
+									</dd>
+								</div>
+							))}
+						</dl>
+					</>
 				)}
 			</div>
-
-			{!isVisitor ? (
-				<div className="grid grid-cols-2 gap-2.5 border-t border-border pt-4 sm:grid-cols-4">
-					{[
-						{ label: "Tempat", value: counts.places },
-						{ label: "Ulasan", value: counts.reviews },
-						{ label: "Foto", value: counts.photos },
-						{ label: "Info diperbarui", value: counts.edits },
-					].map((metric) => (
-						<div
-							key={metric.label}
-							className="flex items-center justify-between gap-2 rounded-[8px] border border-border bg-background px-3.5 py-2.5"
-						>
-							<span className="text-xs text-muted-foreground">
-								{metric.label}
-							</span>
-							<span className="text-base font-bold text-foreground tabular-nums">
-								{metric.value}
-							</span>
-						</div>
-					))}
-				</div>
-			) : null}
 		</section>
 	);
 }

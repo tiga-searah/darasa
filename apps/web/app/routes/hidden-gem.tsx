@@ -80,15 +80,11 @@ export default function HiddenGemPage() {
 		visibleItems: visibleHiddenGems,
 		visibleCount,
 		totalItems,
-		currentPage,
-		totalPages,
-		hasMore,
 		isInitialLoading,
 		isFetchingMore,
 		error,
 		batchSize,
 		sentinelRef,
-		loadMore,
 		retry,
 	} = useInfiniteList(hiddenGems, { filterKey: filterSignature });
 
@@ -281,17 +277,11 @@ export default function HiddenGemPage() {
 						<PlaceInfiniteFooter
 							visibleCount={visibleCount}
 							totalItems={totalItems}
-							currentPage={currentPage}
-							totalPages={totalPages}
-							hasMore={hasMore}
 							isInitialLoading={isInitialLoading}
 							isFetchingMore={isFetchingMore}
 							error={error}
-							batchSize={batchSize}
 							sentinelRef={sentinelRef}
-							onLoadMore={loadMore}
 							onRetry={retry}
-							itemLabel="hidden gems"
 						/>
 					</>
 				)}

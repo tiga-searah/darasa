@@ -21,12 +21,12 @@ export function NeedContributionsSection({
 	return (
 		<section
 			aria-labelledby="need-contributions-heading"
-			className="lg:col-span-7 rounded-[12px] border border-border bg-card p-5 space-y-4"
+			className="lg:col-span-7 space-y-4"
 		>
 			<div className="space-y-1">
 				<h2
 					id="need-contributions-heading"
-					className="text-base font-semibold text-foreground"
+					className="text-base font-bold text-foreground"
 				>
 					Butuh Kontribusi Warga
 				</h2>
@@ -37,7 +37,7 @@ export function NeedContributionsSection({
 			</div>
 
 			{unreviewedPlaces.length === 0 && missingInfoPlaces.length === 0 ? (
-				<div className="rounded-[10px] border border-dashed border-border bg-background/60 p-4 space-y-3">
+				<div className="py-2 space-y-3">
 					<p className="text-sm text-muted-foreground">
 						Semua tempat yang terdaftar sudah Anda ulas dan memiliki informasi
 						dasar lengkap.
@@ -47,11 +47,11 @@ export function NeedContributionsSection({
 					</Button>
 				</div>
 			) : (
-				<div className="space-y-3">
+				<ul className="divide-y divide-border">
 					{unreviewedPlaces.map((place) => (
-						<div
+						<li
 							key={`review-${place.id}`}
-							className="flex flex-col gap-3 rounded-[10px] border border-border bg-background/70 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+							className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between"
 						>
 							<div className="flex min-w-0 items-center gap-3">
 								<img
@@ -79,13 +79,13 @@ export function NeedContributionsSection({
 									Tulis Ulasan
 								</Link>
 							</Button>
-						</div>
+						</li>
 					))}
 
 					{missingInfoPlaces.map((item) => (
-						<div
+						<li
 							key={`info-${item.place.id}`}
-							className="flex flex-col gap-3 rounded-[10px] border border-border bg-background/70 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+							className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between"
 						>
 							<div className="flex min-w-0 items-center gap-3">
 								<img
@@ -111,9 +111,9 @@ export function NeedContributionsSection({
 							>
 								<Link to={item.to}>{item.ctaLabel}</Link>
 							</Button>
-						</div>
+						</li>
 					))}
-				</div>
+				</ul>
 			)}
 		</section>
 	);

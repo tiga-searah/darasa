@@ -16,6 +16,7 @@ interface PlacePickerProps {
 	suggestedLabel?: string;
 	onRequestAddNewPlace?: (prefillName: string) => void;
 	renderPlaceMeta?: (place: PlaceWithMetrics) => string;
+	listClassName?: string;
 }
 
 export function PlacePicker({
@@ -28,6 +29,7 @@ export function PlacePicker({
 	suggestedLabel = "Disarankan:",
 	onRequestAddNewPlace,
 	renderPlaceMeta,
+	listClassName,
 }: PlacePickerProps) {
 	const [query, setQuery] = useState("");
 	const searchId = useId();
@@ -165,7 +167,10 @@ export function PlacePicker({
 			) : (
 				<div
 					id={listboxId}
-					className="grid max-h-[248px] grid-cols-1 gap-2 overflow-y-auto overscroll-contain rounded-[10px] border border-border bg-background/50 p-2 sm:grid-cols-2"
+					className={cn(
+						"grid max-h-[248px] grid-cols-1 gap-2 overflow-y-auto overscroll-contain rounded-[10px] border border-border bg-background/50 p-2 sm:grid-cols-2 lg:grid-cols-1",
+						listClassName,
+					)}
 				>
 					{filteredPlaces.map((place) => {
 						const isSelected = place.id === selectedPlaceId;

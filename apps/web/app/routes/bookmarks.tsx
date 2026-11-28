@@ -43,15 +43,11 @@ export default function BookmarksPage() {
 		visibleItems: visibleBookmarks,
 		visibleCount,
 		totalItems,
-		currentPage,
-		totalPages,
-		hasMore,
 		isInitialLoading,
 		isFetchingMore,
 		error,
 		batchSize,
 		sentinelRef,
-		loadMore,
 		retry,
 	} = useInfiniteList(bookmarkedPlaces, { filterKey: query.trim() });
 
@@ -158,17 +154,11 @@ export default function BookmarksPage() {
 						<PlaceInfiniteFooter
 							visibleCount={visibleCount}
 							totalItems={totalItems}
-							currentPage={currentPage}
-							totalPages={totalPages}
-							hasMore={hasMore}
 							isInitialLoading={isInitialLoading}
 							isFetchingMore={isFetchingMore}
 							error={error}
-							batchSize={batchSize}
 							sentinelRef={sentinelRef}
-							onLoadMore={loadMore}
 							onRetry={retry}
-							itemLabel="tempat tersimpan"
 						/>
 					</>
 				)}

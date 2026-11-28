@@ -115,9 +115,7 @@ export default function ContributeDashboardPage() {
 				const needsPhoto = photoCount <= 1;
 				return {
 					place,
-					to: needsPhoto
-						? `/contribute/add-photo?placeId=${place.id}`
-						: `/contribute/update-info?placeId=${place.id}`,
+					to: `/contribute/update-info?placeId=${place.id}`,
 					reason: needsPhoto
 						? `Baru memiliki ${photoCount} foto`
 						: "Belum ada nomor kontak usaha",
@@ -192,22 +190,15 @@ export default function ContributeDashboardPage() {
 				aria-label="Memuat dasbor kontribusi"
 				className="space-y-6 pb-8"
 			>
-				<div className="rounded-[12px] border border-border bg-card p-5 sm:p-6 space-y-4">
-					<div className="flex items-center gap-4">
-						<div className="size-[52px] shrink-0 rounded-full bg-muted" />
-						<div className="space-y-2 flex-1 min-w-0">
-							<div className="h-7 w-40 rounded-[6px] bg-muted" />
-							<div className="h-4 w-56 max-w-full rounded-[6px] bg-muted" />
-						</div>
-					</div>
-					<div className="h-16 rounded-[10px] bg-muted" />
+				<div className="flex flex-col items-center pb-2 pt-1 space-y-3.5">
+					<div className="size-14 rounded-full bg-muted" />
+					<div className="h-7 w-36 rounded-[6px] bg-muted" />
+					<div className="h-4 w-48 rounded-[6px] bg-muted" />
+					<div className="h-12 w-full max-w-md rounded-[8px] bg-muted" />
 				</div>
-				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					{[1, 2, 3, 4].map((item) => (
-						<div
-							key={item}
-							className="h-[84px] rounded-[12px] border border-border bg-card"
-						/>
+				<div className="grid grid-cols-1 gap-px overflow-hidden rounded-[12px] border border-border bg-border sm:grid-cols-3">
+					{[1, 2, 3].map((item) => (
+						<div key={item} className="h-[76px] bg-card p-4" />
 					))}
 				</div>
 				<p role="status" className="text-xs text-muted-foreground">
@@ -236,41 +227,36 @@ export default function ContributeDashboardPage() {
 				aria-labelledby="contribute-actions-heading"
 				className="space-y-3"
 			>
-				<div className="space-y-1">
+				<div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
 					<h2
 						id="contribute-actions-heading"
-						className="text-lg font-bold tracking-tight text-foreground"
+						className="text-base font-bold tracking-tight text-foreground"
 					>
 						Pilih Kontribusi
 					</h2>
-					<p className="text-sm text-muted-foreground">
-						Pilih jenis kontribusi untuk membantu warga menemukan kuliner
-						terdekat di Batang.
+					<p className="text-xs sm:text-sm text-muted-foreground">
+						Bantu warga menemukan kuliner Batang dengan data yang akurat.
 					</p>
 				</div>
 
-				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<div className="grid grid-cols-1 gap-px overflow-hidden rounded-[12px] border border-border bg-border sm:grid-cols-3">
 					{CONTRIBUTE_ACTIONS.map((action) => {
 						const Icon = action.icon;
 						return (
 							<Link
 								key={action.id}
 								to={action.to}
-								className="min-h-[84px] flex items-start gap-3.5 rounded-[12px] border border-border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-primary-soft/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+								className="group flex min-h-[76px] items-start gap-3 bg-card p-4 transition-colors hover:bg-primary-soft/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
 							>
-								<span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-hover">
-									<Icon className="size-5" aria-hidden="true" />
-								</span>
-								<div className="min-w-0 flex-1 space-y-1">
-									<div className="flex items-center justify-between gap-2">
-										<span className="text-sm font-semibold text-foreground">
-											{action.label}
-										</span>
-										<span className="shrink-0 text-xs font-semibold text-primary-hover tabular-nums">
-											+{action.xpReward} XP
-										</span>
-									</div>
-									<p className="text-xs text-muted-foreground">
+								<Icon
+									className="mt-0.5 size-5 shrink-0 text-primary transition-transform group-hover:scale-105"
+									aria-hidden="true"
+								/>
+								<div className="min-w-0 flex-1 space-y-0.5">
+									<span className="block text-sm font-semibold text-foreground">
+										{action.label}
+									</span>
+									<p className="text-xs text-muted-foreground leading-relaxed">
 										{action.shortDesc}
 									</p>
 								</div>
@@ -280,7 +266,7 @@ export default function ContributeDashboardPage() {
 				</div>
 			</section>
 
-			<div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+			<div className="grid grid-cols-1 gap-8 pt-2 lg:grid-cols-12 lg:gap-10">
 				<NeedContributionsSection
 					unreviewedPlaces={unreviewedPlaces}
 					missingInfoPlaces={missingInfoPlaces}

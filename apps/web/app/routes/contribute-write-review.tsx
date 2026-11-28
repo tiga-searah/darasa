@@ -4,7 +4,6 @@ import { ContributeSubpageShell } from "~/components/contribute/contribute-subpa
 import { useContributePlaceSelection } from "~/components/contribute/use-contribute-place";
 import { WriteReviewForm } from "~/components/contribute/write-review-form";
 import { useDarasa } from "~/context/darasa-store";
-import { XP_REWARDS } from "~/data/contribute-xp";
 
 export function meta(_args: MetaArgs) {
 	return [
@@ -56,7 +55,6 @@ export default function ContributeWriteReviewPage() {
 		<ContributeSubpageShell
 			title="Tulis Ulasan"
 			description="Beri bintang dan ceritakan rasa, porsi, serta pengalaman Anda berkunjung."
-			xpReward={XP_REWARDS.review}
 			redirectPath={redirectPath}
 		>
 			<WriteReviewForm

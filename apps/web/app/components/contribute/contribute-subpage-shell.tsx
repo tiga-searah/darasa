@@ -8,7 +8,6 @@ import { ContributePageHeader } from "./contribute-page-header";
 export interface ContributeSubpageShellProps {
 	title: string;
 	description: string;
-	xpReward?: number;
 	redirectPath: string;
 	children: ReactNode;
 }
@@ -16,7 +15,6 @@ export interface ContributeSubpageShellProps {
 export function ContributeSubpageShell({
 	title,
 	description,
-	xpReward,
 	redirectPath,
 	children,
 }: ContributeSubpageShellProps) {
@@ -28,17 +26,22 @@ export function ContributeSubpageShell({
 			<section
 				aria-busy="true"
 				aria-label={`Memuat halaman ${title.toLowerCase()}`}
-				className="mx-auto max-w-3xl space-y-6 pb-8"
+				className="space-y-6 pb-8"
 			>
-				<div className="space-y-3 border-b border-border pb-4">
+				<div className="space-y-3 border-b border-border pb-5">
 					<div className="h-6 w-40 rounded-[6px] bg-muted" />
 					<div className="h-8 w-64 max-w-full rounded-[6px] bg-muted" />
 					<div className="h-4 w-80 max-w-full rounded-[6px] bg-muted" />
 				</div>
-				<div className="rounded-[12px] border border-border bg-card p-6 space-y-4">
-					<div className="h-6 w-48 rounded-[6px] bg-muted" />
-					<div className="h-24 rounded-[10px] bg-muted" />
-					<div className="h-11 w-36 rounded-[8px] bg-muted" />
+				<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+					<div className="lg:col-span-7 space-y-4">
+						<div className="h-6 w-48 rounded-[6px] bg-muted" />
+						<div className="h-24 rounded-[10px] bg-muted" />
+						<div className="h-11 w-36 rounded-[8px] bg-muted" />
+					</div>
+					<div className="lg:col-span-5 space-y-4">
+						<div className="h-48 rounded-[10px] bg-muted" />
+					</div>
 				</div>
 				<p role="status" className="text-xs text-muted-foreground">
 					Memuat formulir kontribusi...
@@ -48,17 +51,13 @@ export function ContributeSubpageShell({
 	}
 
 	return (
-		<div className="mx-auto max-w-3xl space-y-6 pb-8">
-			<ContributePageHeader
-				title={title}
-				description={description}
-				xpReward={xpReward}
-			/>
+		<div className="space-y-6 pb-8">
+			<ContributePageHeader title={title} description={description} />
 
 			{isVisitor ? (
 				<section
 					aria-labelledby="contribute-visitor-gate-heading"
-					className="rounded-[12px] border border-border bg-card p-6 sm:p-8 text-center space-y-5"
+					className="py-8 text-center space-y-5"
 				>
 					<div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary-hover">
 						<PlusCircle className="size-6" aria-hidden="true" />

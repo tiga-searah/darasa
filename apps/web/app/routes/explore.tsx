@@ -64,15 +64,11 @@ export default function ExplorePage() {
 		visibleItems: visiblePlaces,
 		visibleCount,
 		totalItems,
-		currentPage,
-		totalPages,
-		hasMore,
 		isInitialLoading,
 		isFetchingMore,
 		error,
 		batchSize,
 		sentinelRef,
-		loadMore,
 		retry,
 	} = useInfiniteList(filteredPlaces, { filterKey: filterSignature });
 
@@ -298,15 +294,10 @@ export default function ExplorePage() {
 						<PlaceInfiniteFooter
 							visibleCount={visibleCount}
 							totalItems={totalItems}
-							currentPage={currentPage}
-							totalPages={totalPages}
-							hasMore={hasMore}
 							isInitialLoading={isInitialLoading}
 							isFetchingMore={isFetchingMore}
 							error={error}
-							batchSize={batchSize}
 							sentinelRef={sentinelRef}
-							onLoadMore={loadMore}
 							onRetry={retry}
 						/>
 					</>

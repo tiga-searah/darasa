@@ -11,7 +11,7 @@ export function AddPlaceSuccess({ place, onAddAnother }: AddPlaceSuccessProps) {
 	return (
 		<section
 			aria-live="polite"
-			className="rounded-[12px] border border-border bg-card p-6 sm:p-8 space-y-5"
+			className="border-b border-border py-6 space-y-5"
 		>
 			<div className="flex items-start gap-3">
 				<span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-hover">

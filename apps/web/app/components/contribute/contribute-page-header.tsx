@@ -1,20 +1,17 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
-import { Badge } from "~/components/ui/badge";
 
 export interface ContributePageHeaderProps {
 	title: string;
 	description: string;
-	xpReward?: number;
 }
 
 export function ContributePageHeader({
 	title,
 	description,
-	xpReward,
 }: ContributePageHeaderProps) {
 	return (
-		<header className="space-y-3 border-b border-border pb-4">
+		<header className="space-y-2 border-b border-border pb-5">
 			<div>
 				<Link
 					to="/contribute"
@@ -25,22 +22,13 @@ export function ContributePageHeader({
 				</Link>
 			</div>
 
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<div className="min-w-0 space-y-1">
-					<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
-						{title}
-					</h1>
-					<p className="text-sm text-muted-foreground">{description}</p>
-				</div>
-
-				{typeof xpReward === "number" && xpReward > 0 ? (
-					<Badge
-						variant="default"
-						className="self-start shrink-0 font-semibold tabular-nums"
-					>
-						+{xpReward} XP
-					</Badge>
-				) : null}
+			<div className="space-y-1">
+				<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
+					{title}
+				</h1>
+				<p className="max-w-2xl text-sm sm:text-base text-muted-foreground">
+					{description}
+				</p>
 			</div>
 		</header>
 	);

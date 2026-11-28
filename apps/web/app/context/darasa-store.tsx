@@ -8,7 +8,6 @@ import {
 	useState,
 } from "react";
 import { DEMO_ACCOUNTS } from "~/data/batang-places";
-import { XP_REWARDS } from "~/data/contribute-xp";
 import {
 	calculateExploreScore,
 	calculateHiddenGemScore,
@@ -279,9 +278,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				...prev,
 				places: [newPlace, ...prev.places],
 			}));
-			notify(
-				`Tempat "${newPlace.name}" berhasil ditambahkan ke direktori (+${XP_REWARDS.place} XP)!`,
-			);
+			notify(`Tempat "${newPlace.name}" berhasil ditambahkan ke direktori!`);
 			return newPlace;
 		},
 		[currentUser, notify],
@@ -333,9 +330,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					reviews: [newReview, ...prev.reviews],
 				};
 			});
-			notify(
-				`Ulasan dan rating Anda berhasil disimpan (+${XP_REWARDS.review} XP).`,
-			);
+			notify("Ulasan dan rating Anda berhasil disimpan.");
 			return newReview;
 		},
 		[currentUser, notify],
@@ -475,9 +470,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				),
 				contributions: [activity, ...prev.contributions],
 			}));
-			notify(
-				`Foto untuk "${targetPlace.name}" berhasil ditambahkan (+${XP_REWARDS.photo} XP).`,
-			);
+			notify(`Foto untuk "${targetPlace.name}" berhasil ditambahkan.`);
 		},
 		[currentUser.id, notify, state.places],
 	);
@@ -504,9 +497,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 					),
 					contributions: [activity, ...prev.contributions],
 				}));
-				notify(
-					`Pembaruan info untuk "${targetPlace.name}" berhasil disimpan (+${XP_REWARDS.edit} XP).`,
-				);
+				notify(`Pembaruan info untuk "${targetPlace.name}" berhasil disimpan.`);
 			},
 			[currentUser.id, notify, state.places],
 		);

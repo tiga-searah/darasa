@@ -13,7 +13,6 @@ export default [
 		route("contribute", "routes/contribute.tsx"),
 		route("contribute/add-place", "routes/contribute-add-place.tsx"),
 		route("contribute/write-review", "routes/contribute-write-review.tsx"),
-		route("contribute/add-photo", "routes/contribute-add-photo.tsx"),
 		route("contribute/update-info", "routes/contribute-update-info.tsx"),
 		route("bookmarks", "routes/bookmarks.tsx"),
 		route("places/:slug", "routes/place-detail.tsx"),

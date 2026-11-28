@@ -7,7 +7,6 @@ import {
 import { ContributeSubpageShell } from "~/components/contribute/contribute-subpage-shell";
 import { useDarasa } from "~/context/darasa-store";
 import { DISTRICT_COORDINATES } from "~/data/batang-places";
-import { XP_REWARDS } from "~/data/contribute-xp";
 
 export function meta(_args: MetaArgs) {
 	return [
@@ -28,8 +27,8 @@ function createDefaultDraft(prefillName = ""): AddPlaceDraft {
 		address: "",
 		lat: String(DISTRICT_COORDINATES["Batang Kota"].lat),
 		lng: String(DISTRICT_COORDINATES["Batang Kota"].lng),
-		openingHours: "08.00 - 20.00 WIB",
-		priceRange: "Rp 12.000 - Rp 25.000",
+		openingHours: "",
+		priceRange: "",
 		description: "",
 		photoPreview: "",
 	};
@@ -57,7 +56,6 @@ export default function ContributeAddPlacePage() {
 		<ContributeSubpageShell
 			title="Tambah Tempat Kuliner"
 			description="Daftarkan warung, kedai, atau usaha kuliner baru di Kabupaten Batang ke peta komunitas."
-			xpReward={XP_REWARDS.place}
 			redirectPath={redirectPath}
 		>
 			<AddPlaceForm

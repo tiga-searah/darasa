@@ -48,29 +48,29 @@ export function ContributionHistorySection({
 	return (
 		<section
 			aria-labelledby="contribution-history-heading"
-			className="lg:col-span-5 rounded-[12px] border border-border bg-card p-5 space-y-4"
+			className="lg:col-span-5 space-y-4"
 		>
 			<div className="flex items-center justify-between gap-2">
 				<h2
 					id="contribution-history-heading"
-					className="text-base font-semibold text-foreground"
+					className="text-base font-bold text-foreground"
 				>
 					Riwayat Kontribusi
 				</h2>
 				{!isVisitor ? (
 					<span className="text-xs font-semibold text-muted-foreground tabular-nums">
-						{timelineEntries.length}
+						{timelineEntries.length} aktivitas
 					</span>
 				) : null}
 			</div>
 
 			{isVisitor ? (
-				<p className="rounded-[10px] border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-					Riwayat kontribusi Anda akan tampil di sini setelah masuk ke akun
-					warga.
+				<p className="py-2 text-sm text-muted-foreground">
+					Riwayat kontribusi Anda beserta perolehan XP akan tampil di sini
+					setelah masuk ke akun warga.
 				</p>
 			) : timelineEntries.length === 0 ? (
-				<div className="rounded-[10px] border border-dashed border-border bg-background/60 p-4 space-y-3">
+				<div className="py-2 space-y-3">
 					<p className="text-sm text-muted-foreground">
 						Belum ada kontribusi pada akun ini. Mulai dengan menulis ulasan atau
 						menambahkan tempat baru.
@@ -99,7 +99,7 @@ export function ContributionHistorySection({
 								}}
 								aria-pressed={historyFilter === filterItem.id}
 								className={cn(
-									"min-h-[44px] rounded-full border px-3 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+									"min-h-[44px] rounded-[8px] border px-3 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 									historyFilter === filterItem.id
 										? "border-primary bg-primary-soft font-semibold text-primary-hover"
 										: "border-border bg-background font-medium text-muted-foreground hover:text-foreground",
@@ -111,11 +111,11 @@ export function ContributionHistorySection({
 					</div>
 
 					{filteredTimeline.length === 0 ? (
-						<p className="rounded-[10px] border border-border bg-background/60 px-3.5 py-3 text-xs text-muted-foreground">
+						<p className="py-3 text-xs text-muted-foreground">
 							Belum ada kontribusi pada kategori ini.
 						</p>
 					) : (
-						<div className="divide-y divide-border border-t border-border">
+						<ul className="divide-y divide-border">
 							{visibleTimeline.map((entry) => {
 								const rowContent = (
 									<>
@@ -156,24 +156,24 @@ export function ContributionHistorySection({
 									</>
 								);
 
-								return entry.slug ? (
-									<Link
-										key={entry.id}
-										to={`/places/${entry.slug}`}
-										className="flex min-h-[44px] items-start gap-3 py-3 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-									>
-										{rowContent}
-									</Link>
-								) : (
-									<div
-										key={entry.id}
-										className="flex min-h-[44px] items-start gap-3 py-3"
-									>
-										{rowContent}
-									</div>
+								return (
+									<li key={entry.id}>
+										{entry.slug ? (
+											<Link
+												to={`/places/${entry.slug}`}
+												className="flex min-h-[44px] items-start gap-3 py-3 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+											>
+												{rowContent}
+											</Link>
+										) : (
+											<div className="flex min-h-[44px] items-start gap-3 py-3">
+												{rowContent}
+											</div>
+										)}
+									</li>
 								);
 							})}
-						</div>
+						</ul>
 					)}
 
 					{filteredTimeline.length > 6 ? (

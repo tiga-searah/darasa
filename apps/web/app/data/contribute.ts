@@ -1,10 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-	Camera,
-	MapPinPlus,
-	MessageSquarePlus,
-	PencilLine,
-} from "lucide-react";
+import { MapPinPlus, MessageSquarePlus, PencilLine } from "lucide-react";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
 import { XP_REWARDS } from "./contribute-xp";
 
@@ -17,11 +12,7 @@ export {
 	XP_REWARDS,
 } from "./contribute-xp";
 
-export type ContributeActionId =
-	| "add_place"
-	| "write_review"
-	| "add_photo"
-	| "update_info";
+export type ContributeActionId = "add_place" | "write_review" | "update_info";
 
 export interface ContributeActionMeta {
 	id: ContributeActionId;
@@ -50,18 +41,10 @@ export const CONTRIBUTE_ACTIONS: ContributeActionMeta[] = [
 		icon: MessageSquarePlus,
 	},
 	{
-		id: "add_photo",
-		to: "/contribute/add-photo",
-		label: "Tambah Foto",
-		shortDesc: "Bagikan foto menu, hidangan, atau depan warung",
-		xpReward: XP_REWARDS.photo,
-		icon: Camera,
-	},
-	{
 		id: "update_info",
 		to: "/contribute/update-info",
 		label: "Perbarui Info",
-		shortDesc: "Koreksi alamat, jam buka, harga, atau kontak",
+		shortDesc: "Koreksi alamat, jam buka, harga, kontak, atau tambah foto",
 		xpReward: XP_REWARDS.edit,
 		icon: PencilLine,
 	},

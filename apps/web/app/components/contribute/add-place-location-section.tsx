@@ -5,11 +5,11 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { DISTRICT_COORDINATES } from "~/data/batang-places";
-import type { AddPlaceDraft } from "./add-place-form";
+import type { AddPlaceDraft, AddPlaceErrors } from "./add-place-validation";
 
 interface AddPlaceLocationSectionProps {
 	draft: AddPlaceDraft;
-	errors: Record<string, string>;
+	errors: AddPlaceErrors;
 	geoMessage: string | null;
 	mapsLinkInput: string;
 	onGeoMessageChange: (msg: string | null) => void;
@@ -82,24 +82,16 @@ export function AddPlaceLocationSection({
 	};
 
 	return (
-		<section className="rounded-[12px] border border-border bg-card p-5 sm:p-6 space-y-4">
+		<section className="space-y-4">
 			<div className="flex flex-wrap items-start justify-between gap-3">
-				<div className="flex items-start gap-3">
-					<span
-						aria-hidden="true"
-						className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-hover tabular-nums"
-					>
-						2
-					</span>
-					<div className="space-y-0.5">
-						<h2 className="text-base font-semibold text-foreground">
-							Pin Lokasi di Peta
-						</h2>
-						<p className="text-xs text-muted-foreground">
-							Klik peta atau geser pin ke titik bangunan yang tepat, seperti di
-							Google Maps.
-						</p>
-					</div>
+				<div className="space-y-0.5">
+					<h2 className="text-base font-bold text-foreground">
+						Pin Lokasi di Peta <span className="text-red-text">*</span>
+					</h2>
+					<p className="text-xs text-muted-foreground">
+						Klik peta atau geser pin ke titik bangunan yang tepat, seperti di
+						Google Maps.
+					</p>
 				</div>
 				<Button
 					type="button"
@@ -155,11 +147,12 @@ export function AddPlaceLocationSection({
 				<div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
 					<div className="space-y-1">
 						<Label htmlFor={latId} className="text-xs text-muted-foreground">
-							Latitude
+							Latitude <span className="text-red-text">*</span>
 						</Label>
 						<Input
 							id={latId}
 							type="text"
+							required
 							inputMode="decimal"
 							value={draft.lat}
 							onChange={(e) => {
@@ -178,11 +171,12 @@ export function AddPlaceLocationSection({
 
 					<div className="space-y-1">
 						<Label htmlFor={lngId} className="text-xs text-muted-foreground">
-							Longitude
+							Longitude <span className="text-red-text">*</span>
 						</Label>
 						<Input
 							id={lngId}
 							type="text"
+							required
 							inputMode="decimal"
 							value={draft.lng}
 							onChange={(e) => {

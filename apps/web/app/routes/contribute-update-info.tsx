@@ -3,7 +3,6 @@ import { ContributeSubpageShell } from "~/components/contribute/contribute-subpa
 import { UpdateInfoForm } from "~/components/contribute/update-info-form";
 import { useContributePlaceSelection } from "~/components/contribute/use-contribute-place";
 import { useDarasa } from "~/context/darasa-store";
-import { XP_REWARDS } from "~/data/contribute-xp";
 
 export function meta(_args: MetaArgs) {
 	return [
@@ -11,13 +10,13 @@ export function meta(_args: MetaArgs) {
 		{
 			name: "description",
 			content:
-				"Koreksi alamat, jam buka, kisaran harga, nomor kontak, atau deskripsi tempat kuliner di Kabupaten Batang.",
+				"Koreksi alamat, jam buka, kisaran harga, nomor kontak, deskripsi, atau tambahkan foto tempat kuliner di Kabupaten Batang.",
 		},
 	];
 }
 
 export default function ContributeUpdateInfoPage() {
-	const { suggestPlaceUpdate } = useDarasa();
+	const { suggestPlaceUpdate, addPlacePhoto } = useDarasa();
 	const {
 		places,
 		selectedPlaceId,
@@ -29,8 +28,7 @@ export default function ContributeUpdateInfoPage() {
 	return (
 		<ContributeSubpageShell
 			title="Perbarui Info"
-			description="Koreksi alamat, jam buka, kisaran harga, kontak, atau deskripsi tempat kuliner."
-			xpReward={XP_REWARDS.edit}
+			description="Koreksi alamat, jam buka, kisaran harga, kontak, deskripsi, atau tambahkan foto tempat kuliner."
 			redirectPath={redirectPath}
 		>
 			<UpdateInfoForm
@@ -38,6 +36,7 @@ export default function ContributeUpdateInfoPage() {
 				selectedPlaceId={selectedPlaceId}
 				onSelectPlace={setSelectedPlaceId}
 				onSuggestUpdate={suggestPlaceUpdate}
+				onAddPhoto={addPlacePhoto}
 				onRequestAddNewPlace={handleRequestAddNewPlace}
 			/>
 		</ContributeSubpageShell>
