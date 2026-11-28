@@ -28,11 +28,13 @@ export const SubmitClaimBody = t.Object({
 export const AdminClaimsQuery = t.Object({
 	status: t.Optional(
 		t.Union([
+			t.Literal("all"),
 			t.Literal("pending"),
 			t.Literal("approved"),
 			t.Literal("rejected"),
 		]),
 	),
+	q: t.Optional(t.String({ maxLength: 80 })),
 	page: t.Optional(t.Integer({ minimum: 1 })),
 	limit: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
 });
@@ -98,6 +100,7 @@ export const AdminClaimItem = t.Object({
 	claimantId: t.String(),
 	status: ClaimStatusSchema,
 	evidence: ClaimEvidenceSchema,
+	documentUrls: t.Array(t.String()),
 	reviewedById: t.Nullable(t.String()),
 	reviewedAt: t.Nullable(t.Date()),
 	decisionNote: t.Nullable(t.String()),

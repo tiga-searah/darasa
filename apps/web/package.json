@@ -7,7 +7,7 @@
 		"dev": "react-router dev",
 		"start": "react-router-serve ./build/server/index.js",
 		"typecheck": "react-router typegen && bun check",
-		"docker": "docker build -t darasa-web ."
+		"docker": "docker build -f Dockerfile -t darasa-web ../.."
 	},
 	"dependencies": {
 		"@radix-ui/react-collapsible": "^1.2.1",

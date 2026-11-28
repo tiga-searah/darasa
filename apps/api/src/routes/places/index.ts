@@ -2,6 +2,8 @@ import { Elysia, t } from "elysia";
 import type { Storage } from "../../lib/ports";
 import { optionalAuth, requireAdmin, requireAuth } from "../../plugins/guard";
 import {
+	ActivityFeedResponse,
+	ActivityQuery,
 	AddPlacePhotosBody,
 	AddPlacePhotosResponse,
 	AdminUpdatePlaceBody,
@@ -10,6 +12,7 @@ import {
 	PaginatedPlacesResponse,
 	PlaceDetailResponse,
 	PlaceListQuery,
+	SuggestPlaceUpdateBody,
 } from "./model";
 import {
 	addPlacePhotos,
@@ -20,12 +23,24 @@ import {
 	getPlaceDetail,
 	listHiddenGems,
 	listPlaces,
+	listRecentActivity,
 	recordPlaceView,
+	suggestPlaceUpdate,
 } from "./service";
 
 const storageFrom = (ctx: unknown): Storage | undefined =>
 	(ctx as { deps?: { storage?: Storage } }).deps?.storage;
 
+export const activityRoutes = new Elysia().get(
+	"/activity",
+	{
+		query: ActivityQuery,
+		response: { 200: ActivityFeedResponse },
+	},
+	async (ctx) => ({
+		data: await listRecentActivity(storageFrom(ctx), ctx.query.limit),
+	}),
+);
 export const placeRoutes = new Elysia({ prefix: "/places" })
 	.post(
 		"/:id/view",
@@ -120,6 +135,22 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 			ctx.set.status = 204;
 			return;
 		},
+	)
+	.post(
+		"/:id/suggestions",
+		{
+			params: t.Object({ id: t.String() }),
+			body: SuggestPlaceUpdateBody,
+			response: { 200: PlaceDetailResponse },
+		},
+		async (ctx) => ({
+			data: await suggestPlaceUpdate(
+				storageFrom(ctx),
+				ctx.sessionUser,
+				ctx.params.id,
+				ctx.body,
+			),
+		}),
 	)
 	.group("", (g) =>
 		g

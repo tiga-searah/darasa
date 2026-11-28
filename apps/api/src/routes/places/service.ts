@@ -22,6 +22,7 @@ import type { Storage } from "../../lib/ports";
 import { type PriceTier, parsePriceBounds } from "../../lib/price";
 import type { DbOrTx } from "../../lib/ranking";
 import type { SessionUser } from "../../lib/session";
+import { awardXp } from "../../lib/xp";
 import {
 	ApiError,
 	conflict,
@@ -37,15 +38,18 @@ import {
 	resolveMediaUrlMap,
 } from "../media/service";
 import type {
+	ActivityItemType,
 	AdminUpdatePlaceBodyType,
 	CreatePlaceBodyType,
 	HiddenGemsQueryType,
 	PlaceDetailType,
 	PlaceListItemType,
 	PlaceListQueryType,
+	PlaceVerifiedType,
+	SuggestPlaceUpdateBodyType,
 } from "./model";
 
-type VerifiedFilter = "community" | "owner" | "any" | "unverified";
+type VerifiedFilter = PlaceVerifiedType;
 type PlaceSortKey = NonNullable<PlaceListQueryType["sort"]>;
 
 function haversineSql(lat: number, lng: number) {
@@ -57,8 +61,10 @@ function verifiedCondition(
 ): SQL | undefined {
 	switch (verified) {
 		case "community":
+		case "community_verified":
 			return eq(schema.places.communityVerified, true);
 		case "owner":
+		case "owner_verified":
 			return eq(schema.places.ownerVerified, true);
 		case "any":
 			return or(
@@ -98,8 +104,23 @@ function priceTierCondition(tier: PriceTier): SQL | undefined {
 
 function appendSharedPlaceFilters(
 	conditions: SQL[],
-	query: { category?: string; district?: string; verified?: VerifiedFilter },
+	query: {
+		q?: string;
+		category?: string;
+		district?: string;
+		verified?: VerifiedFilter;
+	},
 ): void {
+	if (query.q && query.q.trim().length > 0) {
+		const pattern = `%${query.q.trim()}%`;
+		const qCond = or(
+			ilike(schema.places.name, pattern),
+			ilike(schema.places.description, pattern),
+			ilike(schema.places.address, pattern),
+			ilike(schema.places.district, pattern),
+		);
+		if (qCond) conditions.push(qCond);
+	}
 	if (query.category) {
 		conditions.push(
 			UUID_RE.test(query.category)
@@ -196,6 +217,8 @@ function placeListColumns(distanceExpr: SQL<number | null>) {
 		id: schema.places.id,
 		slug: schema.places.slug,
 		name: schema.places.name,
+		description: schema.places.description,
+		openingHours: schema.places.openingHours,
 		address: schema.places.address,
 		district: schema.places.district,
 		priceRange: schema.places.priceRange,
@@ -223,6 +246,8 @@ type PlaceListRow = {
 	id: string;
 	slug: string;
 	name: string;
+	description: string | null;
+	openingHours: OpeningHours | null;
 	address: string | null;
 	district: string | null;
 	priceRange: string | null;
@@ -265,6 +290,8 @@ async function serializePlaceListRows(
 		id: r.id,
 		slug: r.slug,
 		name: r.name,
+		description: r.description,
+		openingHours: r.openingHours,
 		category: {
 			id: r.catId,
 			name: r.catName,
@@ -320,17 +347,6 @@ export async function listPlaces(
 	}
 
 	const conditions: SQL[] = [eq(schema.places.status, "published")];
-
-	if (query.q && query.q.trim().length > 0) {
-		const pattern = `%${query.q.trim()}%`;
-		const qCond = or(
-			ilike(schema.places.name, pattern),
-			ilike(schema.places.description, pattern),
-			ilike(schema.places.address, pattern),
-			ilike(schema.places.district, pattern),
-		);
-		if (qCond) conditions.push(qCond);
-	}
 
 	appendSharedPlaceFilters(conditions, query);
 
@@ -535,7 +551,7 @@ export async function getPlaceDetail(
 		(viewer?.role === "admin" ||
 			(viewer !== null && viewer.id === row.createdById));
 
-	const [photoRows, mediaUrls, bookmarkedIds] = await Promise.all([
+	const [photoRows, mediaUrls, bookmarkedIds, ratingRows] = await Promise.all([
 		db
 			.select({
 				id: schema.placePhotos.id,
@@ -552,7 +568,26 @@ export async function getPlaceDetail(
 			canSeeLegalityDoc ? row.legalityDocumentMediaId : null,
 		]),
 		fetchBookmarkedSet(viewer, [row.id]),
+		db
+			.select({
+				rating: schema.reviews.rating,
+				total: count(),
+			})
+			.from(schema.reviews)
+			.where(
+				and(
+					eq(schema.reviews.placeId, row.id),
+					eq(schema.reviews.status, "published"),
+				),
+			)
+			.groupBy(schema.reviews.rating),
 	]);
+
+	const ratingHistogram = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+	for (const item of ratingRows) {
+		const key = String(item.rating) as keyof typeof ratingHistogram;
+		if (key in ratingHistogram) ratingHistogram[key] = item.total;
+	}
 
 	const photos = await Promise.all(
 		photoRows.map(async (p) => ({
@@ -598,6 +633,7 @@ export async function getPlaceDetail(
 		ownerVerified: row.ownerVerified,
 		ratingAvg: row.ratingAvg,
 		reviewCount: row.reviewCount,
+		ratingHistogram,
 		exploreScore: row.exploreScore,
 		hiddenGemScore: row.hiddenGemScore,
 		views: row.viewsTotal,
@@ -607,6 +643,94 @@ export async function getPlaceDetail(
 		createdAt: row.createdAt.toISOString(),
 		updatedAt: row.updatedAt.toISOString(),
 	};
+}
+
+export async function listRecentActivity(
+	storage: Storage | undefined,
+	limit = 9,
+): Promise<ActivityItemType[]> {
+	const [reviewRows, placeRows] = await Promise.all([
+		db
+			.select({
+				id: schema.reviews.id,
+				placeId: schema.places.id,
+				placeSlug: schema.places.slug,
+				placeName: schema.places.name,
+				district: schema.places.district,
+				coverMediaId: schema.places.coverMediaId,
+				description: schema.places.description,
+				authorName: schema.users.name,
+				rating: schema.reviews.rating,
+				comment: schema.reviews.body,
+				createdAt: schema.reviews.createdAt,
+			})
+			.from(schema.reviews)
+			.innerJoin(schema.places, eq(schema.reviews.placeId, schema.places.id))
+			.leftJoin(schema.users, eq(schema.reviews.userId, schema.users.id))
+			.where(
+				and(
+					eq(schema.reviews.status, "published"),
+					eq(schema.places.status, "published"),
+				),
+			)
+			.orderBy(desc(schema.reviews.createdAt), asc(schema.reviews.id))
+			.limit(limit),
+		db
+			.select({
+				id: schema.places.id,
+				placeId: schema.places.id,
+				placeSlug: schema.places.slug,
+				placeName: schema.places.name,
+				district: schema.places.district,
+				coverMediaId: schema.places.coverMediaId,
+				description: schema.places.description,
+				authorName: schema.users.name,
+				createdAt: schema.places.createdAt,
+			})
+			.from(schema.places)
+			.leftJoin(schema.users, eq(schema.places.createdById, schema.users.id))
+			.where(eq(schema.places.status, "published"))
+			.orderBy(desc(schema.places.createdAt), asc(schema.places.id))
+			.limit(limit),
+	]);
+
+	const combined = [
+		...reviewRows.map((r) => ({ ...r, kind: "review" as const })),
+		...placeRows.map((p) => ({
+			...p,
+			kind: "place" as const,
+			rating: null as number | null,
+			comment: null as string | null,
+		})),
+	]
+		.sort(
+			(a, b) =>
+				b.createdAt.getTime() - a.createdAt.getTime() ||
+				a.id.localeCompare(b.id),
+		)
+		.slice(0, limit);
+
+	const coverUrls = await resolveMediaUrlMap(
+		storage,
+		combined.map((item) => item.coverMediaId),
+	);
+
+	return combined.map((item) => ({
+		id: item.id,
+		kind: item.kind,
+		placeId: item.placeId,
+		placeSlug: item.placeSlug,
+		placeName: item.placeName,
+		district: item.district,
+		coverUrl: item.coverMediaId
+			? (coverUrls.get(item.coverMediaId) ?? null)
+			: null,
+		description: item.description,
+		authorName: item.authorName ?? null,
+		rating: item.rating,
+		comment: item.comment,
+		createdAt: item.createdAt.toISOString(),
+	}));
 }
 
 export async function recordPlaceView(placeId: string): Promise<void> {
@@ -735,6 +859,12 @@ export async function createPlace(
 				})),
 			);
 		}
+		await awardXp(tx, {
+			userId: user.id,
+			placeId: place.id,
+			action: "add_place",
+			summary: `Menambahkan tempat ${body.name}`,
+		});
 		return place;
 	});
 
@@ -806,6 +936,12 @@ export async function addPlacePhotos(
 					),
 				);
 		}
+		await awardXp(tx, {
+			userId: user.id,
+			placeId,
+			action: "add_photo",
+			summary: `Menambahkan ${photoMediaIds.length} foto`,
+		});
 		return rows;
 	});
 
@@ -965,4 +1101,64 @@ export async function adminArchivePlace(id: string): Promise<void> {
 		.where(eq(schema.places.id, id))
 		.returning({ id: schema.places.id });
 	if (!updated) throw notFound("Place");
+}
+
+export async function suggestPlaceUpdate(
+	storage: Storage | undefined,
+	user: SessionUser,
+	id: string,
+	body: SuggestPlaceUpdateBodyType,
+): Promise<PlaceDetailType> {
+	const hasField =
+		body.address !== undefined ||
+		body.openingHours !== undefined ||
+		body.priceRange !== undefined ||
+		body.phone !== undefined ||
+		body.description !== undefined;
+	const hasNote = Boolean(body.note?.trim());
+	if (!hasField && !hasNote) {
+		throw new ApiError(
+			"VALIDATION_ERROR",
+			422,
+			"At least one field or note is required",
+		);
+	}
+	if (!UUID_RE.test(id)) throw notFound("Place");
+
+	await db.transaction(async (tx) => {
+		const [existing] = await tx
+			.select({ id: schema.places.id, status: schema.places.status })
+			.from(schema.places)
+			.where(eq(schema.places.id, id))
+			.for("update");
+		if (!existing || existing.status !== "published") {
+			throw notFound("Place");
+		}
+
+		const updates: Partial<typeof schema.places.$inferInsert> = {
+			updatedAt: new Date(),
+		};
+		if (body.address !== undefined) updates.address = body.address;
+		if (body.openingHours !== undefined) {
+			updates.openingHours = body.openingHours as OpeningHours | null;
+		}
+		if (body.priceRange !== undefined) {
+			const priceBounds = parsePriceBounds(body.priceRange);
+			updates.priceRange = body.priceRange;
+			updates.priceMin = priceBounds.min;
+			updates.priceMax = priceBounds.max;
+		}
+		if (body.phone !== undefined) updates.phone = body.phone;
+		if (body.description !== undefined) updates.description = body.description;
+
+		await tx.update(schema.places).set(updates).where(eq(schema.places.id, id));
+		await awardXp(tx, {
+			userId: user.id,
+			placeId: id,
+			action: "update_info",
+			summary: body.note?.trim() || "Usulkan pembaruan info",
+		});
+	});
+
+	return getPlaceDetail(storage, id, user);
 }

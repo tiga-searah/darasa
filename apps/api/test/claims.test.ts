@@ -424,4 +424,39 @@ describe("business claims", () => {
 		expect(rejRes.status).toBe(200);
 		expect((await json(rejRes)).data.status).toBe("rejected");
 	});
+
+	test("GET /admin/claims supports status=all, q, and returns documentUrls", async () => {
+		const userCookie = await registerAs("claimantq@b.test", "user");
+		const admCookie = await registerAs("admq@b.test", "admin");
+		const place = await seedPlace("published");
+		const docId = await seedClaimDocument("claimantq@b.test");
+		const app = freshApp({ storage: memoryStorage() });
+
+		const createRes = await app.handle(
+			new Request(`http://test/api/places/${place.id}/claims`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: userCookie },
+				body: JSON.stringify({
+					evidence: {
+						note: "UniqueNIB123",
+						businessRole: "Founder",
+						documentMediaIds: [docId],
+						contactPhone: "+62812",
+					},
+				}),
+			}),
+		);
+		expect(createRes.status).toBe(201);
+
+		const allRes = await app.handle(
+			new Request("http://test/api/admin/claims?status=all&q=UniqueNIB123", {
+				headers: { cookie: admCookie },
+			}),
+		);
+		expect(allRes.status).toBe(200);
+		const body = await json(allRes);
+		expect(body.data).toHaveLength(1);
+		expect(body.data[0].documentUrls).toHaveLength(1);
+		expect(typeof body.data[0].documentUrls[0]).toBe("string");
+	});
 });

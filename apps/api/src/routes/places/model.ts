@@ -16,7 +16,17 @@ export const PlaceVerified = t.Union([
 	t.Literal("owner"),
 	t.Literal("any"),
 	t.Literal("unverified"),
+	t.Literal("community_verified"),
+	t.Literal("owner_verified"),
 ]);
+
+export type PlaceVerifiedType =
+	| "community"
+	| "owner"
+	| "any"
+	| "unverified"
+	| "community_verified"
+	| "owner_verified";
 
 export const PriceTierSchema = t.Union([
 	t.Literal("under_25k"),
@@ -62,12 +72,13 @@ export type PlaceListQueryType = {
 	lat?: number;
 	lng?: number;
 	radiusKm?: number;
-	verified?: "community" | "owner" | "any" | "unverified";
+	verified?: PlaceVerifiedType;
 	page?: number;
 	limit?: number;
 };
 
 export const HiddenGemsQuery = t.Object({
+	q: t.Optional(t.String({ maxLength: 80 })),
 	category: t.Optional(t.String()),
 	district: t.Optional(t.String({ maxLength: 100 })),
 	verified: t.Optional(PlaceVerified),
@@ -76,9 +87,10 @@ export const HiddenGemsQuery = t.Object({
 });
 
 export type HiddenGemsQueryType = {
+	q?: string;
 	category?: string;
 	district?: string;
-	verified?: "community" | "owner" | "any" | "unverified";
+	verified?: PlaceVerifiedType;
 	page?: number;
 	limit?: number;
 };
@@ -94,11 +106,13 @@ export const PlaceListItem = t.Object({
 	id: t.String(),
 	slug: t.String(),
 	name: t.String(),
+	description: t.Nullable(t.String()),
 	category: CategorySummary,
 	address: t.Nullable(t.String()),
 	district: t.Nullable(t.String()),
 	priceRange: t.Nullable(t.String()),
 	latitude: t.Number(),
+	openingHours: t.Nullable(t.Any()),
 	longitude: t.Number(),
 	coverUrl: t.Nullable(t.String()),
 	status: t.String(),
@@ -118,11 +132,13 @@ export type PlaceListItemType = {
 	id: string;
 	slug: string;
 	name: string;
+	description: string | null;
 	category: { id: string; name: string; slug: string; icon: string | null };
 	address: string | null;
 	district: string | null;
 	priceRange: string | null;
 	latitude: number;
+	openingHours: unknown;
 	longitude: number;
 	coverUrl: string | null;
 	status: string;
@@ -168,6 +184,13 @@ export const PlaceDetail = t.Object({
 	ownerVerified: t.Boolean(),
 	ratingAvg: t.Number(),
 	reviewCount: t.Number(),
+	ratingHistogram: t.Object({
+		"1": t.Number(),
+		"2": t.Number(),
+		"3": t.Number(),
+		"4": t.Number(),
+		"5": t.Number(),
+	}),
 	exploreScore: t.Number(),
 	hiddenGemScore: t.Number(),
 	views: t.Number(),
@@ -201,6 +224,13 @@ export type PlaceDetailType = {
 	ownerVerified: boolean;
 	ratingAvg: number;
 	reviewCount: number;
+	ratingHistogram: {
+		"1": number;
+		"2": number;
+		"3": number;
+		"4": number;
+		"5": number;
+	};
 	exploreScore: number;
 	hiddenGemScore: number;
 	views: number;
@@ -223,6 +253,44 @@ export const PaginatedPlacesResponse = t.Object({
 
 export const PlaceDetailResponse = t.Object({
 	data: PlaceDetail,
+});
+
+export const ActivityQuery = t.Object({
+	limit: t.Optional(t.Integer({ minimum: 1, maximum: 20 })),
+});
+
+export const ActivityItem = t.Object({
+	id: t.String(),
+	kind: t.Union([t.Literal("review"), t.Literal("place")]),
+	placeId: t.String(),
+	placeSlug: t.String(),
+	placeName: t.String(),
+	district: t.Nullable(t.String()),
+	coverUrl: t.Nullable(t.String()),
+	description: t.Nullable(t.String()),
+	authorName: t.Nullable(t.String()),
+	rating: t.Nullable(t.Number()),
+	comment: t.Nullable(t.String()),
+	createdAt: t.String(),
+});
+
+export type ActivityItemType = {
+	id: string;
+	kind: "review" | "place";
+	placeId: string;
+	placeSlug: string;
+	placeName: string;
+	district: string | null;
+	coverUrl: string | null;
+	description: string | null;
+	authorName: string | null;
+	rating: number | null;
+	comment: string | null;
+	createdAt: string;
+};
+
+export const ActivityFeedResponse = t.Object({
+	data: t.Array(ActivityItem),
 });
 
 const OpeningHoursSlot = t.Union([
@@ -292,7 +360,7 @@ export type CreatePlaceBodyType = {
 export const AddPlacePhotosBody = t.Object({
 	photoMediaIds: t.Array(t.String({ format: "uuid" }), {
 		minItems: 1,
-		maxItems: 5,
+		maxItems: 6,
 		uniqueItems: true,
 	}),
 });
@@ -336,4 +404,22 @@ export type AdminUpdatePlaceBodyType = {
 	openingHours?: CreatePlaceBodyType["openingHours"] | null;
 	coverMediaId?: string | null;
 	status?: "pending" | "published" | "rejected" | "archived";
+};
+
+export const SuggestPlaceUpdateBody = t.Object({
+	address: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+	openingHours: t.Optional(t.Nullable(OpeningHoursInput)),
+	priceRange: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
+	phone: t.Optional(t.Nullable(t.String({ maxLength: 40 }))),
+	description: t.Optional(t.Nullable(t.String({ maxLength: 5000 }))),
+	note: t.Optional(t.String({ maxLength: 500 })),
+});
+
+export type SuggestPlaceUpdateBodyType = {
+	address?: string | null;
+	openingHours?: CreatePlaceBodyType["openingHours"] | null;
+	priceRange?: string | null;
+	phone?: string | null;
+	description?: string | null;
+	note?: string;
 };

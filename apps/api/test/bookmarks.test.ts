@@ -182,4 +182,35 @@ describe("bookmarks", () => {
 		expect(bodyAfter.data).toHaveLength(1);
 		expect(bodyAfter.data[0].id).toBe(published2.id);
 	});
+
+	test("GET /bookmarks?q=... filters bookmarked places by keyword", async () => {
+		const { published1, published2 } = await seedPlaces();
+		const cookie = await registerUser("bmq@b.test");
+		const app = freshApp({ storage: memoryStorage() });
+
+		await app.handle(
+			new Request(`http://test/api/places/${published1.id}/bookmark`, {
+				method: "POST",
+				headers: { cookie },
+			}),
+		);
+		await app.handle(
+			new Request(`http://test/api/places/${published2.id}/bookmark`, {
+				method: "POST",
+				headers: { cookie },
+			}),
+		);
+
+		const filtered = await app.handle(
+			new Request("http://test/api/bookmarks?q=Satu", {
+				headers: { cookie },
+			}),
+		);
+		expect(filtered.status).toBe(200);
+		const body = await json(filtered);
+		expect(body.data.map((p: { slug: string }) => p.slug)).toEqual([
+			"warung-satu",
+		]);
+		expect(body.meta.total).toBe(1);
+	});
 });

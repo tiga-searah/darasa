@@ -80,6 +80,8 @@ describe("owner dashboard places & stats", () => {
 		expect(listBody.data[0]).toHaveProperty("views");
 		expect(listBody.data[0]).toHaveProperty("exploreScore");
 		expect(listBody.data[0]).toHaveProperty("hiddenGemScore");
+		expect(listBody.data[0].categoryName).toBe("Warung");
+		expect(listBody.data[0].pendingClaims).toBe(0);
 
 		// owner role cannot touch Place B without approved claim
 		const other = await app.handle(

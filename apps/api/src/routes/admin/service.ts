@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
@@ -23,11 +23,43 @@ export async function listAdminPlaces(
 	const offset = (page - 1) * limit;
 	const status = query.status ?? "pending";
 
-	const conditions: SQL[] = [eq(schema.places.status, status)];
-	if (query.q?.trim()) {
-		conditions.push(ilike(schema.places.name, `%${query.q.trim()}%`));
+	const conditions: SQL[] = [];
+	if (status !== "all") {
+		conditions.push(eq(schema.places.status, status));
 	}
-	const where = and(...conditions);
+	if (query.q?.trim()) {
+		const q = `%${query.q.trim()}%`;
+		conditions.push(
+			or(
+				ilike(schema.places.name, q),
+				ilike(schema.places.address, q),
+				ilike(schema.places.district, q),
+			)!,
+		);
+	}
+	if (query.district?.trim()) {
+		conditions.push(eq(schema.places.district, query.district.trim()));
+	}
+	if (query.verified === "community") {
+		conditions.push(eq(schema.places.communityVerified, true));
+	} else if (query.verified === "owner") {
+		conditions.push(eq(schema.places.ownerVerified, true));
+	} else if (query.verified === "both") {
+		conditions.push(
+			and(
+				eq(schema.places.communityVerified, true),
+				eq(schema.places.ownerVerified, true),
+			)!,
+		);
+	} else if (query.verified === "none") {
+		conditions.push(
+			and(
+				eq(schema.places.communityVerified, false),
+				eq(schema.places.ownerVerified, false),
+			)!,
+		);
+	}
+	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
 	const [rows, totalRows] = await Promise.all([
 		db
@@ -192,12 +224,21 @@ export async function listAnomalies(query: AdminAnomaliesQueryType) {
 	const offset = (page - 1) * limit;
 	const status = query.status ?? "open";
 
-	const conditions: SQL[] = [eq(schema.anomalyFlags.status, status)];
+	const conditions: SQL[] = [];
+	if (status !== "all") {
+		conditions.push(eq(schema.anomalyFlags.status, status));
+	}
+	if (query.q?.trim()) {
+		const q = `%${query.q.trim()}%`;
+		conditions.push(
+			or(ilike(schema.places.name, q), ilike(schema.anomalyFlags.reason, q))!,
+		);
+	}
 	if (query.kind) conditions.push(eq(schema.anomalyFlags.kind, query.kind));
 	if (query.placeId) {
 		conditions.push(eq(schema.anomalyFlags.placeId, query.placeId));
 	}
-	const where = and(...conditions);
+	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
 	const [rows, totalRows] = await Promise.all([
 		db
@@ -241,7 +282,14 @@ export async function listAnomalies(query: AdminAnomaliesQueryType) {
 			.orderBy(desc(schema.anomalyFlags.createdAt))
 			.limit(limit)
 			.offset(offset),
-		db.select({ total: count() }).from(schema.anomalyFlags).where(where),
+		db
+			.select({ total: count() })
+			.from(schema.anomalyFlags)
+			.innerJoin(
+				schema.places,
+				eq(schema.anomalyFlags.placeId, schema.places.id),
+			)
+			.where(where),
 	]);
 
 	const total = totalRows[0]?.total ?? 0;

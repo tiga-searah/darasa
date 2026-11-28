@@ -1,0 +1,11 @@
+.git
+.turbo
+node_modules
+**/node_modules
+**/.react-router
+**/build
+**/dist
+.env*
+!**/.env.example
+.superpowers
+.agents
