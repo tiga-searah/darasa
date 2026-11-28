@@ -22,6 +22,7 @@ import type { Storage } from "../../lib/ports";
 import { type PriceTier, parsePriceBounds } from "../../lib/price";
 import type { DbOrTx } from "../../lib/ranking";
 import type { SessionUser } from "../../lib/session";
+import { awardXp } from "../../lib/xp";
 import {
 	ApiError,
 	conflict,
@@ -735,6 +736,12 @@ export async function createPlace(
 				})),
 			);
 		}
+		await awardXp(tx, {
+			userId: user.id,
+			placeId: place.id,
+			action: "add_place",
+			summary: `Menambahkan tempat ${body.name}`,
+		});
 		return place;
 	});
 
@@ -806,6 +813,12 @@ export async function addPlacePhotos(
 					),
 				);
 		}
+		await awardXp(tx, {
+			userId: user.id,
+			placeId,
+			action: "add_photo",
+			summary: `Menambahkan ${photoMediaIds.length} foto`,
+		});
 		return rows;
 	});
 

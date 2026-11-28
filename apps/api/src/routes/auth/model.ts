@@ -17,6 +17,7 @@ export const UserResponse = t.Object({
 	email: t.String(),
 	role: t.Union([t.Literal("user"), t.Literal("owner"), t.Literal("admin")]),
 	avatarUrl: t.Union([t.String(), t.Null()]),
+	xpTotal: t.Number(),
 	hasPassword: t.Boolean(),
 	linkedProviders: t.Array(t.String()),
 	createdAt: t.Date(),

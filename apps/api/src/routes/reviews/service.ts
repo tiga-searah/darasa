@@ -5,6 +5,7 @@ import { evaluateReviewAnomalies } from "../../lib/anomaly";
 import type { Storage } from "../../lib/ports";
 import { type DbOrTx, recomputePlaceStats } from "../../lib/ranking";
 import type { SessionUser } from "../../lib/session";
+import { awardXp } from "../../lib/xp";
 import {
 	ApiError,
 	conflict,
@@ -261,6 +262,12 @@ export async function createReview(
 			reviewId: inserted.id,
 			userId: user.id,
 			rating: input.rating,
+		});
+		await awardXp(tx, {
+			userId: user.id,
+			placeId,
+			action: "write_review",
+			summary: `Mengulas ${place.name}`,
 		});
 
 		return inserted;

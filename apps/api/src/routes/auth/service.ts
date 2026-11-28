@@ -27,6 +27,7 @@ export async function publicUser(user: UserRow, session?: { expiresAt: Date }) {
 		email: user.email,
 		role: user.role,
 		avatarUrl: user.avatarUrl,
+		xpTotal: user.xpTotal,
 		hasPassword: user.passwordHash !== null,
 		linkedProviders: linked.map((row) => row.provider),
 		createdAt: user.createdAt,

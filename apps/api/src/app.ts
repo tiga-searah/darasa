@@ -11,6 +11,7 @@ import { authRoutes } from "./routes/auth";
 import { bookmarkRoutes } from "./routes/bookmarks";
 import { categoryRoutes } from "./routes/categories";
 import { claimRoutes } from "./routes/claims";
+import { contributionRoutes } from "./routes/contributions";
 import { mediaRoutes } from "./routes/media";
 import { ownerRoutes } from "./routes/owner";
 import { placeRoutes } from "./routes/places";
@@ -49,6 +50,7 @@ export const createApp = (deps: AppDeps = {}) => {
 		.use(categoryRoutes)
 		.use(placeRoutes)
 		.use(bookmarkRoutes)
+		.use(contributionRoutes)
 		.use(reviewRoutes)
 		.use(claimRoutes)
 		.use(ownerRoutes)
