@@ -30,6 +30,7 @@
 ### Task 1: Database Schema & Price Parsing Helper
 
 **Files:**
+
 - Modify: `apps/api/src/database/schema/places.ts`
 - Modify: `apps/api/src/database/schema/reviews.ts`
 - Modify: `apps/api/src/database/schema/claims.ts`
@@ -38,6 +39,7 @@
 - Test: `apps/api/test/price.test.ts`
 
 **Interfaces:**
+
 - Produces `apps/api/src/lib/price.ts`:
   - `export type PriceTier = "under_25k" | "25k_50k" | "50k_100k" | "over_100k"`
   - `export function parsePriceBounds(priceRange: string | null | undefined): { min: number | null; max: number | null }`
@@ -50,15 +52,25 @@
 - [ ] **Step 1: Write failing unit test for `parsePriceBounds`**
 
 Create `apps/api/test/price.test.ts`:
+
 ```ts
 import { describe, expect, test } from "bun:test";
 import { parsePriceBounds } from "../src/lib/price";
 
 describe("parsePriceBounds", () => {
 	test("parses Indonesian Rupiah ranges and single numbers", () => {
-		expect(parsePriceBounds("Rp 15.000 - Rp 30.000")).toEqual({ min: 15000, max: 30000 });
-		expect(parsePriceBounds("Rp 10.000 - 20.000")).toEqual({ min: 10000, max: 20000 });
-		expect(parsePriceBounds("Mulai Rp 120.000")).toEqual({ min: 120000, max: 120000 });
+		expect(parsePriceBounds("Rp 15.000 - Rp 30.000")).toEqual({
+			min: 15000,
+			max: 30000,
+		});
+		expect(parsePriceBounds("Rp 10.000 - 20.000")).toEqual({
+			min: 10000,
+			max: 20000,
+		});
+		expect(parsePriceBounds("Mulai Rp 120.000")).toEqual({
+			min: 120000,
+			max: 120000,
+		});
 		expect(parsePriceBounds("15k - 25k")).toEqual({ min: 15000, max: 25000 });
 		expect(parsePriceBounds(null)).toEqual({ min: null, max: null });
 		expect(parsePriceBounds("Gratis")).toEqual({ min: null, max: null });
@@ -102,11 +114,13 @@ Commit schema and `price.ts` changes.
 ### Task 2: Ranking Formula & Place View Counter Sync
 
 **Files:**
+
 - Modify: `apps/api/src/lib/ranking.ts`
 - Modify: `apps/api/src/routes/places/service.ts` (`recordPlaceView`)
 - Test: `apps/api/test/ranking.test.ts`
 
 **Interfaces:**
+
 - `computeScores` in `apps/api/src/lib/ranking.ts` adds optional `viewsTotal?: number` (defaults to `0`).
 - `hiddenGemScore` uses `ratingAvg * (1 / (1 + reviewCount + Math.log10(1 + (input.viewsTotal ?? 0))))` when `ratingAvg >= 4.0 && reviewCount > 0`.
 - `recordPlaceView(placeId)` atomically increments `places.viewsTotal` and upserts `placeStats`.
@@ -156,6 +170,7 @@ Expected: PASS.
 ### Task 3: Place Discovery, Detail, and Write Alignment
 
 **Files:**
+
 - Modify: `apps/api/src/routes/places/model.ts`
 - Modify: `apps/api/src/routes/places/service.ts`
 - Modify: `apps/api/src/routes/places/index.ts`
@@ -163,6 +178,7 @@ Expected: PASS.
 - Test: `apps/api/test/places-write.test.ts`
 
 **Interfaces:**
+
 - `PlaceSort`: `"explore" | "newest" | "rating" | "nearby" | "reviews" | "views" | "az" | "za"`
 - `PlaceVerified`: `"community" | "owner" | "any" | "unverified"`
 - `PriceTierSchema`: `"under_25k" | "25k_50k" | "50k_100k" | "over_100k"`
@@ -175,6 +191,7 @@ Expected: PASS.
 - [ ] **Step 1: Write failing tests in `apps/api/test/places-discovery.test.ts`**
 
 Add tests for:
+
 - `GET /places` with `district`, `minRating=4.0`, `priceTier=under_25k`, `onlyHiddenGem=true`, `verified=unverified`, `sort=reviews|views|az|za`.
 - `GET /places?onlyBookmarked=true` as unauthenticated visitor returns `data: []`, `meta.total: 0`.
 - `GET /places/hidden-gems?district=...&verified=...` filters properly.
@@ -205,6 +222,7 @@ Expected: PASS.
 ### Task 4: Bookmarks & Review Likes Endpoints
 
 **Files:**
+
 - Create: `apps/api/src/routes/bookmarks/model.ts`
 - Create: `apps/api/src/routes/bookmarks/service.ts`
 - Create: `apps/api/src/routes/bookmarks/index.ts`
@@ -217,6 +235,7 @@ Expected: PASS.
 - Test: `apps/api/test/reviews.test.ts`
 
 **Interfaces:**
+
 - `GET /api/bookmarks` (auth) → `{ data: PlaceListItem[], meta }`
 - `POST /api/places/:id/bookmark` (auth) → `{ data: { bookmarked: true } }` (idempotent)
 - `DELETE /api/places/:id/bookmark` (auth) → `{ data: { bookmarked: false } }`
@@ -227,6 +246,7 @@ Expected: PASS.
 - [ ] **Step 1: Write failing tests in `apps/api/test/bookmarks.test.ts` and `apps/api/test/reviews.test.ts`**
 
 Test:
+
 - `POST /places/:id/bookmark` (idempotent on repeat), `GET /bookmarks`, `DELETE /places/:id/bookmark`, 401 when unauthenticated, 404 for unknown place.
 - `POST /reviews/:id/like` (idempotent on repeat), `DELETE /reviews/:id/like`, and `GET /places/:id/reviews` returns accurate `likeCount` and `liked`.
 
@@ -250,6 +270,7 @@ Expected: PASS.
 ### Task 5: Claims, Owner Dashboard & Admin Alignment
 
 **Files:**
+
 - Modify: `apps/api/src/routes/claims/model.ts`
 - Modify: `apps/api/src/routes/claims/service.ts`
 - Modify: `apps/api/src/routes/owner/model.ts`
@@ -261,6 +282,7 @@ Expected: PASS.
 - Test: `apps/api/test/admin.test.ts`
 
 **Interfaces:**
+
 - `ClaimEvidenceSchema`: add `businessRole: t.Optional(t.String({ maxLength: 100 }))`.
 - `RejectClaimBody`: `note: t.Optional(t.String({ maxLength: 500 }))` (defaults to `null` or `""` when omitted).
 - `MyClaimItem`: add `placeName: string`, `claimantName: string`, `evidence: ClaimEvidenceSchema`.

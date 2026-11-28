@@ -6,7 +6,7 @@ import {
 	PencilLine,
 } from "lucide-react";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
-import { XP_REWARDS } from "./xp";
+import { XP_REWARDS } from "./contribute-xp";
 
 export {
 	CONTRIBUTOR_LEVELS,
@@ -15,7 +15,7 @@ export {
 	calculateContributorXp,
 	getContributorLevel,
 	XP_REWARDS,
-} from "./xp";
+} from "./contribute-xp";
 
 export type ContributeActionId =
 	| "add_place"

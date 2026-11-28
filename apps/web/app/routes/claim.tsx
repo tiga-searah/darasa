@@ -14,6 +14,7 @@ import {
 	useState,
 } from "react";
 import { Link, useSearchParams } from "react-router";
+import { PlacePagination } from "~/components/place-pagination";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -27,6 +28,7 @@ import {
 } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
 import { useDarasa } from "~/context/darasa-store";
+import { DEFAULT_PLACES_PAGE_SIZE, paginateItems } from "~/lib/pagination";
 import type { Route } from "./+types/claim";
 
 export function meta(_args: Route.MetaArgs) {
@@ -59,6 +61,7 @@ export default function ClaimBusinessPage() {
 	const [evidenceFileName, setEvidenceFileName] = useState("");
 	const [formError, setFormError] = useState<string | null>(null);
 	const [submittedNotice, setSubmittedNotice] = useState<string | null>(null);
+	const [claimsPage, setClaimsPage] = useState(1);
 
 	const placeSelectId = useId();
 	const roleInputId = useId();
@@ -70,6 +73,11 @@ export default function ClaimBusinessPage() {
 		if (currentUser.role === "admin") return claims;
 		return claims.filter((c) => c.claimantUserId === currentUser.id);
 	}, [claims, currentUser]);
+
+	const claimsPagination = useMemo(
+		() => paginateItems(myClaims, claimsPage, DEFAULT_PLACES_PAGE_SIZE),
+		[myClaims, claimsPage],
+	);
 
 	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -103,15 +111,16 @@ export default function ClaimBusinessPage() {
 		setWhatsappNumber("");
 		setEvidenceSummary("");
 		setEvidenceFileName("");
+		setClaimsPage(1);
 		setSubmittedNotice(
 			"Pengajuan klaim berhasil dicatat dengan status Menunggu Tinjauan Admin.",
 		);
 	};
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 pb-8">
 			<div className="border-b border-border pb-5 space-y-1.5">
-				<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground">
+				<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
 					Klaim Profil Usaha Kuliner
 				</h1>
 				<p className="max-w-2xl text-sm sm:text-base text-muted-foreground">
@@ -128,7 +137,7 @@ export default function ClaimBusinessPage() {
 					</h2>
 
 					{currentUser.role === "visitor" ? (
-						<div className="rounded-[10px] border border-border bg-background p-6 space-y-3">
+						<div className="rounded-[12px] border border-border bg-card p-6 sm:p-8 text-center space-y-4">
 							<p className="text-sm font-medium text-foreground">
 								Silakan masuk terlebih dahulu untuk mengajukan klaim kepemilikan
 								profil usaha.
@@ -227,7 +236,7 @@ export default function ClaimBusinessPage() {
 								</Label>
 								<label
 									htmlFor={fileId}
-									className="flex min-h-[44px] items-center gap-2 rounded-[8px] border border-dashed border-border bg-background px-3.5 text-xs font-medium text-muted-foreground hover:border-primary"
+									className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[8px] border border-dashed border-border bg-background px-3.5 text-xs font-medium text-muted-foreground hover:border-primary"
 								>
 									<FileCheck2
 										className="size-4 text-primary"
@@ -242,7 +251,7 @@ export default function ClaimBusinessPage() {
 									id={fileId}
 									type="file"
 									onChange={handleFileChange}
-									className="visually-hidden"
+									className="sr-only"
 								/>
 							</div>
 
@@ -268,42 +277,60 @@ export default function ClaimBusinessPage() {
 							Belum ada pengajuan klaim dari akun Anda saat ini.
 						</p>
 					) : (
-						<ul className="divide-y divide-border border-t border-border">
-							{myClaims.map((claim) => (
-								<li key={claim.id} className="py-4 space-y-2">
-									<div className="flex items-start justify-between gap-2">
-										<p className="text-sm font-semibold text-foreground">
-											{claim.placeName}
+						<>
+							<ul className="divide-y divide-border border-t border-border">
+								{claimsPagination.items.map((claim) => (
+									<li key={claim.id} className="py-4 space-y-2">
+										<div className="flex items-start justify-between gap-2">
+											<p className="text-sm font-semibold text-foreground">
+												{claim.placeName}
+											</p>
+											{claim.status === "approved" ? (
+												<Badge variant="default">
+													<CheckCircle2
+														className="size-3.5"
+														aria-hidden="true"
+													/>
+													Disetujui
+												</Badge>
+											) : claim.status === "rejected" ? (
+												<Badge variant="destructive">
+													<XCircle className="size-3.5" aria-hidden="true" />
+													Ditolak
+												</Badge>
+											) : (
+												<Badge variant="yellow">
+													<Clock className="size-3.5" aria-hidden="true" />
+													Menunggu
+												</Badge>
+											)}
+										</div>
+										<p className="text-xs text-muted-foreground">
+											Pengaju: {claim.claimantName} ({claim.businessRole}) · WA{" "}
+											{claim.whatsappNumber}
 										</p>
-										{claim.status === "approved" ? (
-											<Badge variant="default">
-												<CheckCircle2 className="size-3.5" aria-hidden="true" />
-												Disetujui
-											</Badge>
-										) : claim.status === "rejected" ? (
-											<Badge variant="destructive">
-												<XCircle className="size-3.5" aria-hidden="true" />
-												Ditolak
-											</Badge>
-										) : (
-											<Badge variant="yellow">
-												<Clock className="size-3.5" aria-hidden="true" />
-												Menunggu
-											</Badge>
-										)}
-									</div>
-									<p className="text-xs text-muted-foreground">
-										Pengaju: {claim.claimantName} ({claim.businessRole}) · WA{" "}
-										{claim.whatsappNumber}
-									</p>
-									{claim.adminNote ? (
-										<p className="border-l-2 border-primary pl-3 py-0.5 text-xs text-muted-foreground">
-											Catatan Admin: {claim.adminNote}
-										</p>
-									) : null}
-								</li>
-							))}
-						</ul>
+										{claim.adminNote ? (
+											<p className="border-l-2 border-primary pl-3 py-0.5 text-xs text-muted-foreground">
+												Catatan Admin: {claim.adminNote}
+											</p>
+										) : null}
+									</li>
+								))}
+							</ul>
+
+							{claimsPagination.totalPages > 1 ? (
+								<PlacePagination
+									currentPage={claimsPagination.currentPage}
+									totalPages={claimsPagination.totalPages}
+									totalItems={claimsPagination.totalItems}
+									pageSize={claimsPagination.pageSize}
+									startItem={claimsPagination.startItem}
+									endItem={claimsPagination.endItem}
+									onPageChange={setClaimsPage}
+									itemLabel="klaim"
+								/>
+							) : null}
+						</>
 					)}
 				</section>
 			</div>

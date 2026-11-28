@@ -1,10 +1,4 @@
-import {
-	CheckCircle2,
-	ImagePlus,
-	LocateFixed,
-	MapPinPlus,
-	X,
-} from "lucide-react";
+import { ImagePlus, MapPinPlus, X } from "lucide-react";
 import {
 	type ChangeEvent,
 	type DragEvent,
@@ -13,7 +7,6 @@ import {
 	useState,
 } from "react";
 import { Link } from "react-router";
-import { GoogleMapPicker } from "~/components/google-map-picker";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -30,9 +23,11 @@ import {
 	DISTRICT_COORDINATES,
 	PLACE_CATEGORIES,
 } from "~/data/batang-places";
+import { readImageFiles } from "~/data/contribute";
 import type { BatangDistrict, PlaceCategory } from "~/lib/types";
 import { cn } from "~/lib/utils";
-import { readImageFiles } from "./types";
+import { AddPlaceLocationSection } from "./add-place-location-section";
+import { AddPlaceSuccess } from "./add-place-success";
 
 export interface AddPlaceDraft {
 	name: string;
@@ -85,7 +80,6 @@ export function AddPlaceForm({
 }: AddPlaceFormProps) {
 	const [mapsLinkInput, setMapsLinkInput] = useState("");
 	const [geoMessage, setGeoMessage] = useState<string | null>(null);
-	const [isLocating, setIsLocating] = useState(false);
 	const [photoError, setPhotoError] = useState<string | null>(null);
 	const [isDragActive, setIsDragActive] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
@@ -97,37 +91,10 @@ export function AddPlaceForm({
 	const nameId = useId();
 	const distId = useId();
 	const addrId = useId();
-	const mapsUrlId = useId();
-	const latId = useId();
-	const lngId = useId();
 	const hoursId = useId();
 	const priceId = useId();
 	const descId = useId();
 	const photoId = useId();
-
-	const parseGoogleMapsInput = (raw: string) => {
-		setMapsLinkInput(raw);
-		const trimmed = raw.trim();
-		if (!trimmed) return;
-
-		const patterns = [
-			/@(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
-			/[?&](?:q|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
-			/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
-			/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/,
-		];
-
-		for (const regex of patterns) {
-			const match = trimmed.match(regex);
-			if (match) {
-				const nextLat = Number(match[1]).toFixed(4);
-				const nextLng = Number(match[2]).toFixed(4);
-				onChangeDraft((prev) => ({ ...prev, lat: nextLat, lng: nextLng }));
-				setGeoMessage("Koordinat berhasil diambil dari tautan Google Maps.");
-				return;
-			}
-		}
-	};
 
 	const handleDistrictChange = (nextDistrict: BatangDistrict) => {
 		const coords = DISTRICT_COORDINATES[nextDistrict];
@@ -137,30 +104,6 @@ export function AddPlaceForm({
 			lat: String(coords.lat),
 			lng: String(coords.lng),
 		}));
-	};
-
-	const handleUseCurrentLocation = () => {
-		if (!("geolocation" in navigator)) {
-			setGeoMessage("Browser tidak mendukung fitur lokasi GPS.");
-			return;
-		}
-		setIsLocating(true);
-		setGeoMessage("Mengambil koordinat lokasi Anda...");
-		navigator.geolocation.getCurrentPosition(
-			(pos) => {
-				const nextLat = pos.coords.latitude.toFixed(4);
-				const nextLng = pos.coords.longitude.toFixed(4);
-				onChangeDraft((prev) => ({ ...prev, lat: nextLat, lng: nextLng }));
-				setGeoMessage("Koordinat GPS berhasil diterapkan ke peta.");
-				setIsLocating(false);
-			},
-			() => {
-				setGeoMessage(
-					"Izin lokasi ditolak atau tidak tersedia. Silakan geser pin langsung di peta.",
-				);
-				setIsLocating(false);
-			},
-		);
 	};
 
 	const handleFiles = async (files: FileList | File[] | null) => {
@@ -232,45 +175,16 @@ export function AddPlaceForm({
 
 	if (createdPlace) {
 		return (
-			<section
-				aria-live="polite"
-				className="rounded-[12px] border border-border bg-card p-6 sm:p-8 space-y-5"
-			>
-				<div className="flex items-start gap-3">
-					<span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-hover">
-						<CheckCircle2 className="size-6" aria-hidden="true" />
-					</span>
-					<div className="space-y-1">
-						<h2 className="text-lg font-bold text-foreground">
-							"{createdPlace.name}" berhasil ditambahkan
-						</h2>
-						<p className="text-sm text-muted-foreground">
-							Data tempat kuliner baru sudah masuk ke direktori Darasa dan
-							antrean validasi komunitas.
-						</p>
-					</div>
-				</div>
-				<div className="flex flex-wrap gap-2.5">
-					<Button asChild>
-						<Link to={`/places/${createdPlace.slug}`}>
-							Lihat Halaman Tempat
-						</Link>
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => {
-							setCreatedPlace(null);
-							setErrors({});
-							setGeoMessage(null);
-							setMapsLinkInput("");
-							onResetDraft();
-						}}
-					>
-						Tambah Tempat Lainnya
-					</Button>
-				</div>
-			</section>
+			<AddPlaceSuccess
+				place={createdPlace}
+				onAddAnother={() => {
+					setCreatedPlace(null);
+					setErrors({});
+					setGeoMessage(null);
+					setMapsLinkInput("");
+					onResetDraft();
+				}}
+			/>
 		);
 	}
 
@@ -399,126 +313,15 @@ export function AddPlaceForm({
 				</div>
 			</section>
 
-			{/* Section 2: Google Maps Style Pin Location */}
-			<section className="rounded-[12px] border border-border bg-card p-5 sm:p-6 space-y-4">
-				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div className="flex items-start gap-3">
-						<span
-							aria-hidden="true"
-							className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-hover tabular-nums"
-						>
-							2
-						</span>
-						<div className="space-y-0.5">
-							<h2 className="text-base font-semibold text-foreground">
-								Pin Lokasi di Peta
-							</h2>
-							<p className="text-xs text-muted-foreground">
-								Klik peta atau geser pin ke titik bangunan yang tepat, seperti
-								di Google Maps.
-							</p>
-						</div>
-					</div>
-					<Button
-						type="button"
-						variant="outline"
-						className="min-h-[44px]"
-						loading={isLocating}
-						onClick={handleUseCurrentLocation}
-					>
-						<LocateFixed className="size-4" aria-hidden="true" />
-						Lokasi Saya
-					</Button>
-				</div>
-
-				<GoogleMapPicker
-					lat={Number(draft.lat) || DISTRICT_COORDINATES["Batang Kota"].lat}
-					lng={Number(draft.lng) || DISTRICT_COORDINATES["Batang Kota"].lng}
-					onPickLocation={(nextLat, nextLng, note) => {
-						onChangeDraft((prev) => ({
-							...prev,
-							lat: String(nextLat),
-							lng: String(nextLng),
-						}));
-						if (note) setGeoMessage(note);
-					}}
-				/>
-
-				<div className="space-y-1.5">
-					<Label htmlFor={mapsUrlId} className="text-xs text-muted-foreground">
-						Tempel tautan Google Maps atau koordinat (opsional)
-					</Label>
-					<Input
-						id={mapsUrlId}
-						type="text"
-						value={mapsLinkInput}
-						onChange={(e) => parseGoogleMapsInput(e.target.value)}
-						placeholder="https://maps.google.com/... atau -6.9078, 109.7302"
-					/>
-				</div>
-
-				{geoMessage ? (
-					<p
-						role="status"
-						className="rounded-[8px] border border-primary/25 bg-primary-soft px-3 py-2 text-xs font-medium text-primary-hover"
-					>
-						{geoMessage}
-					</p>
-				) : null}
-
-				<details open={Boolean(errors.lat || errors.lng)} className="text-xs">
-					<summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
-						Atur koordinat manual ({draft.lat}, {draft.lng})
-					</summary>
-					<div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-						<div className="space-y-1">
-							<Label htmlFor={latId} className="text-xs text-muted-foreground">
-								Latitude
-							</Label>
-							<Input
-								id={latId}
-								type="text"
-								inputMode="decimal"
-								value={draft.lat}
-								onChange={(e) => {
-									const value = e.target.value;
-									onChangeDraft((prev) => ({ ...prev, lat: value }));
-								}}
-								aria-invalid={Boolean(errors.lat)}
-								className="tabular-nums"
-							/>
-							{errors.lat ? (
-								<p role="alert" className="text-xs text-red-text">
-									{errors.lat}
-								</p>
-							) : null}
-						</div>
-
-						<div className="space-y-1">
-							<Label htmlFor={lngId} className="text-xs text-muted-foreground">
-								Longitude
-							</Label>
-							<Input
-								id={lngId}
-								type="text"
-								inputMode="decimal"
-								value={draft.lng}
-								onChange={(e) => {
-									const value = e.target.value;
-									onChangeDraft((prev) => ({ ...prev, lng: value }));
-								}}
-								aria-invalid={Boolean(errors.lng)}
-								className="tabular-nums"
-							/>
-							{errors.lng ? (
-								<p role="alert" className="text-xs text-red-text">
-									{errors.lng}
-								</p>
-							) : null}
-						</div>
-					</div>
-				</details>
-			</section>
+			<AddPlaceLocationSection
+				draft={draft}
+				errors={errors}
+				geoMessage={geoMessage}
+				mapsLinkInput={mapsLinkInput}
+				onGeoMessageChange={setGeoMessage}
+				onMapsLinkInputChange={setMapsLinkInput}
+				onChangeDraft={onChangeDraft}
+			/>
 
 			{/* Section 3: Hours, Price, Description & Photo */}
 			<section className="rounded-[12px] border border-border bg-card p-5 sm:p-6 space-y-5">

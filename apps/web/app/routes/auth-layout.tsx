@@ -27,13 +27,13 @@ export default function AuthLayout() {
 				className="mx-auto my-8 w-full max-w-[420px]"
 			>
 				<div className="mb-6 flex items-center gap-3">
-					{/* TODO: Replace temporary Darasa mark with final brand logo SVG */}
-					<span
-						aria-hidden="true"
-						className="flex size-10 items-center justify-center rounded-[10px] bg-primary text-lg font-bold text-primary-foreground"
-					>
-						D
-					</span>
+					<img
+						src="/images/darasa.webp"
+						alt=""
+						width={40}
+						height={40}
+						className="size-10 shrink-0 object-contain"
+					/>
 					<div>
 						<span className="block text-xl font-bold tracking-tight text-foreground">
 							Darasa

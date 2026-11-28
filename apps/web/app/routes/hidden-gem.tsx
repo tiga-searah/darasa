@@ -1,8 +1,9 @@
-import { LayoutGrid, List, RotateCcw } from "lucide-react";
-import { useId, useMemo } from "react";
+import { MapPin, RotateCcw, X } from "lucide-react";
+import { useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { PlaceCard } from "~/components/place-card";
-import { Badge } from "~/components/ui/badge";
+import { ClearableSearchInput } from "~/components/clearable-search-input";
+import { PlaceInfiniteFooter } from "~/components/place-infinite-footer";
+import { PlaceResultsList } from "~/components/place-results-list";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import {
@@ -12,9 +13,12 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "~/components/ui/select";
+import { ViewModeToggle } from "~/components/view-mode-toggle";
 import { useDarasa } from "~/context/darasa-store";
 import { BATANG_DISTRICTS } from "~/data/batang-places";
+import { VERIFICATION_LABELS } from "~/data/explore-filters";
 import type { BatangDistrict } from "~/lib/types";
+import { useIncrementalReveal, useInfiniteList } from "~/lib/use-infinite-list";
 import { cn } from "~/lib/utils";
 import type { Route } from "./+types/hidden-gem";
 
@@ -32,7 +36,9 @@ export function meta(_args: Route.MetaArgs) {
 export default function HiddenGemPage() {
 	const { places, exploreFilters, setExploreFilters, resetExploreFilters } =
 		useDarasa();
+	const [keyword, setKeyword] = useState("");
 	const districtId = useId();
+	const gridRef = useRef<HTMLDivElement>(null);
 
 	const {
 		category: categoryFilter,
@@ -42,13 +48,21 @@ export default function HiddenGemPage() {
 	} = exploreFilters;
 
 	const hiddenGems = useMemo(() => {
+		const q = keyword.trim().toLowerCase();
 		return places
 			.filter((place) => {
 				if (!place.hiddenGemEligible) return false;
-				if (categoryFilter !== "all" && place.category !== categoryFilter)
+				if (q) {
+					const haystack =
+						`${place.name} ${place.category} ${place.district} ${place.address} ${place.description}`.toLowerCase();
+					if (!haystack.includes(q)) return false;
+				}
+				if (categoryFilter !== "all" && place.category !== categoryFilter) {
 					return false;
-				if (districtFilter !== "all" && place.district !== districtFilter)
+				}
+				if (districtFilter !== "all" && place.district !== districtFilter) {
 					return false;
+				}
 				if (
 					verificationFilter !== "all" &&
 					place.verificationStatus !== verificationFilter
@@ -58,17 +72,47 @@ export default function HiddenGemPage() {
 				return true;
 			})
 			.sort((a, b) => b.hiddenGemScore - a.hiddenGemScore);
-	}, [places, categoryFilter, districtFilter, verificationFilter]);
+	}, [places, keyword, categoryFilter, districtFilter, verificationFilter]);
+
+	const filterSignature = `${keyword.trim()}|${categoryFilter}|${districtFilter}|${verificationFilter}`;
+
+	const {
+		visibleItems: visibleHiddenGems,
+		visibleCount,
+		totalItems,
+		currentPage,
+		totalPages,
+		hasMore,
+		isInitialLoading,
+		isFetchingMore,
+		error,
+		batchSize,
+		sentinelRef,
+		loadMore,
+		retry,
+	} = useInfiniteList(hiddenGems, { filterKey: filterSignature });
+
+	useIncrementalReveal(
+		gridRef,
+		visibleHiddenGems.length,
+		`${filterSignature}|${viewMode}`,
+	);
 
 	const hasActiveFilters =
+		keyword.trim().length > 0 ||
 		categoryFilter !== "all" ||
 		districtFilter !== "all" ||
 		verificationFilter !== "all";
 
+	const handleReset = () => {
+		setKeyword("");
+		resetExploreFilters();
+	};
+
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 pb-8">
 			{/* Cardless Golden Highlight Header with Smooth Bottom Fade */}
-			<section className="relative -mt-[6rem] pt-[6.5rem] pb-10 xl:-mt-[6rem] xl:pt-[6.5rem]">
+			<section className="relative -mt-[6rem] pt-[6.5rem] pb-8 xl:-mt-[6rem] xl:pt-[6.5rem]">
 				<div
 					aria-hidden="true"
 					className="pointer-events-none absolute inset-y-0 left-1/2 w-[100vw] -translate-x-1/2 overflow-hidden"
@@ -88,134 +132,170 @@ export default function HiddenGemPage() {
 				</div>
 			</section>
 
-			{/* Slim Filter & View Controls */}
-			<div className="flex flex-wrap items-center justify-between gap-4">
-				<div className="flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
-					<span>
+			<div className="space-y-5">
+				{/* Search + District Filter + View Controls matching Explore */}
+				<div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center">
+					<ClearableSearchInput
+						value={keyword}
+						onChange={setKeyword}
+						label="Cari hidden gem kuliner"
+						placeholder="Cari hidden gem, menu, atau kawasan..."
+					/>
+
+					<div className="flex items-center justify-between gap-2.5 sm:w-auto">
+						<div className="flex min-w-0 flex-1 items-center gap-2 sm:w-[220px] sm:flex-none">
+							<Label htmlFor={districtId} className="sr-only">
+								Kawasan Batang
+							</Label>
+							<Select
+								value={districtFilter}
+								onValueChange={(val) =>
+									setExploreFilters({ district: val as BatangDistrict | "all" })
+								}
+							>
+								<SelectTrigger id={districtId} className="bg-background">
+									<div className="flex min-w-0 flex-1 items-center gap-2">
+										<MapPin
+											className={cn(
+												"size-4 shrink-0",
+												districtFilter !== "all"
+													? "text-primary"
+													: "text-muted-foreground",
+											)}
+											aria-hidden="true"
+										/>
+										<SelectValue />
+									</div>
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">Semua Kawasan</SelectItem>
+									{BATANG_DISTRICTS.map((d) => (
+										<SelectItem key={d} value={d}>
+											{d}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<ViewModeToggle
+							value={viewMode}
+							onChange={(nextMode) => setExploreFilters({ viewMode: nextMode })}
+						/>
+					</div>
+				</div>
+
+				{/* Result Count & Clearable Active Filter Chips */}
+				<div className="flex flex-wrap items-center gap-2">
+					<span className="text-sm text-muted-foreground">
 						<strong className="font-semibold text-foreground tabular-nums">
 							{hiddenGems.length}
 						</strong>{" "}
 						tempat ditemukan
 					</span>
-					{categoryFilter !== "all" ? (
-						<Badge variant="default">{categoryFilter}</Badge>
-					) : null}
-					{hasActiveFilters ? (
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => resetExploreFilters()}
+
+					{keyword.trim() ? (
+						<button
+							type="button"
+							onClick={() => setKeyword("")}
+							aria-label={`Hapus kata kunci ${keyword}`}
+							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-accent-yellow/50 bg-yellow-soft px-3 py-1 text-xs font-medium text-yellow-text hover:brightness-95"
 						>
+							&ldquo;{keyword.trim()}&rdquo;
+							<X className="size-3.5" aria-hidden="true" />
+						</button>
+					) : null}
+
+					{categoryFilter !== "all" ? (
+						<button
+							type="button"
+							onClick={() => setExploreFilters({ category: "all" })}
+							aria-label={`Hapus filter kategori ${categoryFilter}`}
+							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
+						>
+							{categoryFilter}
+							<X className="size-3.5" aria-hidden="true" />
+						</button>
+					) : null}
+
+					{districtFilter !== "all" ? (
+						<button
+							type="button"
+							onClick={() => setExploreFilters({ district: "all" })}
+							aria-label={`Hapus filter kawasan ${districtFilter}`}
+							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
+						>
+							{districtFilter}
+							<X className="size-3.5" aria-hidden="true" />
+						</button>
+					) : null}
+
+					{verificationFilter !== "all" ? (
+						<button
+							type="button"
+							onClick={() => setExploreFilters({ verification: "all" })}
+							aria-label={`Hapus filter verifikasi ${VERIFICATION_LABELS[verificationFilter]}`}
+							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
+						>
+							{VERIFICATION_LABELS[verificationFilter]}
+							<X className="size-3.5" aria-hidden="true" />
+						</button>
+					) : null}
+
+					{hasActiveFilters ? (
+						<Button variant="ghost" size="sm" onClick={handleReset}>
 							<RotateCcw className="size-3.5" aria-hidden="true" />
 							Reset
 						</Button>
 					) : null}
 				</div>
 
-				<div className="flex w-full items-center justify-between gap-3 sm:w-auto">
-					<div className="flex min-w-0 flex-1 items-center gap-2 sm:w-[220px] sm:flex-none">
-						<Label htmlFor={districtId} className="shrink-0 text-xs">
-							Kawasan:
-						</Label>
-						<Select
-							value={districtFilter}
-							onValueChange={(val) =>
-								setExploreFilters({ district: val as BatangDistrict | "all" })
-							}
-						>
-							<SelectTrigger id={districtId} className="bg-background">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">Semua Kawasan</SelectItem>
-								{BATANG_DISTRICTS.map((d) => (
-									<SelectItem key={d} value={d}>
-										{d}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+				{!isInitialLoading && hiddenGems.length === 0 ? (
+					<div className="border-t border-border py-14 text-center space-y-4">
+						<h2 className="text-lg font-semibold text-foreground">
+							Belum ada hidden gems yang cocok dengan filter ini
+						</h2>
+						<p className="mx-auto max-w-md text-sm text-muted-foreground">
+							Bantu warga menemukan warung atau kedai terbaik yang belum banyak
+							dikenal dengan mengubah filter atau menambahkan tempat baru.
+						</p>
+						<div className="flex flex-wrap justify-center gap-3">
+							<Button variant="secondary" onClick={handleReset}>
+								Lihat Semua Hidden Gems
+							</Button>
+							<Button asChild>
+								<Link to="/contribute/add-place">Tambah Tempat Kuliner</Link>
+							</Button>
+						</div>
 					</div>
-
-					<fieldset className="m-0 ml-auto inline-flex shrink-0 items-center rounded-[8px] border border-border bg-background p-0.5">
-						<legend className="sr-only">Mode tampilan daftar</legend>
-						<button
-							type="button"
-							aria-label="Tampilan grid ala Play Store"
-							title="Tampilan Grid"
-							aria-pressed={viewMode === "grid"}
-							onClick={() => setExploreFilters({ viewMode: "grid" })}
-							className={cn(
-								"inline-flex size-9 items-center justify-center rounded-[6px] transition-colors",
-								viewMode === "grid"
-									? "bg-card text-primary shadow-xs"
-									: "text-muted-foreground hover:text-foreground",
-							)}
-						>
-							<LayoutGrid className="size-4" aria-hidden="true" />
-						</button>
-						<button
-							type="button"
-							aria-label="Tampilan daftar ala Google Maps"
-							title="Tampilan Daftar"
-							aria-pressed={viewMode === "list"}
-							onClick={() => setExploreFilters({ viewMode: "list" })}
-							className={cn(
-								"inline-flex size-9 items-center justify-center rounded-[6px] transition-colors",
-								viewMode === "list"
-									? "bg-card text-primary shadow-xs"
-									: "text-muted-foreground hover:text-foreground",
-							)}
-						>
-							<List className="size-4" aria-hidden="true" />
-						</button>
-					</fieldset>
-				</div>
+				) : (
+					<>
+						<PlaceResultsList
+							places={visibleHiddenGems}
+							mode="hidden-gem"
+							viewMode={viewMode}
+							containerRef={gridRef}
+							isInitialLoading={isInitialLoading}
+							skeletonCount={batchSize}
+						/>
+						<PlaceInfiniteFooter
+							visibleCount={visibleCount}
+							totalItems={totalItems}
+							currentPage={currentPage}
+							totalPages={totalPages}
+							hasMore={hasMore}
+							isInitialLoading={isInitialLoading}
+							isFetchingMore={isFetchingMore}
+							error={error}
+							batchSize={batchSize}
+							sentinelRef={sentinelRef}
+							onLoadMore={loadMore}
+							onRetry={retry}
+							itemLabel="hidden gems"
+						/>
+					</>
+				)}
 			</div>
-
-			{hiddenGems.length === 0 ? (
-				<div className="border-t border-border py-14 text-center space-y-4">
-					<h2 className="text-lg font-semibold text-foreground">
-						Belum ada hidden gems yang cocok dengan filter ini
-					</h2>
-					<p className="mx-auto max-w-md text-sm text-muted-foreground">
-						Bantu warga menemukan warung atau kedai terbaik yang belum banyak
-						dikenal dengan mengubah filter atau menambahkan tempat baru.
-					</p>
-					<div className="flex flex-wrap justify-center gap-3">
-						<Button variant="secondary" onClick={() => resetExploreFilters()}>
-							Lihat Semua Hidden Gems
-						</Button>
-						<Button asChild>
-							<Link to="/contribute/add-place">Tambah Tempat Kuliner</Link>
-						</Button>
-					</div>
-				</div>
-			) : viewMode === "list" ? (
-				<div className="divide-y divide-border border-t border-border">
-					{hiddenGems.map((place, index) => (
-						<PlaceCard
-							key={place.id}
-							place={place}
-							mode="hidden-gem"
-							layout="list"
-							prioritizeImage={index < 3}
-						/>
-					))}
-				</div>
-			) : (
-				<div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
-					{hiddenGems.map((place, index) => (
-						<PlaceCard
-							key={place.id}
-							place={place}
-							mode="hidden-gem"
-							layout="grid"
-							prioritizeImage={index < 3}
-						/>
-					))}
-				</div>
-			)}
 		</div>
 	);
 }

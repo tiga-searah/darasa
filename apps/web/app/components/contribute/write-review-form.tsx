@@ -11,9 +11,9 @@ import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
+import { RATING_LABELS, readImageFiles } from "~/data/contribute";
 import { cn } from "~/lib/utils";
 import { PlacePicker } from "./place-picker";
-import { RATING_LABELS, readImageFiles } from "./types";
 
 interface WriteReviewFormProps {
 	places: PlaceWithMetrics[];

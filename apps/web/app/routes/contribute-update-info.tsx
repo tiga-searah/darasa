@@ -2,8 +2,8 @@ import type { MetaArgs } from "react-router";
 import { ContributeSubpageShell } from "~/components/contribute/contribute-subpage-shell";
 import { UpdateInfoForm } from "~/components/contribute/update-info-form";
 import { useContributePlaceSelection } from "~/components/contribute/use-contribute-place";
-import { XP_REWARDS } from "~/components/contribute/xp";
 import { useDarasa } from "~/context/darasa-store";
+import { XP_REWARDS } from "~/data/contribute-xp";
 
 export function meta(_args: MetaArgs) {
 	return [

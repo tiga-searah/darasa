@@ -11,9 +11,9 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
+import { getPlacePhotoCount, readImageFiles } from "~/data/contribute";
 import { cn } from "~/lib/utils";
 import { PlacePicker } from "./place-picker";
-import { getPlacePhotoCount, readImageFiles } from "./types";
 
 interface AddPhotoFormProps {
 	places: PlaceWithMetrics[];

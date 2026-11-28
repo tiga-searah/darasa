@@ -5,9 +5,9 @@ import {
 	AddPlaceForm,
 } from "~/components/contribute/add-place-form";
 import { ContributeSubpageShell } from "~/components/contribute/contribute-subpage-shell";
-import { XP_REWARDS } from "~/components/contribute/xp";
 import { useDarasa } from "~/context/darasa-store";
 import { DISTRICT_COORDINATES } from "~/data/batang-places";
+import { XP_REWARDS } from "~/data/contribute-xp";
 
 export function meta(_args: MetaArgs) {
 	return [

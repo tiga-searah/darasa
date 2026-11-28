@@ -85,6 +85,7 @@ apps/api/scripts/smoke.ts
   - `class ApiError extends Error { constructor(code: ApiErrorCode, status: number, message: string, fields?: Record<string, string>) }`
   - `type ApiErrorCode = "VALIDATION_ERROR" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "RATE_LIMITED" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "OAUTH_ONLY_ACCOUNT" | "LAST_CREDENTIAL"`
   - `src/lib/ports.ts`:
+
     ```ts
     export type Storage = {
       presignPut(key: string, expiresIn: number): Promise<string>;
@@ -100,6 +101,7 @@ apps/api/scripts/smoke.ts
       validateAuthorizationCode(code: string, codeVerifier: string): Promise<{ idToken(): string }>;
     };
     ```
+
     Declared here, in Task 1, because `AppDeps` names both. Tasks 5 and 6 supply the implementations; neither redefines the types.
   - `type AppDeps = { storage?: Storage; google?: GoogleClient }` — both optional, defaults built from env
   - `createApp(deps?: AppDeps): Elysia`

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { calculateContributorXp, getContributorLevel } from "./xp";
+import { calculateContributorXp, getContributorLevel } from "./contribute-xp";
 
 describe("calculateContributorXp", () => {
 	it("computes weighted XP across all contribution types", () => {

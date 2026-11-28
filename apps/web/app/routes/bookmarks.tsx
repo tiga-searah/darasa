@@ -1,17 +1,18 @@
-import { LayoutGrid, List, Search } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { RotateCcw, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { PlaceCard } from "~/components/place-card";
+import { ClearableSearchInput } from "~/components/clearable-search-input";
+import { PlaceInfiniteFooter } from "~/components/place-infinite-footer";
+import { PlaceResultsList } from "~/components/place-results-list";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { ViewModeToggle } from "~/components/view-mode-toggle";
 import { useDarasa } from "~/context/darasa-store";
-import { cn } from "~/lib/utils";
+import { useIncrementalReveal, useInfiniteList } from "~/lib/use-infinite-list";
 import type { Route } from "./+types/bookmarks";
 
 export function meta(_args: Route.MetaArgs) {
 	return [
-		{ title: "Bookmark Kuliner | Darasa" },
+		{ title: "Disimpan | Darasa" },
 		{
 			name: "description",
 			content:
@@ -24,7 +25,7 @@ export default function BookmarksPage() {
 	const { places, bookmarkedPlaceIds, exploreFilters, setExploreFilters } =
 		useDarasa();
 	const [query, setQuery] = useState("");
-	const searchId = useId();
+	const gridRef = useRef<HTMLDivElement>(null);
 	const { viewMode } = exploreFilters;
 
 	const bookmarkedPlaces = useMemo(() => {
@@ -38,37 +39,49 @@ export default function BookmarksPage() {
 		});
 	}, [places, bookmarkedPlaceIds, query]);
 
+	const {
+		visibleItems: visibleBookmarks,
+		visibleCount,
+		totalItems,
+		currentPage,
+		totalPages,
+		hasMore,
+		isInitialLoading,
+		isFetchingMore,
+		error,
+		batchSize,
+		sentinelRef,
+		loadMore,
+		retry,
+	} = useInfiniteList(bookmarkedPlaces, { filterKey: query.trim() });
+
+	useIncrementalReveal(
+		gridRef,
+		visibleBookmarks.length,
+		`${query.trim()}|${viewMode}`,
+	);
+
 	return (
-		<div className="space-y-6">
-			<section className="border-b border-border pb-4 space-y-4">
-				<div className="space-y-1">
-					<h1 className="text-2xl font-bold tracking-tight text-foreground">
-						Bookmark
+		<div className="space-y-6 pb-8">
+			<section className="border-b border-border pb-5 space-y-4">
+				<div className="space-y-1.5">
+					<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
+						Disimpan
 					</h1>
-					<p className="text-sm text-muted-foreground">
-						Daftar tempat kuliner yang Anda simpan.
+					<p className="text-sm sm:text-base text-muted-foreground">
+						Daftar tempat kuliner yang Anda simpan untuk dikunjungi nanti.
 					</p>
 				</div>
 
 				{bookmarkedPlaceIds.length > 0 ? (
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<div className="relative flex-1 max-w-md">
-							<Label htmlFor={searchId} className="sr-only">
-								Cari di dalam bookmark
-							</Label>
-							<Search
-								className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-								aria-hidden="true"
-							/>
-							<Input
-								id={searchId}
-								type="search"
-								value={query}
-								onChange={(e) => setQuery(e.target.value)}
-								placeholder="Cari tempat tersimpan..."
-								className="h-10 rounded-full border-border bg-background pl-10 pr-4"
-							/>
-						</div>
+						<ClearableSearchInput
+							value={query}
+							onChange={setQuery}
+							label="Cari di daftar disimpan"
+							placeholder="Cari tempat tersimpan..."
+							className="max-w-md"
+						/>
 
 						<div className="flex items-center justify-between gap-3 sm:justify-end">
 							<span className="text-sm text-muted-foreground">
@@ -78,90 +91,88 @@ export default function BookmarksPage() {
 								tersimpan
 							</span>
 
-							<fieldset className="m-0 inline-flex shrink-0 items-center rounded-[8px] border border-border bg-background p-0.5">
-								<legend className="sr-only">Mode tampilan bookmark</legend>
-								<button
-									type="button"
-									aria-label="Tampilan grid"
-									title="Tampilan Grid"
-									aria-pressed={viewMode === "grid"}
-									onClick={() => setExploreFilters({ viewMode: "grid" })}
-									className={cn(
-										"inline-flex size-9 items-center justify-center rounded-[6px] transition-colors",
-										viewMode === "grid"
-											? "bg-card text-primary shadow-xs"
-											: "text-muted-foreground hover:text-foreground",
-									)}
-								>
-									<LayoutGrid className="size-4" aria-hidden="true" />
-								</button>
-								<button
-									type="button"
-									aria-label="Tampilan daftar"
-									title="Tampilan Daftar"
-									aria-pressed={viewMode === "list"}
-									onClick={() => setExploreFilters({ viewMode: "list" })}
-									className={cn(
-										"inline-flex size-9 items-center justify-center rounded-[6px] transition-colors",
-										viewMode === "list"
-											? "bg-card text-primary shadow-xs"
-											: "text-muted-foreground hover:text-foreground",
-									)}
-								>
-									<List className="size-4" aria-hidden="true" />
-								</button>
-							</fieldset>
+							<ViewModeToggle
+								value={viewMode}
+								onChange={(nextMode) =>
+									setExploreFilters({ viewMode: nextMode })
+								}
+								legend="Mode tampilan daftar disimpan"
+							/>
 						</div>
 					</div>
 				) : null}
 			</section>
 
-			{bookmarkedPlaceIds.length === 0 ? (
-				<div className="py-12 text-center space-y-3">
-					<p className="text-sm font-medium text-foreground">
-						Belum ada tempat yang disimpan.
-					</p>
-					<p className="text-sm text-muted-foreground">
-						Simpan tempat kuliner dari halaman Jelajah untuk melihatnya di sini.
-					</p>
-					<Button asChild variant="outline" size="sm">
-						<Link to="/explore">Jelajah Kuliner</Link>
-					</Button>
-				</div>
-			) : bookmarkedPlaces.length === 0 ? (
-				<div className="py-12 text-center space-y-3">
-					<h2 className="text-lg font-semibold text-foreground">
-						Tidak ada bookmark yang cocok dengan pencarian
-					</h2>
-					<Button variant="secondary" onClick={() => setQuery("")}>
-						Tampilkan Semua Bookmark
-					</Button>
-				</div>
-			) : viewMode === "list" ? (
-				<div className="divide-y divide-border">
-					{bookmarkedPlaces.map((place, index) => (
-						<PlaceCard
-							key={place.id}
-							place={place}
+			<div className="space-y-5">
+				{query.trim() ? (
+					<div className="flex flex-wrap items-center gap-2">
+						<button
+							type="button"
+							onClick={() => setQuery("")}
+							aria-label={`Hapus kata kunci ${query}`}
+							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
+						>
+							&ldquo;{query.trim()}&rdquo;
+							<X className="size-3.5" aria-hidden="true" />
+						</button>
+						<Button variant="ghost" size="sm" onClick={() => setQuery("")}>
+							<RotateCcw className="size-3.5" aria-hidden="true" />
+							Reset
+						</Button>
+					</div>
+				) : null}
+
+				{bookmarkedPlaceIds.length === 0 ? (
+					<div className="py-14 text-center space-y-4">
+						<h2 className="text-lg font-semibold text-foreground">
+							Belum ada tempat yang disimpan
+						</h2>
+						<p className="mx-auto max-w-md text-sm text-muted-foreground">
+							Simpan tempat kuliner dari halaman Jelajah atau Hidden Gems untuk
+							melihatnya kembali di sini.
+						</p>
+						<Button asChild variant="secondary">
+							<Link to="/explore">Jelajah Kuliner</Link>
+						</Button>
+					</div>
+				) : !isInitialLoading && bookmarkedPlaces.length === 0 ? (
+					<div className="py-14 text-center space-y-4">
+						<h2 className="text-lg font-semibold text-foreground">
+							Tidak ada tempat tersimpan yang cocok dengan pencarian
+						</h2>
+						<Button variant="secondary" onClick={() => setQuery("")}>
+							Tampilkan Semua
+						</Button>
+					</div>
+				) : (
+					<>
+						<PlaceResultsList
+							places={visibleBookmarks}
 							mode="explore"
-							layout="list"
-							prioritizeImage={index < 3}
+							viewMode={viewMode}
+							containerRef={gridRef}
+							isInitialLoading={isInitialLoading}
+							skeletonCount={batchSize}
+							withTopBorder={false}
 						/>
-					))}
-				</div>
-			) : (
-				<div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
-					{bookmarkedPlaces.map((place, index) => (
-						<PlaceCard
-							key={place.id}
-							place={place}
-							mode="explore"
-							layout="grid"
-							prioritizeImage={index < 3}
+						<PlaceInfiniteFooter
+							visibleCount={visibleCount}
+							totalItems={totalItems}
+							currentPage={currentPage}
+							totalPages={totalPages}
+							hasMore={hasMore}
+							isInitialLoading={isInitialLoading}
+							isFetchingMore={isFetchingMore}
+							error={error}
+							batchSize={batchSize}
+							sentinelRef={sentinelRef}
+							onLoadMore={loadMore}
+							onRetry={retry}
+							itemLabel="tempat tersimpan"
 						/>
-					))}
-				</div>
-			)}
+					</>
+				)}
+			</div>
 		</div>
 	);
 }

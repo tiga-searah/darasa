@@ -101,7 +101,10 @@ describe("computeScores", () => {
 		expect(eligible.hiddenGemScore).toBeCloseTo(4.5 * (1 / 3), 6);
 		// 0.5*(4.5/5) + 0.2*(ln(3)/ln(51)) + 0.2*1 + 0.1*0.5
 		const expectedExplore =
-			0.5 * (4.5 / 5) + 0.2 * (Math.log(3) / Math.log(51)) + 0.2 * 1 + 0.1 * 0.5;
+			0.5 * (4.5 / 5) +
+			0.2 * (Math.log(3) / Math.log(51)) +
+			0.2 * 1 +
+			0.1 * 0.5;
 		expect(eligible.exploreScore).toBeCloseTo(expectedExplore, 6);
 	});
 
@@ -181,7 +184,9 @@ describe("GET /categories", () => {
 			{ name: "Warung", slug: "warung", icon: "utensils", sortOrder: 1 },
 		]);
 
-		const res = await freshApp().handle(new Request("http://test/api/categories"));
+		const res = await freshApp().handle(
+			new Request("http://test/api/categories"),
+		);
 		expect(res.status).toBe(200);
 		const body = await json(res);
 		expect(body.data.map((c: any) => c.slug)).toEqual(["warung", "kafe"]);
@@ -391,10 +396,14 @@ describe("place discovery", () => {
 		const { pubHigh } = await seedPlaces();
 		const app = freshApp({ storage: memoryStorage() });
 		const r1 = await app.handle(
-			new Request(`http://test/api/places/${pubHigh.id}/view`, { method: "POST" }),
+			new Request(`http://test/api/places/${pubHigh.id}/view`, {
+				method: "POST",
+			}),
 		);
 		const r2 = await app.handle(
-			new Request(`http://test/api/places/${pubHigh.id}/view`, { method: "POST" }),
+			new Request(`http://test/api/places/${pubHigh.id}/view`, {
+				method: "POST",
+			}),
 		);
 		expect(r1.status).toBe(204);
 		expect(r2.status).toBe(204);

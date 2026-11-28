@@ -7,14 +7,8 @@ import {
 	useMemo,
 	useState,
 } from "react";
-import { XP_REWARDS } from "~/components/contribute/xp";
-import {
-	DEMO_ACCOUNTS,
-	INITIAL_CLAIMS,
-	INITIAL_PLACES,
-	INITIAL_REVIEWS,
-	PLACE_CATEGORIES,
-} from "~/data/batang-places";
+import { DEMO_ACCOUNTS } from "~/data/batang-places";
+import { XP_REWARDS } from "~/data/contribute-xp";
 import {
 	calculateExploreScore,
 	calculateHiddenGemScore,
@@ -25,258 +19,45 @@ import {
 import type {
 	AnomalyFlag,
 	AnomalyResolution,
-	BatangDistrict,
 	BusinessClaim,
 	CulinaryPlace,
 	OwnerReply,
-	PlaceCategory,
 	ReviewItem,
 	UserAccount,
 	VerificationStatus,
 } from "~/lib/types";
+import {
+	clearPersistedState,
+	DEFAULT_STATE,
+	getDeterministicBaseLikes,
+	loadPersistedState,
+	savePersistedState,
+	slugify,
+} from "./darasa-storage";
+import {
+	type ContributionActivity,
+	type DarasaContextValue,
+	DEFAULT_EXPLORE_FILTERS,
+	type ExploreFilters,
+	type PersistedState,
+	type PlaceWithMetrics,
+	type ToastNotification,
+} from "./darasa-types";
 
-export type ExploreSortOption =
-	| "explore"
-	| "rating"
-	| "reviews"
-	| "views"
-	| "newest"
-	| "az"
-	| "za";
-export type ExploreViewMode = "grid" | "list";
-export type ExploreMinRating =
-	| "all"
-	| "2.0"
-	| "2.5"
-	| "3.0"
-	| "3.5"
-	| "4.0"
-	| "4.5";
-export type ExplorePriceTier =
-	| "all"
-	| "under_25k"
-	| "25k_50k"
-	| "50k_100k"
-	| "over_100k";
-
-export interface ExploreFilters {
-	keyword: string;
-	category: PlaceCategory | "all";
-	district: BatangDistrict | "all";
-	verification: VerificationStatus | "all";
-	minRating: ExploreMinRating;
-	priceTier: ExplorePriceTier;
-	onlyHiddenGem: boolean;
-	onlyBookmarked: boolean;
-	sortBy: ExploreSortOption;
-	viewMode: ExploreViewMode;
-}
-
-export const DEFAULT_EXPLORE_FILTERS: ExploreFilters = {
-	keyword: "",
-	category: "all",
-	district: "all",
-	verification: "all",
-	minRating: "all",
-	priceTier: "all",
-	onlyHiddenGem: false,
-	onlyBookmarked: false,
-	sortBy: "explore",
-	viewMode: "grid",
-};
-
-const STORAGE_KEY = "darasa_prototype_state_v1";
-
-export interface ContributionActivity {
-	id: string;
-	userId: string;
-	type: "place" | "review" | "photo" | "edit";
-	placeId: string;
-	placeName: string;
-	summary: string;
-	createdAt: string;
-}
-
-interface PersistedState {
-	places: CulinaryPlace[];
-	reviews: ReviewItem[];
-	claims: BusinessClaim[];
-	accounts: UserAccount[];
-	currentUserId: string;
-	anomalyOverrides: Record<string, AnomalyResolution>;
-	bookmarkedPlaceIds: string[];
-	likedReviewIds: string[];
-	contributions: ContributionActivity[];
-}
-
-export interface PlaceWithMetrics extends CulinaryPlace {
-	reviews: ReviewItem[];
-	averageRating: number;
-	reviewCount: number;
-	exploreScore: number;
-	exploreBreakdown: ReturnType<typeof calculateExploreScore>;
-	hiddenGemEligible: boolean;
-	hiddenGemScore: number;
-}
-
-export interface ToastNotification {
-	id: number;
-	message: string;
-	tone: "success" | "info";
-}
-
-interface DarasaContextValue {
-	hydrated: boolean;
-	currentUser: UserAccount;
-	accounts: UserAccount[];
-	places: PlaceWithMetrics[];
-	claims: BusinessClaim[];
-	anomalies: AnomalyFlag[];
-	bookmarkedPlaceIds: string[];
-	contributions: ContributionActivity[];
-	toast: ToastNotification | null;
-	exploreFilters: ExploreFilters;
-	setExploreFilters: (
-		updater:
-			| Partial<ExploreFilters>
-			| ((prev: ExploreFilters) => ExploreFilters),
-	) => void;
-	resetExploreFilters: () => void;
-	isBookmarked: (placeId: string) => boolean;
-	toggleBookmark: (placeId: string) => void;
-	isReviewLiked: (reviewId: string) => boolean;
-	toggleReviewLike: (reviewId: string) => void;
-	getReviewLikeCount: (reviewId: string) => number;
-	notify: (message: string, tone?: "success" | "info") => void;
-	dismissToast: () => void;
-	loginWithCredentials: (
-		email: string,
-		password: string,
-	) => { ok: true; user: UserAccount } | { ok: false; error: string };
-	registerAccount: (
-		name: string,
-		email: string,
-		password: string,
-	) => { ok: true; user: UserAccount } | { ok: false; error: string };
-	switchDemoAccount: (userId: string) => void;
-	logout: () => void;
-	submitPlace: (
-		input: Omit<
-			CulinaryPlace,
-			| "id"
-			| "slug"
-			| "views"
-			| "verificationStatus"
-			| "submittedByUserId"
-			| "submittedByName"
-			| "createdAt"
-			| "isPendingModeration"
-		>,
-	) => CulinaryPlace;
-	recordPlaceView: (placeId: string) => void;
-	submitReview: (input: {
-		placeId: string;
-		rating: number;
-		comment: string;
-		photoUrl?: string;
-	}) => ReviewItem;
-	submitClaim: (input: {
-		placeId: string;
-		businessRole: string;
-		whatsappNumber: string;
-		evidenceSummary: string;
-		evidenceFileName?: string;
-	}) => BusinessClaim;
-	reviewClaim: (
-		claimId: string,
-		decision: "approved" | "rejected",
-		adminNote?: string,
-	) => void;
-	updatePlaceProfile: (
-		placeId: string,
-		updates: Partial<
-			Pick<
-				CulinaryPlace,
-				| "name"
-				| "address"
-				| "openingHours"
-				| "priceRange"
-				| "phone"
-				| "description"
-				| "category"
-				| "district"
-			>
-		>,
-	) => void;
-	addPlacePhoto: (placeId: string, photoUrl: string) => void;
-	suggestPlaceUpdate: (
-		placeId: string,
-		updates: Partial<
-			Pick<
-				CulinaryPlace,
-				"address" | "openingHours" | "priceRange" | "phone" | "description"
-			>
-		>,
-		note?: string,
-	) => void;
-	replyToReview: (reviewId: string, message: string) => void;
-	setPlaceVerification: (
-		placeId: string,
-		status: VerificationStatus,
-		approvePending?: boolean,
-	) => void;
-	resolveAnomalyFlag: (flagId: string, resolution: AnomalyResolution) => void;
-	resetPrototypeData: () => void;
-}
+export {
+	type ContributionActivity,
+	type DarasaContextValue,
+	DEFAULT_EXPLORE_FILTERS,
+	type ExploreFilters,
+	type ExploreMinRating,
+	type ExplorePriceTier,
+	type ExploreSortOption,
+	type ExploreViewMode,
+	type PlaceWithMetrics,
+	type ToastNotification,
+} from "./darasa-types";
 
 const DarasaContext = createContext<DarasaContextValue | null>(null);
-
-const LEGACY_CATEGORY_MAP: Record<string, PlaceCategory> = {
-	"Masakan Tradisional": "Makanan berat",
-	"Kuliner Pesisir": "Makanan berat",
-	"Warung Pekerja": "Makanan berat",
-	"Kopi & Kafe": "Minuman",
-	"Bakso & Mie": "Street food",
-	"Jajanan & Oleh-oleh": "Dessert",
-};
-
-const INITIAL_PHOTOS_BY_ID = new Map(
-	INITIAL_PLACES.map((place) => [place.id, place.photos]),
-);
-
-function normalizeCategory(value: unknown): PlaceCategory {
-	if (
-		typeof value === "string" &&
-		PLACE_CATEGORIES.includes(value as PlaceCategory)
-	) {
-		return value as PlaceCategory;
-	}
-	if (typeof value === "string" && value in LEGACY_CATEGORY_MAP) {
-		return LEGACY_CATEGORY_MAP[value];
-	}
-	return "Makanan berat";
-}
-
-function slugify(value: string): string {
-	return (
-		value
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/^-|-$/g, "") || "kuliner-batang"
-	);
-}
-
-const DEFAULT_STATE: PersistedState = {
-	places: INITIAL_PLACES,
-	reviews: INITIAL_REVIEWS,
-	claims: INITIAL_CLAIMS,
-	accounts: DEMO_ACCOUNTS,
-	currentUserId: "usr-visitor",
-	anomalyOverrides: {},
-	bookmarkedPlaceIds: [],
-	likedReviewIds: [],
-	contributions: [],
-};
 
 export function DarasaProvider({ children }: { children: ReactNode }) {
 	const [state, setState] = useState<PersistedState>(DEFAULT_STATE);
@@ -318,72 +99,16 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 	}, [toast]);
 
 	useEffect(() => {
-		try {
-			const raw = window.localStorage.getItem(STORAGE_KEY);
-			if (raw) {
-				const parsed = JSON.parse(raw) as Partial<PersistedState>;
-				if (Array.isArray(parsed.places) && Array.isArray(parsed.reviews)) {
-					setState({
-						places: parsed.places.map((place) => {
-							const seedPhotos = INITIAL_PHOTOS_BY_ID.get(place.id);
-							const customPhotos = Array.isArray(place.photos)
-								? place.photos.filter((src) => !src.endsWith(".svg"))
-								: [];
-							const photos =
-								seedPhotos && place.isPrototypeSample
-									? Array.from(new Set([...customPhotos, ...seedPhotos]))
-									: place.photos;
-							return {
-								...place,
-								category: normalizeCategory(place.category),
-								photos,
-								views:
-									typeof place.views === "number" &&
-									Number.isFinite(place.views) &&
-									place.views >= 0
-										? place.views
-										: (INITIAL_PLACES.find((ip) => ip.id === place.id)?.views ??
-											0),
-							};
-						}),
-						reviews: parsed.reviews,
-						claims: Array.isArray(parsed.claims)
-							? parsed.claims
-							: INITIAL_CLAIMS,
-						accounts: Array.isArray(parsed.accounts)
-							? parsed.accounts
-							: DEMO_ACCOUNTS,
-						currentUserId:
-							typeof parsed.currentUserId === "string"
-								? parsed.currentUserId
-								: "usr-visitor",
-						anomalyOverrides: parsed.anomalyOverrides ?? {},
-						bookmarkedPlaceIds: Array.isArray(parsed.bookmarkedPlaceIds)
-							? parsed.bookmarkedPlaceIds
-							: [],
-						likedReviewIds: Array.isArray(parsed.likedReviewIds)
-							? parsed.likedReviewIds
-							: [],
-						contributions: Array.isArray(parsed.contributions)
-							? parsed.contributions
-							: [],
-					});
-				}
-			}
-		} catch {
-			// Ignore malformed storage and retain deterministic seed data
-		} finally {
-			setHydrated(true);
+		const loaded = loadPersistedState();
+		if (loaded) {
+			setState(loaded);
 		}
+		setHydrated(true);
 	}, []);
 
 	useEffect(() => {
 		if (!hydrated) return;
-		try {
-			window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-		} catch {
-			// Ignore quota errors in restricted browsers
-		}
+		savePersistedState(state);
 	}, [state, hydrated]);
 
 	const currentUser = useMemo(() => {
@@ -534,11 +259,10 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 	const submitPlace: DarasaContextValue["submitPlace"] = useCallback(
 		(input) => {
 			const id = `plc-${Date.now()}`;
-			const baseSlug = slugify(input.name);
 			const newPlace: CulinaryPlace = {
 				...input,
 				id,
-				slug: `${baseSlug}-${id.slice(-4)}`,
+				slug: `${slugify(input.name)}-${id.slice(-4)}`,
 				photos:
 					input.photos.length > 0
 						? input.photos
@@ -845,11 +569,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 
 	const resetPrototypeData = useCallback(() => {
 		setState(DEFAULT_STATE);
-		try {
-			window.localStorage.removeItem(STORAGE_KEY);
-		} catch {
-			// Ignore
-		}
+		clearPersistedState();
 		notify("Data prototipe dikembalikan ke kondisi awal.", "info");
 	}, [notify]);
 
@@ -898,17 +618,9 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const getReviewLikeCount = useCallback(
-		(reviewId: string) => {
-			let hash = 0;
-			for (let i = 0; i < reviewId.length; i++) {
-				hash = (hash * 31 + reviewId.charCodeAt(i)) % 17;
-			}
-			const base =
-				reviewId.startsWith("rev-") && reviewId.length > 10
-					? 0
-					: (hash % 8) + 1;
-			return base + (state.likedReviewIds.includes(reviewId) ? 1 : 0);
-		},
+		(reviewId: string) =>
+			getDeterministicBaseLikes(reviewId) +
+			(state.likedReviewIds.includes(reviewId) ? 1 : 0),
 		[state.likedReviewIds],
 	);
 

@@ -27,7 +27,7 @@ export function ContributePageHeader({
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="min-w-0 space-y-1">
-					<h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-[28px]">
+					<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
 						{title}
 					</h1>
 					<p className="text-sm text-muted-foreground">{description}</p>

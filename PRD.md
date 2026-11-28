@@ -186,7 +186,7 @@ FR-005 The system must support Must
 role-aware access for  
 general users, approved
 business owners, and  
-administrators.  
+administrators.
 -----------------------------------------------------------------------
 
 ### 4.2 Explore, Search, and Filters
@@ -219,7 +219,7 @@ results must show
 relevant place  
 information to help  
 users choose a  
-destination.  
+destination.
 -----------------------------------------------------------------------
 
 ### 4.3 Culinary Place Details
@@ -254,7 +254,7 @@ address and opening
 hours when those  
 details are available  
 and have been supplied  
-or verified.  
+or verified.
 -----------------------------------------------------------------------
 
 ### 4.4 Community Place Contributions
@@ -288,7 +288,7 @@ information must be
 subject to the  
 platform's validation  
 or verification  
-process.  
+process.
 -----------------------------------------------------------------------
 
 ### 4.5 Ratings, Reviews, and Photos
@@ -323,7 +323,7 @@ FR-024 Reviews and ratings Must
 must be linked to the  
 submitting user account
 to support moderation  
-and anomaly analysis.  
+and anomaly analysis.
 -----------------------------------------------------------------------
 
 ### 4.6 Explore Ranking
@@ -349,7 +349,7 @@ FR-027 The Explore experience Must
 must use the Explore  
 Score to support a  
 balanced ordering of  
-places.  
+places.
 -----------------------------------------------------------------------
 
 The proposal's initial Explore Score formula is:
@@ -387,7 +387,7 @@ least 4.0.
 FR-031 The Hidden Gem page Must
 must display the places
 that meet its selection
-criteria.  
+criteria.
 -----------------------------------------------------------------------
 
 The proposal's initial Hidden Gem Score formula is:
@@ -469,7 +469,7 @@ FR-041 The system must Should
 communicate the claim  
 outcome to the claimant
 through an appropriate  
-status or message.  
+status or message.
 -----------------------------------------------------------------------
 
 ### 4.10 Business Owner Dashboard
@@ -496,7 +496,7 @@ business statistics.
 
 FR-045 The dashboard should Should
 allow the owner to  
-reply to user reviews.  
+reply to user reviews.
 -----------------------------------------------------------------------
 
 ### 4.11 Administrator Management
@@ -525,7 +525,7 @@ FR-049 Administrators must be Should
 able to inspect  
 submissions or activity
 flagged for further  
-review.  
+review.
 -----------------------------------------------------------------------
 
 ---

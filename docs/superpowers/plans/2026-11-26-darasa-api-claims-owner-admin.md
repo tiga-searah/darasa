@@ -85,7 +85,11 @@ async function registerAs(email: string, role: "user" | "admin" = "user") {
 async function seedPlace(status: "published" | "pending" = "published") {
 	const [cat] = await db
 		.insert(schema.categories)
-		.values({ name: "Warung", slug: `w-${crypto.randomUUID().slice(0, 6)}`, sortOrder: 1 })
+		.values({
+			name: "Warung",
+			slug: `w-${crypto.randomUUID().slice(0, 6)}`,
+			sortOrder: 1,
+		})
 		.returning();
 	const [place] = await db
 		.insert(schema.places)
@@ -117,7 +121,11 @@ describe("business claims", () => {
 				method: "POST",
 				headers: { "content-type": "application/json", cookie: userCookie },
 				body: JSON.stringify({
-					evidence: { note: "Pemilik", documentMediaIds: [], contactPhone: "+62812" },
+					evidence: {
+						note: "Pemilik",
+						documentMediaIds: [],
+						contactPhone: "+62812",
+					},
 				}),
 			}),
 		);
@@ -129,7 +137,11 @@ describe("business claims", () => {
 				method: "POST",
 				headers: { "content-type": "application/json", cookie: userCookie },
 				body: JSON.stringify({
-					evidence: { note: "NIB 123", documentMediaIds: [], contactPhone: "+62812" },
+					evidence: {
+						note: "NIB 123",
+						documentMediaIds: [],
+						contactPhone: "+62812",
+					},
 				}),
 			}),
 		);
@@ -142,7 +154,11 @@ describe("business claims", () => {
 				method: "POST",
 				headers: { "content-type": "application/json", cookie: userCookie },
 				body: JSON.stringify({
-					evidence: { note: "NIB 123", documentMediaIds: [], contactPhone: "+62812" },
+					evidence: {
+						note: "NIB 123",
+						documentMediaIds: [],
+						contactPhone: "+62812",
+					},
 				}),
 			}),
 		);
@@ -165,7 +181,11 @@ describe("business claims", () => {
 				method: "POST",
 				headers: { "content-type": "application/json", cookie: userCookie },
 				body: JSON.stringify({
-					evidence: { note: "NIB jelas", documentMediaIds: [], contactPhone: "+62812" },
+					evidence: {
+						note: "NIB jelas",
+						documentMediaIds: [],
+						contactPhone: "+62812",
+					},
 				}),
 			}),
 		);
@@ -367,7 +387,9 @@ describe("owner dashboard places & stats", () => {
 	test("GET /owner/places/:id/stats returns daily views and unanswered count", async () => {
 		const { app, cookie, placeA } = await seedOwnerSetup();
 		await app.handle(
-			new Request(`http://test/api/places/${placeA.id}/view`, { method: "POST" }),
+			new Request(`http://test/api/places/${placeA.id}/view`, {
+				method: "POST",
+			}),
 		);
 		const res = await app.handle(
 			new Request(`http://test/api/owner/places/${placeA.id}/stats?days=7`, {
@@ -714,7 +736,13 @@ describe("admin moderation", () => {
 				reviewId: rev.id,
 				userId: u.id,
 				kind: "rating_outlier",
-				metrics: { zScore: 3, mean: 2, stdDev: 1, windowDays: 30, sampleSize: 10 },
+				metrics: {
+					zScore: 3,
+					mean: 2,
+					stdDev: 1,
+					windowDays: 30,
+					sampleSize: 10,
+				},
 				reason: "Outlier",
 			})
 			.returning();
@@ -724,7 +752,10 @@ describe("admin moderation", () => {
 			new Request(`http://test/api/admin/anomalies/${flag.id}/resolve`, {
 				method: "POST",
 				headers: { "content-type": "application/json", cookie },
-				body: JSON.stringify({ status: "dismissed", note: "Valid local customer" }),
+				body: JSON.stringify({
+					status: "dismissed",
+					note: "Valid local customer",
+				}),
 			}),
 		);
 		expect(resFlag.status).toBe(200);
@@ -733,7 +764,10 @@ describe("admin moderation", () => {
 			new Request(`http://test/api/admin/anomalies/${flag.id}/resolve`, {
 				method: "POST",
 				headers: { "content-type": "application/json", cookie },
-				body: JSON.stringify({ status: "confirmed", note: "Duplicate resolve" }),
+				body: JSON.stringify({
+					status: "confirmed",
+					note: "Duplicate resolve",
+				}),
 			}),
 		);
 		expect(resFlagAgain.status).toBe(409);
