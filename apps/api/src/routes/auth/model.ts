@@ -3,7 +3,7 @@ import { t } from "elysia";
 export const RegisterBody = t.Object({
 	name: t.String({ minLength: 2, maxLength: 80 }),
 	email: t.String({ format: "email" }),
-	password: t.String({ minLength: 8, maxLength: 72 }),
+	password: t.String({ minLength: 6, maxLength: 72 }),
 });
 
 export const LoginBody = t.Object({

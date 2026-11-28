@@ -6,7 +6,8 @@
 		"typecheck": "bun check",
 		"test": "bun test",
 		"docker": "docker build -f Dockerfile -t darasa-api ../..",
-		"smoke": "bun run scripts/smoke.ts"
+		"smoke": "bun run scripts/smoke.ts",
+		"db:seed": "bun run src/database/seed.ts"
 	},
 	"dependencies": {
 		"@elysia/cors": "^2.0.0-rc.1",

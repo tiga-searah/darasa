@@ -1,4 +1,4 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, type SQL, sql } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
@@ -9,7 +9,11 @@ import {
 	notFound,
 	paginationMeta,
 } from "../../utils";
-import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
+import {
+	assertOwnedReadyMedia,
+	resolveMediaUrl,
+	resolveMediaUrlMap,
+} from "../media/service";
 
 export async function submitClaim(
 	placeId: string,
@@ -103,35 +107,102 @@ export async function listMyClaims(
 	);
 }
 
-export async function listAdminClaims(query: {
-	status?: "pending" | "approved" | "rejected";
-	page?: number;
-	limit?: number;
-}) {
+export async function listAdminClaims(
+	storage: Storage | undefined,
+	query: {
+		status?: "all" | "pending" | "approved" | "rejected";
+		q?: string;
+		page?: number;
+		limit?: number;
+	},
+) {
 	const status = query.status ?? "pending";
 	const page = query.page ?? 1;
 	const limit = query.limit ?? 20;
 	const offset = (page - 1) * limit;
 
-	const [rows, [{ total }]] = await Promise.all([
-		db.query.businessClaims.findMany({
-			where: { status },
-			orderBy: { createdAt: "desc" },
-			limit,
-			offset,
-			with: {
-				claimant: { columns: { id: true, name: true, email: true } },
-				place: { columns: { id: true, slug: true, name: true } },
-			},
-		}),
+	const conditions: SQL[] = [];
+	if (status !== "all") {
+		conditions.push(eq(schema.businessClaims.status, status));
+	}
+	if (query.q?.trim()) {
+		const q = `%${query.q.trim()}%`;
+		conditions.push(
+			or(
+				ilike(schema.users.name, q),
+				ilike(schema.users.email, q),
+				ilike(schema.places.name, q),
+				ilike(sql`${schema.businessClaims.evidence}->>'note'`, q),
+				ilike(sql`${schema.businessClaims.evidence}->>'businessRole'`, q),
+			)!,
+		);
+	}
+	const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+	const [rows, totalRows] = await Promise.all([
+		db
+			.select({
+				id: schema.businessClaims.id,
+				placeId: schema.businessClaims.placeId,
+				claimantId: schema.businessClaims.claimantId,
+				status: schema.businessClaims.status,
+				evidence: schema.businessClaims.evidence,
+				reviewedById: schema.businessClaims.reviewedById,
+				reviewedAt: schema.businessClaims.reviewedAt,
+				decisionNote: schema.businessClaims.decisionNote,
+				createdAt: schema.businessClaims.createdAt,
+				updatedAt: schema.businessClaims.updatedAt,
+				claimant: {
+					id: schema.users.id,
+					name: schema.users.name,
+					email: schema.users.email,
+				},
+				place: {
+					id: schema.places.id,
+					slug: schema.places.slug,
+					name: schema.places.name,
+				},
+			})
+			.from(schema.businessClaims)
+			.leftJoin(
+				schema.users,
+				eq(schema.businessClaims.claimantId, schema.users.id),
+			)
+			.leftJoin(
+				schema.places,
+				eq(schema.businessClaims.placeId, schema.places.id),
+			)
+			.where(where)
+			.orderBy(desc(schema.businessClaims.createdAt))
+			.limit(limit)
+			.offset(offset),
 		db
 			.select({ total: count() })
 			.from(schema.businessClaims)
-			.where(eq(schema.businessClaims.status, status)),
+			.leftJoin(
+				schema.users,
+				eq(schema.businessClaims.claimantId, schema.users.id),
+			)
+			.leftJoin(
+				schema.places,
+				eq(schema.businessClaims.placeId, schema.places.id),
+			)
+			.where(where),
 	]);
 
+	const allDocIds = rows.flatMap((r) => r.evidence.documentMediaIds);
+	const docUrlMap = await resolveMediaUrlMap(storage, allDocIds);
+
+	const total = totalRows[0]?.total ?? 0;
 	return {
-		data: rows,
+		data: rows.map((r) => ({
+			...r,
+			claimant: r.claimant?.id ? r.claimant : null,
+			place: r.place?.id ? r.place : null,
+			documentUrls: r.evidence.documentMediaIds
+				.map((id) => docUrlMap.get(id))
+				.filter((u): u is string => Boolean(u)),
+		})),
 		meta: paginationMeta(page, limit, total),
 	};
 }

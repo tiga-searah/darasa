@@ -60,6 +60,7 @@ export const OwnerPlaceListItem = t.Object({
 	slug: t.String(),
 	name: t.String(),
 	categoryId: t.String(),
+	categoryName: t.String(),
 	address: t.Nullable(t.String()),
 	phone: t.Nullable(t.String()),
 	status: t.Union([

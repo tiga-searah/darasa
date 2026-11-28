@@ -43,14 +43,23 @@ describe("register", () => {
 		expect((await json(res)).error.code).toBe("CONFLICT");
 	});
 
-	test("rejects a 7-character password with 422", async () => {
+	test("rejects a 5-character password with 422", async () => {
 		const res = await register({
 			name: "Arya",
 			email: "a@b.test",
-			password: "1234567",
+			password: "12345",
 		});
 		expect(res.status).toBe(422);
 		expect((await json(res)).error.code).toBe("VALIDATION_ERROR");
+	});
+
+	test("accepts a 6-character password with 201", async () => {
+		const res = await register({
+			name: "Arya",
+			email: "a6@b.test",
+			password: "123456",
+		});
+		expect(res.status).toBe(201);
 	});
 });
 

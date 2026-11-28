@@ -63,6 +63,7 @@ export async function listOwnerPlaces(storage: Storage, user: SessionUser) {
 			slug: schema.places.slug,
 			name: schema.places.name,
 			categoryId: schema.places.categoryId,
+			categoryName: schema.categories.name,
 			address: schema.places.address,
 			phone: schema.places.phone,
 			status: schema.places.status,
@@ -81,6 +82,10 @@ export async function listOwnerPlaces(storage: Storage, user: SessionUser) {
 			updatedAt: schema.places.updatedAt,
 		})
 		.from(schema.places)
+		.innerJoin(
+			schema.categories,
+			eq(schema.places.categoryId, schema.categories.id),
+		)
 		.leftJoin(
 			schema.businessClaims,
 			and(
@@ -101,11 +106,31 @@ export async function listOwnerPlaces(storage: Storage, user: SessionUser) {
 		)
 		.orderBy(asc(schema.places.name));
 
+	if (rows.length === 0) return [];
+
+	const pendingRows = await db
+		.select({
+			placeId: schema.businessClaims.placeId,
+			total: count(),
+		})
+		.from(schema.businessClaims)
+		.where(
+			and(
+				inArray(
+					schema.businessClaims.placeId,
+					rows.map((r) => r.id),
+				),
+				eq(schema.businessClaims.status, "pending"),
+			),
+		)
+		.groupBy(schema.businessClaims.placeId);
+	const pendingMap = new Map(pendingRows.map((r) => [r.placeId, r.total]));
+
 	return Promise.all(
 		rows.map(async ({ coverKey, ...rest }) => ({
 			...rest,
 			coverUrl: coverKey ? await resolveMediaUrl(storage, coverKey) : null,
-			pendingClaims: 0,
+			pendingClaims: pendingMap.get(rest.id) ?? 0,
 		})),
 	);
 }

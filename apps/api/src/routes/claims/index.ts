@@ -60,7 +60,7 @@ export const claimRoutes = new Elysia()
 					query: AdminClaimsQuery,
 					response: { 200: AdminClaimsResponse },
 				},
-				async (ctx) => listAdminClaims(ctx.query),
+				async (ctx) => listAdminClaims(storageFrom(ctx), ctx.query),
 			)
 			.post(
 				"/admin/claims/:id/approve",

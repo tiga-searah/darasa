@@ -3,6 +3,7 @@ import { t } from "elysia";
 export const AdminPlacesQuery = t.Object({
 	status: t.Optional(
 		t.Union([
+			t.Literal("all"),
 			t.Literal("pending"),
 			t.Literal("published"),
 			t.Literal("rejected"),
@@ -10,13 +11,24 @@ export const AdminPlacesQuery = t.Object({
 		]),
 	),
 	q: t.Optional(t.String({ maxLength: 80 })),
+	district: t.Optional(t.String({ maxLength: 80 })),
+	verified: t.Optional(
+		t.Union([
+			t.Literal("none"),
+			t.Literal("community"),
+			t.Literal("owner"),
+			t.Literal("both"),
+		]),
+	),
 	page: t.Optional(t.Integer({ minimum: 1 })),
 	limit: t.Optional(t.Integer({ minimum: 1, maximum: 50 })),
 });
 
 export type AdminPlacesQueryType = {
-	status?: "pending" | "published" | "rejected" | "archived";
+	status?: "all" | "pending" | "published" | "rejected" | "archived";
 	q?: string;
+	district?: string;
+	verified?: "none" | "community" | "owner" | "both";
 	page?: number;
 	limit?: number;
 };
@@ -46,11 +58,13 @@ export type ModerateReviewBodyType = {
 export const AdminAnomaliesQuery = t.Object({
 	status: t.Optional(
 		t.Union([
+			t.Literal("all"),
 			t.Literal("open"),
 			t.Literal("dismissed"),
 			t.Literal("confirmed"),
 		]),
 	),
+	q: t.Optional(t.String({ maxLength: 80 })),
 	kind: t.Optional(
 		t.Union([t.Literal("rating_outlier"), t.Literal("review_burst")]),
 	),
@@ -60,7 +74,8 @@ export const AdminAnomaliesQuery = t.Object({
 });
 
 export type AdminAnomaliesQueryType = {
-	status?: "open" | "dismissed" | "confirmed";
+	status?: "all" | "open" | "dismissed" | "confirmed";
+	q?: string;
 	kind?: "rating_outlier" | "review_burst";
 	placeId?: string;
 	page?: number;
