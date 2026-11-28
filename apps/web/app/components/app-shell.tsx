@@ -19,10 +19,7 @@ import { ProfilePopover } from "~/components/shell/profile-popover";
 import { ToastBanner } from "~/components/shell/toast-banner";
 import { useDarasa } from "~/context/darasa-store";
 import type { NavItem } from "~/data/nav-config";
-import {
-	COLOR_SCHEME_STORAGE_KEY,
-	syncColorSchemeFromStorage,
-} from "~/lib/theme";
+import { subscribeColorSchemeSync } from "~/lib/theme";
 import { cn } from "~/lib/utils";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -77,23 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 		};
 	}, []);
 
-	useEffect(() => {
-		const handleStorage = (event: StorageEvent) => {
-			if (event.key === null || event.key === COLOR_SCHEME_STORAGE_KEY) {
-				syncColorSchemeFromStorage();
-			}
-		};
-		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-		const handleMediaChange = () => {
-			syncColorSchemeFromStorage();
-		};
-		window.addEventListener("storage", handleStorage);
-		mediaQuery.addEventListener("change", handleMediaChange);
-		return () => {
-			window.removeEventListener("storage", handleStorage);
-			mediaQuery.removeEventListener("change", handleMediaChange);
-		};
-	}, []);
+	useEffect(() => subscribeColorSchemeSync(), []);
 
 	useEffect(() => {
 		const _path = location.pathname;

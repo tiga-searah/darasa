@@ -273,13 +273,9 @@ export function DesktopSidebar({
 					<SidebarGroup>{renderNavItems(items)}</SidebarGroup>
 				</nav>
 
-				<div className="mt-auto flex justify-center pt-2">
-					<ThemeToggle
-						compact
-						variant="ghost"
-						className="size-9 rounded-[8px] text-muted-foreground hover:bg-background hover:text-foreground"
-					/>
-				</div>
+				<SidebarGroup className="mt-auto pt-2">
+					<ThemeToggle collapsed={collapsed} />
+				</SidebarGroup>
 			</SidebarContent>
 
 			<SidebarFooter className="bg-sidebar p-3">

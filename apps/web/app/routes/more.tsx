@@ -8,7 +8,7 @@ export function meta(_args: MetaArgs) {
 		{
 			name: "description",
 			content:
-				"Menu navigasi tambahan, pengaturan tema tampilan terang/gelap, dan informasi Darasa.",
+				"Menu navigasi tambahan, pengaturan tema tampilan (Light, Dark, System), dan informasi Darasa.",
 		},
 	];
 }

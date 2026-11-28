@@ -4,6 +4,10 @@ export const THEME_COLOR_DARK = "#111513";
 
 export type ColorSchemePreference = "light dark" | "light" | "dark";
 export type ResolvedColorScheme = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
+
+export const THEME_MODES: readonly ThemeMode[] = ["light", "dark", "system"];
+export const THEME_CHANGE_EVENT = "darasa:theme-change";
 
 /**
  * Tiny synchronous FOUC-prevention script placed immediately after <meta name="color-scheme">.
@@ -31,6 +35,21 @@ export function getStoredColorScheme(): ResolvedColorScheme | null {
 	} catch {
 		return null;
 	}
+}
+
+export function getThemePreference(): ThemeMode {
+	if (typeof document !== "undefined") {
+		const content = document
+			.querySelector<HTMLMetaElement>('meta[name="color-scheme"]')
+			?.getAttribute("content");
+		if (content === "light" || content === "dark") {
+			return content;
+		}
+		if (content === "light dark") {
+			return "system";
+		}
+	}
+	return getStoredColorScheme() ?? "system";
 }
 
 export function getRenderedColorScheme(): ResolvedColorScheme {
@@ -65,6 +84,10 @@ export function applyColorSchemeMeta(preference: ColorSchemePreference): void {
 			resolved === "dark" ? THEME_COLOR_DARK : THEME_COLOR_LIGHT,
 		);
 	}
+
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT));
+	}
 }
 
 export function syncColorSchemeFromStorage(): void {
@@ -72,12 +95,8 @@ export function syncColorSchemeFromStorage(): void {
 	applyColorSchemeMeta(stored ?? "light dark");
 }
 
-export function setColorSchemePreference(
-	target: ResolvedColorScheme,
-): ResolvedColorScheme {
-	const system = getSystemColorScheme();
-
-	if (target !== system) {
+export function setColorSchemePreference(target: ThemeMode): ThemeMode {
+	if (target === "light" || target === "dark") {
 		try {
 			window.localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, target);
 		} catch {
@@ -97,12 +116,53 @@ export function setColorSchemePreference(
 }
 
 /**
- * Two-state toggle backing onto a tri-state data model ("light dark" | "light" | "dark"):
- * switches to the opposite of the currently rendered scheme, storing an override only when
- * it diverges from the current system preference and clearing storage when returning to system.
+ * Cycles through explicit light, explicit dark, and system preference.
  */
-export function toggleColorScheme(): ResolvedColorScheme {
-	const current = getRenderedColorScheme();
-	const target: ResolvedColorScheme = current === "dark" ? "light" : "dark";
-	return setColorSchemePreference(target);
+export function cycleColorScheme(): ThemeMode {
+	const current = getThemePreference();
+	const currentIndex = THEME_MODES.indexOf(current);
+	const next = THEME_MODES[(currentIndex + 1) % THEME_MODES.length];
+	return setColorSchemePreference(next);
+}
+
+/**
+ * Subscribes to cross-tab storage, OS color-scheme changes, and in-tab theme updates.
+ */
+export function subscribeColorSchemeSync(
+	onThemeChange?: (mode: ThemeMode) => void,
+): () => void {
+	if (typeof window === "undefined") {
+		return () => {};
+	}
+
+	const notify = () => {
+		onThemeChange?.(getThemePreference());
+	};
+
+	const handleStorage = (event: StorageEvent) => {
+		if (event.key === null || event.key === COLOR_SCHEME_STORAGE_KEY) {
+			syncColorSchemeFromStorage();
+			notify();
+		}
+	};
+
+	const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+	const handleMediaChange = () => {
+		syncColorSchemeFromStorage();
+		notify();
+	};
+
+	const handleThemeChange = () => {
+		notify();
+	};
+
+	window.addEventListener("storage", handleStorage);
+	window.addEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+	mediaQuery?.addEventListener("change", handleMediaChange);
+
+	return () => {
+		window.removeEventListener("storage", handleStorage);
+		window.removeEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+		mediaQuery?.removeEventListener("change", handleMediaChange);
+	};
 }

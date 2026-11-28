@@ -1,18 +1,11 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import {
-	Bookmark,
-	LayoutDashboard,
-	Moon,
-	ShieldAlert,
-	Sun,
-	X,
-} from "lucide-react";
+import { Bookmark, LayoutDashboard, ShieldAlert, X } from "lucide-react";
 import { NavLink } from "react-router";
 import { GitHubMark } from "~/components/shell/github-mark";
+import { ThemeMenuOptions } from "~/components/theme-toggle";
 import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import { GITHUB_REPO_URL } from "~/data/nav-config";
-import { setColorSchemePreference } from "~/lib/theme";
 import type { UserAccount } from "~/lib/types";
 import { cn } from "~/lib/utils";
 
@@ -107,29 +100,18 @@ export function MoreMenuGroups({
 
 			<Separator />
 
-			<fieldset className="space-y-2 border-0 p-0 m-0">
-				<legend className="px-1 text-xs font-semibold text-muted-foreground">
+			<div className="space-y-2">
+				<p className="px-1 text-xs font-semibold text-muted-foreground">
 					Settings · Tema Tampilan
-				</legend>
-				<div className="grid grid-cols-2 gap-1.5">
-					<button
-						type="button"
-						onClick={() => setColorSchemePreference("light")}
-						className="darasa-theme-btn-light flex min-h-[40px] items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition-colors"
-					>
-						<Sun className="size-3.5" aria-hidden="true" />
-						<span>Light Mode</span>
-					</button>
-					<button
-						type="button"
-						onClick={() => setColorSchemePreference("dark")}
-						className="darasa-theme-btn-dark flex min-h-[40px] items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition-colors"
-					>
-						<Moon className="size-3.5" aria-hidden="true" />
-						<span>Dark Mode</span>
-					</button>
+				</p>
+				<div
+					role="menu"
+					aria-label="Settings · Tema Tampilan"
+					className="rounded-[12px] border border-border bg-background/60 p-1.5"
+				>
+					<ThemeMenuOptions />
 				</div>
-			</fieldset>
+			</div>
 
 			<Separator />
 

@@ -516,34 +516,71 @@
 	}
 }
 
-/* Theme toggle state visibility driven by CSS without JS/hydration mismatch */
-.theme-when-light {
+/* Theme switcher visibility & active states driven by CSS without hydration mismatch */
+.theme-rendered-light,
+.theme-sys-light {
 	display: inline-flex;
 }
 
-.theme-when-dark {
+.theme-rendered-dark,
+.theme-sys-dark,
+.theme-check-light,
+.theme-check-dark {
 	display: none;
 }
 
+.theme-check-system {
+	display: inline-flex;
+}
+
 @media (prefers-color-scheme: dark) {
+	.theme-sys-light {
+		display: none;
+	}
+
+	.theme-sys-dark {
+		display: inline-flex;
+	}
+
 	:root:not(:has(> head > meta[name="color-scheme"][content="light"]))
-		.theme-when-light {
+		.theme-rendered-light {
 		display: none;
 	}
 
 	:root:not(:has(> head > meta[name="color-scheme"][content="light"]))
-		.theme-when-dark {
+		.theme-rendered-dark {
 		display: inline-flex;
 	}
 }
 
 :root:has(> head > meta[name="color-scheme"][content="dark"])
-	.theme-when-light {
+	.theme-rendered-light {
 	display: none;
 }
 
-:root:has(> head > meta[name="color-scheme"][content="dark"]) .theme-when-dark {
+:root:has(> head > meta[name="color-scheme"][content="dark"])
+	.theme-rendered-dark {
 	display: inline-flex;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="light"])
+	.theme-check-light {
+	display: inline-flex;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="light"])
+	.theme-check-system {
+	display: none;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"])
+	.theme-check-dark {
+	display: inline-flex;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"])
+	.theme-check-system {
+	display: none;
 }
 
 /* Skip link utility */
@@ -603,49 +640,6 @@
 	padding: 0;
 	border: 0;
 	white-space: nowrap;
-}
-
-/* Profile theme switcher active states driven by CSS without hydration mismatch */
-.darasa-theme-btn-light {
-	border-color: var(--primary);
-	background-color: var(--primary-soft);
-	color: var(--primary-hover);
-}
-
-.darasa-theme-btn-dark {
-	border-color: var(--border);
-	background-color: var(--background);
-	color: var(--foreground);
-}
-
-@media (prefers-color-scheme: dark) {
-	:root:not(:has(> head > meta[name="color-scheme"][content="light"]))
-		.darasa-theme-btn-light {
-		border-color: var(--border);
-		background-color: var(--background);
-		color: var(--foreground);
-	}
-
-	:root:not(:has(> head > meta[name="color-scheme"][content="light"]))
-		.darasa-theme-btn-dark {
-		border-color: var(--primary);
-		background-color: var(--primary-soft);
-		color: var(--primary-hover);
-	}
-}
-
-:root:has(> head > meta[name="color-scheme"][content="dark"])
-	.darasa-theme-btn-light {
-	border-color: var(--border);
-	background-color: var(--background);
-	color: var(--foreground);
-}
-
-:root:has(> head > meta[name="color-scheme"][content="dark"])
-	.darasa-theme-btn-dark {
-	border-color: var(--primary);
-	background-color: var(--primary-soft);
-	color: var(--primary-hover);
 }
 
 /* Top-layer popover fallback & viewport-aware anchor positioning */
