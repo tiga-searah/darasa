@@ -9,23 +9,23 @@ export const ReviewListQuery = t.Object({
 	withPhotos: t.Optional(t.BooleanString()),
 });
 
-export const CreateReviewBody = t.Object({
-	rating: t.Integer({ minimum: 1, maximum: 5 }),
-	body: t.Optional(t.String({ minLength: 10, maxLength: 2000 })),
-	photoMediaIds: t.Optional(
-		t.Array(t.String({ format: "uuid" }), { maxItems: 5, uniqueItems: true }),
-	),
-});
+export const CreateReviewBody = t.Object(
+	{
+		rating: t.Integer({ minimum: 1, maximum: 5 }),
+		body: t.Optional(t.String({ minLength: 10, maxLength: 2000 })),
+	},
+	{ additionalProperties: false },
+);
 
-export const UpdateReviewBody = t.Object({
-	rating: t.Optional(t.Integer({ minimum: 1, maximum: 5 })),
-	body: t.Optional(
-		t.Union([t.String({ minLength: 10, maxLength: 2000 }), t.Null()]),
-	),
-	photoMediaIds: t.Optional(
-		t.Array(t.String({ format: "uuid" }), { maxItems: 5, uniqueItems: true }),
-	),
-});
+export const UpdateReviewBody = t.Object(
+	{
+		rating: t.Optional(t.Integer({ minimum: 1, maximum: 5 })),
+		body: t.Optional(
+			t.Union([t.String({ minLength: 10, maxLength: 2000 }), t.Null()]),
+		),
+	},
+	{ additionalProperties: false },
+);
 
 export const ReviewPhotoSchema = t.Object({
 	id: t.String(),

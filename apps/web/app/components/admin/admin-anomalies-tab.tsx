@@ -17,6 +17,15 @@ const ANOMALY_STATUS_OPTIONS: Array<{ value: AnomalyFilter; label: string }> = [
 	{ value: "flagged_hold", label: "Perlu Pantauan" },
 ];
 
+const ANOMALY_STATUS_BADGE: Record<
+	AnomalyResolution,
+	{ variant: "default" | "destructive" | "yellow"; label: string }
+> = {
+	cleared: { variant: "default", label: "Dinyatakan Wajar" },
+	flagged_hold: { variant: "destructive", label: "Ditandai Perlu Pantauan" },
+	open: { variant: "yellow", label: "Perlu Tinjauan" },
+};
+
 interface AdminAnomaliesTabProps {
 	anomalies: AnomalyFlag[];
 	onResolveAnomaly: (flagId: string, resolution: AnomalyResolution) => void;
@@ -153,19 +162,9 @@ export function AdminAnomaliesTab({
 											{flag.placeName}
 										</h2>
 										<Badge
-											variant={
-												flag.resolution === "cleared"
-													? "default"
-													: flag.resolution === "flagged_hold"
-														? "destructive"
-														: "yellow"
-											}
+											variant={ANOMALY_STATUS_BADGE[flag.resolution].variant}
 										>
-											{flag.resolution === "cleared"
-												? "Dinyatakan Wajar"
-												: flag.resolution === "flagged_hold"
-													? "Ditandai Perlu Pantauan"
-													: "Perlu Tinjauan"}
+											{ANOMALY_STATUS_BADGE[flag.resolution].label}
 										</Badge>
 									</div>
 									<p className="text-sm text-muted-foreground tabular-nums">

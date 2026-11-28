@@ -240,6 +240,68 @@ describe("POST /places", () => {
 		);
 		expect(res.status).toBe(403);
 	});
+
+	test("accepts optional legalityDocumentMediaId on POST /places and restricts visibility", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const pdf = new Uint8Array([
+			0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34,
+		]);
+
+		const up = await app.handle(
+			new Request("http://test/api/media/uploads", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					purpose: "claim_document",
+					mime: "application/pdf",
+					sizeBytes: pdf.length,
+				}),
+			}),
+		);
+		const { id: docId } = (await json(up)).data;
+		const row = await db.query.media.findFirst({ where: { id: docId } });
+		if (!row) throw new Error("Expected uploaded media row");
+		await storage.put(row.key, pdf, "application/pdf");
+		await app.handle(
+			new Request(`http://test/api/media/${docId}/commit`, {
+				method: "POST",
+				headers: { cookie },
+			}),
+		);
+
+		const res = await app.handle(
+			new Request("http://test/api/places", {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					name: "Warung Pemilik Sendiri",
+					categoryId: cat.id,
+					latitude: -6.9123,
+					longitude: 109.7301,
+					legalityDocumentMediaId: docId,
+				}),
+			}),
+		);
+		expect(res.status).toBe(201);
+		const created = (await json(res)).data;
+		expect(created.legalityDocumentMediaId).toBe(docId);
+		expect(created.legalityDocumentUrl).toBeTruthy();
+
+		// Publish place so public can read detail; legality document stays hidden from public
+		await db
+			.update(schema.places)
+			.set({ status: "published" })
+			.where(eq(schema.places.id, created.id));
+
+		const publicRes = await app.handle(
+			new Request(`http://test/api/places/${created.slug}`),
+		);
+		expect(publicRes.status).toBe(200);
+		const pubData = (await json(publicRes)).data;
+		expect(pubData.legalityDocumentMediaId).toBeNull();
+		expect(pubData.legalityDocumentUrl).toBeNull();
+	});
 });
 
 describe("place photos", () => {

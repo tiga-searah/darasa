@@ -96,3 +96,26 @@ export function isUniqueViolation(error: unknown): boolean {
 	}
 	return false;
 }
+
+export const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function paginationMeta(page: number, limit: number, total: number) {
+	return {
+		page,
+		limit,
+		total,
+		totalPages: Math.max(1, Math.ceil(total / limit)),
+	};
+}
+
+/** Formats a Date as a YYYYMMDD integer in Asia/Jakarta (WIB). */
+export function toJakartaDayInt(date = new Date()): number {
+	const formatted = new Intl.DateTimeFormat("en-CA", {
+		timeZone: "Asia/Jakarta",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).format(date);
+	return Number(formatted.replace(/-/g, ""));
+}

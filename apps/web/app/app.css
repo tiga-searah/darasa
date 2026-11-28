@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+@custom-variant dark {
+	&:where(:root:has(> head > meta[name="color-scheme"][content="dark"]) *) {
+		@slot;
+	}
+	@media (prefers-color-scheme: dark) {
+		&:where(
+				:root:not(:has(> head > meta[name="color-scheme"][content="light"])) *
+			) {
+			@slot;
+		}
+	}
+}
+
 :root {
 	--radius: 0.5rem;
 	color-scheme: light dark;
@@ -746,16 +759,41 @@
 	}
 }
 
+@keyframes darasa-sheet-up {
+	from {
+		opacity: 0;
+		transform: translateY(24px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
 @media (prefers-reduced-motion: no-preference) {
-	[data-slot="dialog-overlay"][data-state="open"] {
+	[data-slot="dialog-overlay"][data-state="open"],
+	[data-slot="bottom-sheet-overlay"][data-state="open"] {
 		animation: darasa-fade-in 180ms ease-out;
 	}
 
-	[data-slot="dialog-overlay"][data-state="closed"] {
+	[data-slot="dialog-overlay"][data-state="closed"],
+	[data-slot="bottom-sheet-overlay"][data-state="closed"] {
 		animation: darasa-fade-out 140ms ease-in forwards;
 	}
 
 	.darasa-search-dropdown {
 		animation: darasa-dropdown-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
 	}
+
+	.darasa-bottom-sheet[data-state="open"] {
+		animation: darasa-sheet-up 220ms cubic-bezier(0.16, 1, 0.3, 1);
+	}
+}
+
+/* Keep Leaflet tiles and marker icons free from Tailwind preflight img max-width clamping */
+.leaflet-container img.leaflet-tile,
+.leaflet-container img.leaflet-marker-icon,
+.leaflet-container img.leaflet-marker-shadow {
+	max-width: none;
+	max-height: none;
 }

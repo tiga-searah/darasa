@@ -59,6 +59,25 @@ export const RATING_LABELS: Record<number, string> = {
 };
 
 export const MAX_IMAGE_FILE_BYTES = 5 * 1024 * 1024;
+export const MAX_LEGALITY_DOC_BYTES = 10 * 1024 * 1024;
+export const ACCEPTED_LEGALITY_MIME_TYPES = [
+	"application/pdf",
+	"image/jpeg",
+	"image/png",
+	"image/webp",
+] as const;
+
+function readFileAsDataUrl(file: File): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => {
+			if (typeof reader.result === "string") resolve(reader.result);
+			else reject(new Error("Gagal membaca berkas"));
+		};
+		reader.onerror = () => reject(new Error("Gagal membaca berkas"));
+		reader.readAsDataURL(file);
+	});
+}
 
 export function readImageFiles(
 	files: FileList | File[],
@@ -84,25 +103,48 @@ export function readImageFiles(
 		});
 	}
 
-	return Promise.all(
-		list.map(
-			(file) =>
-				new Promise<string>((resolve, reject) => {
-					const reader = new FileReader();
-					reader.onload = () => {
-						if (typeof reader.result === "string") resolve(reader.result);
-						else reject(new Error("Gagal membaca gambar"));
-					};
-					reader.onerror = () => reject(new Error("Gagal membaca gambar"));
-					reader.readAsDataURL(file);
-				}),
-		),
-	)
+	return Promise.all(list.map(readFileAsDataUrl))
 		.then((urls) => ({ urls, error: null }))
 		.catch(() => ({
 			urls: [],
 			error: "Terjadi kendala saat membaca berkas gambar.",
 		}));
+}
+
+export async function readLegalityDocumentFile(
+	file: File,
+): Promise<{ url: string; fileName: string; error: string | null }> {
+	const isAcceptedMime = (
+		ACCEPTED_LEGALITY_MIME_TYPES as readonly string[]
+	).includes(file.type);
+	const isAcceptedExt = /\.(pdf|jpe?g|png|webp)$/i.test(file.name);
+
+	if (!isAcceptedMime && !(file.type === "" && isAcceptedExt)) {
+		return {
+			url: "",
+			fileName: "",
+			error: `Format "${file.name}" tidak didukung. Unggah surat legalitas berformat PDF, JPG, PNG, atau WebP.`,
+		};
+	}
+
+	if (file.size > MAX_LEGALITY_DOC_BYTES) {
+		return {
+			url: "",
+			fileName: "",
+			error: `Ukuran "${file.name}" melebihi 10 MB. Kompres atau pilih berkas yang lebih ringan.`,
+		};
+	}
+
+	try {
+		const url = await readFileAsDataUrl(file);
+		return { url, fileName: file.name, error: null };
+	} catch {
+		return {
+			url: "",
+			fileName: "",
+			error: "Terjadi kendala saat membaca berkas surat legalitas.",
+		};
+	}
 }
 
 export function formatRelativeContributionDate(isoDate: string): string {

@@ -14,6 +14,7 @@ interface CarouselDotsProps {
 	count: number;
 	activeIndex: number;
 	labelPrefix: string;
+	tone?: "default" | "light";
 	onSelect: (index: number) => void;
 }
 
@@ -21,10 +22,12 @@ export function CarouselDots({
 	count,
 	activeIndex,
 	labelPrefix,
+	tone = "default",
 	onSelect,
 }: CarouselDotsProps) {
 	if (count <= 1) return null;
 	const indices = Array.from({ length: count }, (_, idx) => idx);
+	const isLightTone = tone === "light";
 
 	return (
 		<div className="flex items-center justify-center gap-0.5 pt-1">
@@ -32,10 +35,20 @@ export function CarouselDots({
 				const distance = Math.abs(idx - activeIndex);
 				const isActive = distance === 0;
 				const dotSizeClass = isActive
-					? "size-3 bg-primary"
+					? cn("size-3", isLightTone ? "bg-[#52d69f]" : "bg-primary")
 					: distance === 1
-						? "size-2 bg-muted-foreground/50 group-hover:bg-foreground/70"
-						: "size-1.5 bg-muted-foreground/30 group-hover:bg-foreground/60";
+						? cn(
+								"size-2",
+								isLightTone
+									? "bg-white/50 group-hover:bg-white/80"
+									: "bg-muted-foreground/50 group-hover:bg-foreground/70",
+							)
+						: cn(
+								"size-1.5",
+								isLightTone
+									? "bg-white/30 group-hover:bg-white/65"
+									: "bg-muted-foreground/30 group-hover:bg-foreground/60",
+							);
 
 				return (
 					<button

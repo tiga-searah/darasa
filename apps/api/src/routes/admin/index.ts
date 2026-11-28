@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import type { Storage } from "../../lib/ports";
 import { requireAdmin } from "../../plugins/guard";
 import {
 	AdminAnomaliesQuery,
@@ -20,6 +21,9 @@ import {
 	updatePlaceVerification,
 } from "./service";
 
+const storageFrom = (ctx: unknown): Storage | undefined =>
+	(ctx as { deps?: { storage?: Storage } }).deps?.storage;
+
 export const adminRoutes = new Elysia({ prefix: "/admin" })
 	.use(requireAdmin)
 	.get(
@@ -28,7 +32,7 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
 			query: AdminPlacesQuery,
 			response: { 200: AdminPlacesResponse },
 		},
-		async ({ query }) => listAdminPlaces(query),
+		async (ctx) => listAdminPlaces(storageFrom(ctx), ctx.query),
 	)
 	.patch(
 		"/places/:id/verification",

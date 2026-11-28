@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 
 interface AddPlaceSuccessProps {
-	place: { slug: string; name: string };
+	place: { slug: string; name: string; legalityDocumentName?: string };
 	onAddAnother: () => void;
 }
 
@@ -22,8 +22,9 @@ export function AddPlaceSuccess({ place, onAddAnother }: AddPlaceSuccessProps) {
 						"{place.name}" berhasil ditambahkan
 					</h2>
 					<p className="text-sm text-muted-foreground">
-						Data tempat kuliner baru sudah masuk ke direktori Darasa dan antrean
-						validasi komunitas.
+						{place.legalityDocumentName
+							? `Data tempat kuliner dan surat legalitas (${place.legalityDocumentName}) sudah dikirim ke antrean verifikasi admin.`
+							: "Data tempat kuliner baru sudah masuk ke direktori Darasa dan antrean validasi komunitas."}
 					</p>
 				</div>
 			</div>

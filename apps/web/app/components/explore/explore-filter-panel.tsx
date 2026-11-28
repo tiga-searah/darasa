@@ -105,11 +105,7 @@ export function ExploreFilterPanel({
 			)}
 		>
 			<div className="min-h-0 overflow-hidden">
-				<div
-					ref={panelRef}
-					className="flex flex-col gap-5 rounded-[14px] border border-border bg-background p-4 sm:p-5"
-				>
-					{/* Category Pills */}
+				<div ref={panelRef} className="flex flex-col gap-5 pt-1">
 					<fieldset className="border-0 p-0">
 						<legend className="mb-2.5 text-xs font-semibold leading-none text-muted-foreground">
 							Kategori Kuliner
@@ -123,7 +119,7 @@ export function ExploreFilterPanel({
 									"inline-flex min-h-[36px] items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
 									selectedCategory === "all"
 										? "border-primary bg-primary text-primary-foreground"
-										: "border-border bg-card text-foreground hover:border-primary/60",
+										: "border-border bg-background text-foreground hover:border-primary/60",
 								)}
 							>
 								Semua Kategori
@@ -144,7 +140,7 @@ export function ExploreFilterPanel({
 											"inline-flex min-h-[36px] items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
 											active
 												? "border-primary bg-primary text-primary-foreground"
-												: "border-border bg-card text-foreground hover:border-primary/60",
+												: "border-border bg-background text-foreground hover:border-primary/60",
 										)}
 									>
 										{category}
@@ -154,7 +150,6 @@ export function ExploreFilterPanel({
 						</div>
 					</fieldset>
 
-					{/* District + Verification + Rating + Price Grid */}
 					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
 						<div className="flex flex-col gap-2">
 							<Label
@@ -169,7 +164,7 @@ export function ExploreFilterPanel({
 									onDistrictChange(val as BatangDistrict | "all")
 								}
 							>
-								<SelectTrigger id={districtSelectId} className="bg-card">
+								<SelectTrigger id={districtSelectId} className="bg-background">
 									<div className="flex min-w-0 flex-1 items-center gap-2">
 										<MapPin
 											className={cn(
@@ -209,7 +204,7 @@ export function ExploreFilterPanel({
 									})
 								}
 							>
-								<SelectTrigger id={verifySelectId} className="bg-card">
+								<SelectTrigger id={verifySelectId} className="bg-background">
 									<div className="flex min-w-0 flex-1 items-center gap-2">
 										<ShieldCheck
 											className={cn(
@@ -251,7 +246,7 @@ export function ExploreFilterPanel({
 									onUpdateFilters({ minRating: val as ExploreMinRating })
 								}
 							>
-								<SelectTrigger id={ratingSelectId} className="bg-card">
+								<SelectTrigger id={ratingSelectId} className="bg-background">
 									<div className="flex min-w-0 flex-1 items-center gap-2">
 										<Star
 											className={cn(
@@ -288,7 +283,7 @@ export function ExploreFilterPanel({
 									onUpdateFilters({ priceTier: val as ExplorePriceTier })
 								}
 							>
-								<SelectTrigger id={priceSelectId} className="bg-card">
+								<SelectTrigger id={priceSelectId} className="bg-background">
 									<div className="flex min-w-0 flex-1 items-center gap-2">
 										<Banknote
 											className={cn(
@@ -313,8 +308,7 @@ export function ExploreFilterPanel({
 						</div>
 					</div>
 
-					{/* Extra Toggles + Panel Actions */}
-					<div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+					<div className="flex flex-wrap items-center justify-between gap-3 pt-1">
 						<div className="flex flex-wrap items-center gap-2">
 							<button
 								type="button"
@@ -326,7 +320,7 @@ export function ExploreFilterPanel({
 									"inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
 									onlyHiddenGem
 										? "border-accent-yellow bg-accent text-accent-foreground"
-										: "border-border bg-card text-foreground hover:border-accent-yellow",
+										: "border-border bg-background text-foreground hover:border-accent-yellow",
 								)}
 							>
 								<Gem className="size-3.5" aria-hidden="true" />
@@ -343,7 +337,7 @@ export function ExploreFilterPanel({
 									"inline-flex min-h-[38px] items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
 									onlyBookmarked
 										? "border-primary bg-primary-soft text-primary-hover"
-										: "border-border bg-card text-foreground hover:border-primary/60",
+										: "border-border bg-background text-foreground hover:border-primary/60",
 								)}
 							>
 								<Bookmark className="size-3.5" aria-hidden="true" />

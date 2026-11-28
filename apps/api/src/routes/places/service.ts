@@ -20,9 +20,22 @@ import { schema } from "../../database/schema";
 import type { OpeningHours } from "../../database/schema/places";
 import type { Storage } from "../../lib/ports";
 import { type PriceTier, parsePriceBounds } from "../../lib/price";
+import type { DbOrTx } from "../../lib/ranking";
 import type { SessionUser } from "../../lib/session";
-import { ApiError, conflict, forbidden, notFound } from "../../utils";
-import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
+import {
+	ApiError,
+	conflict,
+	forbidden,
+	notFound,
+	paginationMeta,
+	toJakartaDayInt,
+	UUID_RE,
+} from "../../utils";
+import {
+	assertOwnedReadyMedia,
+	resolveMediaUrl,
+	resolveMediaUrlMap,
+} from "../media/service";
 import type {
 	AdminUpdatePlaceBodyType,
 	CreatePlaceBodyType,
@@ -32,93 +45,114 @@ import type {
 	PlaceListQueryType,
 } from "./model";
 
-const UUID_RE =
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type VerifiedFilter = "community" | "owner" | "any" | "unverified";
+type PlaceSortKey = NonNullable<PlaceListQueryType["sort"]>;
 
 function haversineSql(lat: number, lng: number) {
 	return sql<number>`(6371 * acos(least(1.0, greatest(-1.0, cos(radians(${lat})) * cos(radians(${schema.places.latitude})) * cos(radians(${schema.places.longitude}) - radians(${lng})) + sin(radians(${lat})) * sin(radians(${schema.places.latitude}))))))`;
 }
 
-function jakartaDayInt(): number {
-	const formatted = new Intl.DateTimeFormat("en-CA", {
-		timeZone: "Asia/Jakarta",
-	}).format(new Date());
-	return Number(formatted.replace(/-/g, ""));
-}
-
-async function resolveCoverUrls(
-	storage: Storage | undefined,
-	mediaIds: (string | null)[],
-): Promise<Map<string, string>> {
-	const ids = [...new Set(mediaIds.filter((id): id is string => id !== null))];
-	const map = new Map<string, string>();
-	if (ids.length === 0 || !storage) return map;
-
-	const rows = await db
-		.select({ id: schema.media.id, key: schema.media.key })
-		.from(schema.media)
-		.where(inArray(schema.media.id, ids));
-
-	await Promise.all(
-		rows.map(async (row) => {
-			map.set(row.id, await resolveMediaUrl(storage, row.key));
-		}),
-	);
-	return map;
-}
-
 function verifiedCondition(
-	verified: "community" | "owner" | "any" | "unverified" | undefined,
+	verified: VerifiedFilter | undefined,
 ): SQL | undefined {
-	if (verified === "community") {
-		return eq(schema.places.communityVerified, true);
+	switch (verified) {
+		case "community":
+			return eq(schema.places.communityVerified, true);
+		case "owner":
+			return eq(schema.places.ownerVerified, true);
+		case "any":
+			return or(
+				eq(schema.places.communityVerified, true),
+				eq(schema.places.ownerVerified, true),
+			);
+		case "unverified":
+			return and(
+				eq(schema.places.communityVerified, false),
+				eq(schema.places.ownerVerified, false),
+			);
+		default:
+			return undefined;
 	}
-	if (verified === "owner") {
-		return eq(schema.places.ownerVerified, true);
-	}
-	if (verified === "any") {
-		return or(
-			eq(schema.places.communityVerified, true),
-			eq(schema.places.ownerVerified, true),
-		);
-	}
-	if (verified === "unverified") {
-		return and(
-			eq(schema.places.communityVerified, false),
-			eq(schema.places.ownerVerified, false),
-		);
-	}
-	return undefined;
 }
 
 function priceTierCondition(tier: PriceTier): SQL | undefined {
-	if (tier === "under_25k") {
-		return and(
-			isNotNull(schema.places.priceMin),
-			lte(schema.places.priceMin, 25000),
-		);
-	}
-	if (tier === "25k_50k") {
-		return and(
+	const bounds: Record<PriceTier, { minGt?: number; maxLte?: number }> = {
+		under_25k: { maxLte: 25000 },
+		"25k_50k": { minGt: 25000, maxLte: 50000 },
+		"50k_100k": { minGt: 50000, maxLte: 100000 },
+		over_100k: { minGt: 100000 },
+	};
+	const { minGt, maxLte } = bounds[tier];
+	const parts: SQL[] = [isNotNull(schema.places.priceMin)];
+	if (minGt !== undefined) {
+		parts.push(
 			isNotNull(schema.places.priceMax),
-			isNotNull(schema.places.priceMin),
-			gt(schema.places.priceMax, 25000),
-			lte(schema.places.priceMin, 50000),
+			gt(schema.places.priceMax, minGt),
 		);
 	}
-	if (tier === "50k_100k") {
-		return and(
-			isNotNull(schema.places.priceMax),
-			isNotNull(schema.places.priceMin),
-			gt(schema.places.priceMax, 50000),
-			lte(schema.places.priceMin, 100000),
+	if (maxLte !== undefined) {
+		parts.push(lte(schema.places.priceMin, maxLte));
+	}
+	return and(...parts);
+}
+
+function appendSharedPlaceFilters(
+	conditions: SQL[],
+	query: { category?: string; district?: string; verified?: VerifiedFilter },
+): void {
+	if (query.category) {
+		conditions.push(
+			UUID_RE.test(query.category)
+				? eq(schema.places.categoryId, query.category)
+				: eq(schema.categories.slug, query.category),
 		);
 	}
-	return and(
-		isNotNull(schema.places.priceMin),
-		isNotNull(schema.places.priceMax),
-		gt(schema.places.priceMax, 100000),
-	);
+	if (query.district && query.district.trim().length > 0) {
+		conditions.push(ilike(schema.places.district, query.district.trim()));
+	}
+	const vCond = verifiedCondition(query.verified);
+	if (vCond) conditions.push(vCond);
+}
+
+function getPlaceSortOrder(sort: PlaceSortKey, distExpr: SQL<number | null>) {
+	switch (sort) {
+		case "newest":
+			return [desc(schema.places.createdAt), asc(schema.places.id)];
+		case "rating":
+			return [
+				desc(schema.places.ratingAvg),
+				desc(schema.places.reviewCount),
+				asc(schema.places.id),
+			];
+		case "nearby":
+			return [
+				asc(distExpr),
+				desc(schema.places.exploreScore),
+				asc(schema.places.id),
+			];
+		case "reviews":
+			return [
+				desc(schema.places.reviewCount),
+				desc(schema.places.ratingAvg),
+				asc(schema.places.id),
+			];
+		case "views":
+			return [
+				desc(schema.places.viewsTotal),
+				desc(schema.places.exploreScore),
+				asc(schema.places.id),
+			];
+		case "az":
+			return [asc(schema.places.name), asc(schema.places.id)];
+		case "za":
+			return [desc(schema.places.name), asc(schema.places.id)];
+		default:
+			return [
+				desc(schema.places.exploreScore),
+				desc(schema.places.reviewCount),
+				asc(schema.places.id),
+			];
+	}
 }
 
 async function fetchBookmarkedSet(
@@ -136,6 +170,125 @@ async function fetchBookmarkedSet(
 			),
 		);
 	return new Set(rows.map((r) => r.placeId));
+}
+
+async function hasApprovedClaim(
+	tx: DbOrTx,
+	placeId: string,
+	userId: string,
+): Promise<boolean> {
+	const [claim] = await tx
+		.select({ id: schema.businessClaims.id })
+		.from(schema.businessClaims)
+		.where(
+			and(
+				eq(schema.businessClaims.placeId, placeId),
+				eq(schema.businessClaims.claimantId, userId),
+				eq(schema.businessClaims.status, "approved"),
+			),
+		)
+		.limit(1);
+	return Boolean(claim);
+}
+
+function placeListColumns(distanceExpr: SQL<number | null>) {
+	return {
+		id: schema.places.id,
+		slug: schema.places.slug,
+		name: schema.places.name,
+		address: schema.places.address,
+		district: schema.places.district,
+		priceRange: schema.places.priceRange,
+		latitude: schema.places.latitude,
+		longitude: schema.places.longitude,
+		coverMediaId: schema.places.coverMediaId,
+		status: schema.places.status,
+		communityVerified: schema.places.communityVerified,
+		ownerVerified: schema.places.ownerVerified,
+		ratingAvg: schema.places.ratingAvg,
+		reviewCount: schema.places.reviewCount,
+		exploreScore: schema.places.exploreScore,
+		hiddenGemScore: schema.places.hiddenGemScore,
+		viewsTotal: schema.places.viewsTotal,
+		lastReviewAt: schema.places.lastReviewAt,
+		distanceKm: distanceExpr,
+		catId: schema.categories.id,
+		catName: schema.categories.name,
+		catSlug: schema.categories.slug,
+		catIcon: schema.categories.icon,
+	};
+}
+
+type PlaceListRow = {
+	id: string;
+	slug: string;
+	name: string;
+	address: string | null;
+	district: string | null;
+	priceRange: string | null;
+	latitude: number;
+	longitude: number;
+	coverMediaId: string | null;
+	status: PlaceListItemType["status"];
+	communityVerified: boolean;
+	ownerVerified: boolean;
+	ratingAvg: number;
+	reviewCount: number;
+	exploreScore: number;
+	hiddenGemScore: number;
+	viewsTotal: number;
+	lastReviewAt: Date | null;
+	distanceKm: number | null;
+	catId: string;
+	catName: string;
+	catSlug: string;
+	catIcon: string | null;
+};
+
+async function serializePlaceListRows(
+	storage: Storage | undefined,
+	viewer: SessionUser | null,
+	rows: PlaceListRow[],
+): Promise<PlaceListItemType[]> {
+	const [coverUrls, bookmarkedIds] = await Promise.all([
+		resolveMediaUrlMap(
+			storage,
+			rows.map((r) => r.coverMediaId),
+		),
+		fetchBookmarkedSet(
+			viewer,
+			rows.map((r) => r.id),
+		),
+	]);
+
+	return rows.map((r) => ({
+		id: r.id,
+		slug: r.slug,
+		name: r.name,
+		category: {
+			id: r.catId,
+			name: r.catName,
+			slug: r.catSlug,
+			icon: r.catIcon,
+		},
+		address: r.address,
+		district: r.district,
+		priceRange: r.priceRange,
+		latitude: r.latitude,
+		longitude: r.longitude,
+		coverUrl: r.coverMediaId ? (coverUrls.get(r.coverMediaId) ?? null) : null,
+		status: r.status,
+		communityVerified: r.communityVerified,
+		ownerVerified: r.ownerVerified,
+		ratingAvg: r.ratingAvg,
+		reviewCount: r.reviewCount,
+		exploreScore: r.exploreScore,
+		hiddenGemScore: r.hiddenGemScore,
+		views: r.viewsTotal,
+		bookmarked: bookmarkedIds.has(r.id),
+		distanceKm: r.distanceKm ?? null,
+		lastReviewAt: r.lastReviewAt ? r.lastReviewAt.toISOString() : null,
+	}));
 }
 
 export async function listPlaces(
@@ -179,34 +332,21 @@ export async function listPlaces(
 		if (qCond) conditions.push(qCond);
 	}
 
-	if (query.category) {
-		if (UUID_RE.test(query.category)) {
-			conditions.push(eq(schema.places.categoryId, query.category));
-		} else {
-			conditions.push(eq(schema.categories.slug, query.category));
-		}
-	}
-
-	if (query.district && query.district.trim().length > 0) {
-		conditions.push(ilike(schema.places.district, query.district.trim()));
-	}
+	appendSharedPlaceFilters(conditions, query);
 
 	if (query.minRating !== undefined) {
 		conditions.push(gte(schema.places.ratingAvg, query.minRating));
 	}
-
 	if (query.priceTier) {
 		const ptCond = priceTierCondition(query.priceTier);
 		if (ptCond) conditions.push(ptCond);
 	}
-
 	if (query.onlyHiddenGem) {
 		conditions.push(
 			gte(schema.places.ratingAvg, 4.0),
 			sql`${schema.places.reviewCount} > 0`,
 		);
 	}
-
 	if (query.onlyBookmarked && viewer) {
 		conditions.push(
 			inArray(
@@ -219,8 +359,6 @@ export async function listPlaces(
 		);
 	}
 
-	const vCond = verifiedCondition(query.verified);
-	if (vCond) conditions.push(vCond);
 	const hasCoords = query.lat !== undefined && query.lng !== undefined;
 	const distExpr = hasCoords
 		? haversineSql(query.lat as number, query.lng as number)
@@ -230,151 +368,45 @@ export async function listPlaces(
 		const lat = query.lat as number;
 		const lng = query.lng as number;
 		const radiusKm = query.radiusKm ?? 5;
-		if (radiusKm !== undefined) {
-			const latDelta = radiusKm / 111;
-			const cosLat = Math.max(0.01, Math.cos((lat * Math.PI) / 180));
-			const lngDelta = radiusKm / (111 * cosLat);
-			conditions.push(gte(schema.places.latitude, lat - latDelta));
-			conditions.push(lte(schema.places.latitude, lat + latDelta));
-			conditions.push(gte(schema.places.longitude, lng - lngDelta));
-			conditions.push(lte(schema.places.longitude, lng + lngDelta));
-			conditions.push(lte(distExpr, radiusKm));
-		}
+		const latDelta = radiusKm / 111;
+		const cosLat = Math.max(0.01, Math.cos((lat * Math.PI) / 180));
+		const lngDelta = radiusKm / (111 * cosLat);
+		conditions.push(
+			gte(schema.places.latitude, lat - latDelta),
+			lte(schema.places.latitude, lat + latDelta),
+			gte(schema.places.longitude, lng - lngDelta),
+			lte(schema.places.longitude, lng + lngDelta),
+			lte(distExpr, radiusKm),
+		);
 	}
 
 	const whereClause = and(...conditions);
+	const orderBy = getPlaceSortOrder(sort, distExpr);
 
-	const [{ total }] = await db
-		.select({ total: count() })
-		.from(schema.places)
-		.innerJoin(
-			schema.categories,
-			eq(schema.places.categoryId, schema.categories.id),
-		)
-		.where(whereClause);
-
-	const orderBy =
-		sort === "newest"
-			? [desc(schema.places.createdAt), asc(schema.places.id)]
-			: sort === "rating"
-				? [
-						desc(schema.places.ratingAvg),
-						desc(schema.places.reviewCount),
-						asc(schema.places.id),
-					]
-				: sort === "nearby"
-					? [
-							asc(distExpr),
-							desc(schema.places.exploreScore),
-							asc(schema.places.id),
-						]
-					: sort === "reviews"
-						? [
-								desc(schema.places.reviewCount),
-								desc(schema.places.ratingAvg),
-								asc(schema.places.id),
-							]
-						: sort === "views"
-							? [
-									desc(schema.places.viewsTotal),
-									desc(schema.places.exploreScore),
-									asc(schema.places.id),
-								]
-							: sort === "az"
-								? [asc(schema.places.name), asc(schema.places.id)]
-								: sort === "za"
-									? [desc(schema.places.name), asc(schema.places.id)]
-									: [
-											desc(schema.places.exploreScore),
-											desc(schema.places.reviewCount),
-											asc(schema.places.id),
-										];
-
-	const rows = await db
-		.select({
-			id: schema.places.id,
-			slug: schema.places.slug,
-			name: schema.places.name,
-			address: schema.places.address,
-			district: schema.places.district,
-			priceRange: schema.places.priceRange,
-			latitude: schema.places.latitude,
-			longitude: schema.places.longitude,
-			coverMediaId: schema.places.coverMediaId,
-			status: schema.places.status,
-			communityVerified: schema.places.communityVerified,
-			ownerVerified: schema.places.ownerVerified,
-			ratingAvg: schema.places.ratingAvg,
-			reviewCount: schema.places.reviewCount,
-			exploreScore: schema.places.exploreScore,
-			hiddenGemScore: schema.places.hiddenGemScore,
-			viewsTotal: schema.places.viewsTotal,
-			lastReviewAt: schema.places.lastReviewAt,
-			distanceKm: distExpr,
-			catId: schema.categories.id,
-			catName: schema.categories.name,
-			catSlug: schema.categories.slug,
-			catIcon: schema.categories.icon,
-		})
-		.from(schema.places)
-		.innerJoin(
-			schema.categories,
-			eq(schema.places.categoryId, schema.categories.id),
-		)
-		.where(whereClause)
-		.orderBy(...orderBy)
-		.limit(limit)
-		.offset(offset);
-
-	const [coverUrls, bookmarkedIds] = await Promise.all([
-		resolveCoverUrls(
-			storage,
-			rows.map((r) => r.coverMediaId),
-		),
-		fetchBookmarkedSet(
-			viewer,
-			rows.map((r) => r.id),
-		),
+	const [[{ total }], rows] = await Promise.all([
+		db
+			.select({ total: count() })
+			.from(schema.places)
+			.innerJoin(
+				schema.categories,
+				eq(schema.places.categoryId, schema.categories.id),
+			)
+			.where(whereClause),
+		db
+			.select(placeListColumns(distExpr))
+			.from(schema.places)
+			.innerJoin(
+				schema.categories,
+				eq(schema.places.categoryId, schema.categories.id),
+			)
+			.where(whereClause)
+			.orderBy(...orderBy)
+			.limit(limit)
+			.offset(offset),
 	]);
 
-	const data: PlaceListItemType[] = rows.map((r) => ({
-		id: r.id,
-		slug: r.slug,
-		name: r.name,
-		category: {
-			id: r.catId,
-			name: r.catName,
-			slug: r.catSlug,
-			icon: r.catIcon,
-		},
-		address: r.address,
-		district: r.district,
-		priceRange: r.priceRange,
-		latitude: r.latitude,
-		longitude: r.longitude,
-		coverUrl: r.coverMediaId ? (coverUrls.get(r.coverMediaId) ?? null) : null,
-		status: r.status,
-		communityVerified: r.communityVerified,
-		ownerVerified: r.ownerVerified,
-		ratingAvg: r.ratingAvg,
-		reviewCount: r.reviewCount,
-		exploreScore: r.exploreScore,
-		hiddenGemScore: r.hiddenGemScore,
-		views: r.viewsTotal,
-		bookmarked: bookmarkedIds.has(r.id),
-		distanceKm: r.distanceKm ?? null,
-		lastReviewAt: r.lastReviewAt ? r.lastReviewAt.toISOString() : null,
-	}));
-
-	return {
-		data,
-		meta: {
-			page,
-			limit,
-			total,
-			totalPages: Math.max(1, Math.ceil(total / limit)),
-		},
-	};
+	const data = await serializePlaceListRows(storage, viewer, rows);
+	return { data, meta: paginationMeta(page, limit, total) };
 }
 
 export async function listHiddenGems(
@@ -391,120 +423,39 @@ export async function listHiddenGems(
 		sql`${schema.places.reviewCount} > 0`,
 		gte(schema.places.ratingAvg, 4.0),
 	];
+	appendSharedPlaceFilters(conditions, query);
 
-	if (query.category) {
-		if (UUID_RE.test(query.category)) {
-			conditions.push(eq(schema.places.categoryId, query.category));
-		} else {
-			conditions.push(eq(schema.categories.slug, query.category));
-		}
-	}
-
-	if (query.district && query.district.trim().length > 0) {
-		conditions.push(ilike(schema.places.district, query.district.trim()));
-	}
-
-	const vCond = verifiedCondition(query.verified);
-	if (vCond) conditions.push(vCond);
 	const whereClause = and(...conditions);
+	const nullDistance = sql<number | null>`NULL`;
 
-	const [{ total }] = await db
-		.select({ total: count() })
-		.from(schema.places)
-		.innerJoin(
-			schema.categories,
-			eq(schema.places.categoryId, schema.categories.id),
-		)
-		.where(whereClause);
-
-	const rows = await db
-		.select({
-			id: schema.places.id,
-			slug: schema.places.slug,
-			name: schema.places.name,
-			address: schema.places.address,
-			district: schema.places.district,
-			priceRange: schema.places.priceRange,
-			latitude: schema.places.latitude,
-			longitude: schema.places.longitude,
-			coverMediaId: schema.places.coverMediaId,
-			status: schema.places.status,
-			communityVerified: schema.places.communityVerified,
-			ownerVerified: schema.places.ownerVerified,
-			ratingAvg: schema.places.ratingAvg,
-			reviewCount: schema.places.reviewCount,
-			exploreScore: schema.places.exploreScore,
-			hiddenGemScore: schema.places.hiddenGemScore,
-			viewsTotal: schema.places.viewsTotal,
-			lastReviewAt: schema.places.lastReviewAt,
-			catId: schema.categories.id,
-			catName: schema.categories.name,
-			catSlug: schema.categories.slug,
-			catIcon: schema.categories.icon,
-		})
-		.from(schema.places)
-		.innerJoin(
-			schema.categories,
-			eq(schema.places.categoryId, schema.categories.id),
-		)
-		.where(whereClause)
-		.orderBy(
-			desc(schema.places.hiddenGemScore),
-			desc(schema.places.reviewCount),
-			asc(schema.places.id),
-		)
-		.limit(limit)
-		.offset(offset);
-
-	const [coverUrls, bookmarkedIds] = await Promise.all([
-		resolveCoverUrls(
-			storage,
-			rows.map((r) => r.coverMediaId),
-		),
-		fetchBookmarkedSet(
-			viewer,
-			rows.map((r) => r.id),
-		),
+	const [[{ total }], rows] = await Promise.all([
+		db
+			.select({ total: count() })
+			.from(schema.places)
+			.innerJoin(
+				schema.categories,
+				eq(schema.places.categoryId, schema.categories.id),
+			)
+			.where(whereClause),
+		db
+			.select(placeListColumns(nullDistance))
+			.from(schema.places)
+			.innerJoin(
+				schema.categories,
+				eq(schema.places.categoryId, schema.categories.id),
+			)
+			.where(whereClause)
+			.orderBy(
+				desc(schema.places.hiddenGemScore),
+				desc(schema.places.reviewCount),
+				asc(schema.places.id),
+			)
+			.limit(limit)
+			.offset(offset),
 	]);
 
-	const data: PlaceListItemType[] = rows.map((r) => ({
-		id: r.id,
-		slug: r.slug,
-		name: r.name,
-		category: {
-			id: r.catId,
-			name: r.catName,
-			slug: r.catSlug,
-			icon: r.catIcon,
-		},
-		address: r.address,
-		district: r.district,
-		priceRange: r.priceRange,
-		latitude: r.latitude,
-		longitude: r.longitude,
-		coverUrl: r.coverMediaId ? (coverUrls.get(r.coverMediaId) ?? null) : null,
-		status: r.status,
-		communityVerified: r.communityVerified,
-		ownerVerified: r.ownerVerified,
-		ratingAvg: r.ratingAvg,
-		reviewCount: r.reviewCount,
-		exploreScore: r.exploreScore,
-		hiddenGemScore: r.hiddenGemScore,
-		views: r.viewsTotal,
-		bookmarked: bookmarkedIds.has(r.id),
-		distanceKm: null,
-		lastReviewAt: r.lastReviewAt ? r.lastReviewAt.toISOString() : null,
-	}));
-
-	return {
-		data,
-		meta: {
-			page,
-			limit,
-			total,
-			totalPages: Math.max(1, Math.ceil(total / limit)),
-		},
-	};
+	const data = await serializePlaceListRows(storage, viewer, rows);
+	return { data, meta: paginationMeta(page, limit, total) };
 }
 
 export async function getPlaceDetail(
@@ -531,6 +482,7 @@ export async function getPlaceDetail(
 			phone: schema.places.phone,
 			openingHours: schema.places.openingHours,
 			coverMediaId: schema.places.coverMediaId,
+			legalityDocumentMediaId: schema.places.legalityDocumentMediaId,
 			status: schema.places.status,
 			communityVerified: schema.places.communityVerified,
 			ownerVerified: schema.places.ownerVerified,
@@ -539,6 +491,7 @@ export async function getPlaceDetail(
 			exploreScore: schema.places.exploreScore,
 			hiddenGemScore: schema.places.hiddenGemScore,
 			viewsTotal: schema.places.viewsTotal,
+			createdById: schema.places.createdById,
 			createdByName: schema.users.name,
 			createdAt: schema.places.createdAt,
 			updatedAt: schema.places.updatedAt,
@@ -568,7 +521,8 @@ export async function getPlaceDetail(
 			),
 		)
 		.limit(1);
-	const ownerId = approvedClaim?.claimantId ?? null;
+	const ownerId =
+		approvedClaim?.claimantId ?? (row.ownerVerified ? row.createdById : null);
 
 	if (row.status !== "published" && !opts?.allowUnpublished) {
 		const allowed =
@@ -576,7 +530,12 @@ export async function getPlaceDetail(
 		if (!allowed) throw notFound("Place");
 	}
 
-	const [photoRows, coverUrls, bookmarkedIds] = await Promise.all([
+	const canSeeLegalityDoc =
+		row.legalityDocumentMediaId !== null &&
+		(viewer?.role === "admin" ||
+			(viewer !== null && viewer.id === row.createdById));
+
+	const [photoRows, mediaUrls, bookmarkedIds] = await Promise.all([
 		db
 			.select({
 				id: schema.placePhotos.id,
@@ -588,7 +547,10 @@ export async function getPlaceDetail(
 			.innerJoin(schema.media, eq(schema.placePhotos.mediaId, schema.media.id))
 			.where(eq(schema.placePhotos.placeId, row.id))
 			.orderBy(asc(schema.placePhotos.sortOrder)),
-		resolveCoverUrls(storage, [row.coverMediaId]),
+		resolveMediaUrlMap(storage, [
+			row.coverMediaId,
+			canSeeLegalityDoc ? row.legalityDocumentMediaId : null,
+		]),
 		fetchBookmarkedSet(viewer, [row.id]),
 	]);
 
@@ -621,8 +583,15 @@ export async function getPlaceDetail(
 		openingHours: row.openingHours,
 		coverMediaId: row.coverMediaId,
 		coverUrl: row.coverMediaId
-			? (coverUrls.get(row.coverMediaId) ?? null)
+			? (mediaUrls.get(row.coverMediaId) ?? null)
 			: null,
+		legalityDocumentMediaId: canSeeLegalityDoc
+			? row.legalityDocumentMediaId
+			: null,
+		legalityDocumentUrl:
+			canSeeLegalityDoc && row.legalityDocumentMediaId
+				? (mediaUrls.get(row.legalityDocumentMediaId) ?? null)
+				: null,
 		photos,
 		status: row.status,
 		communityVerified: row.communityVerified,
@@ -653,7 +622,7 @@ export async function recordPlaceView(placeId: string): Promise<void> {
 
 	if (!place) throw notFound("Place");
 
-	const day = jakartaDayInt();
+	const day = toJakartaDayInt();
 	await db.transaction(async (tx) => {
 		await tx
 			.update(schema.places)
@@ -668,6 +637,28 @@ export async function recordPlaceView(placeId: string): Promise<void> {
 				set: { views: sql`${schema.placeStats.views} + 1` },
 			});
 	});
+}
+
+async function assertCategoryExists(
+	tx: DbOrTx,
+	categoryId: string,
+): Promise<void> {
+	const [cat] = await tx
+		.select({ id: schema.categories.id })
+		.from(schema.categories)
+		.where(eq(schema.categories.id, categoryId))
+		.limit(1);
+	if (!cat) throw notFound("Category");
+}
+
+function buildPlaceSlug(name: string): string {
+	const baseSlug =
+		name
+			.toLowerCase()
+			.trim()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-|-$/g, "") || "place";
+	return `${baseSlug}-${crypto.randomUUID().slice(0, 6)}`;
 }
 
 export async function createPlace(
@@ -693,25 +684,22 @@ export async function createPlace(
 		);
 	}
 
-	const [cat] = await db
-		.select({ id: schema.categories.id })
-		.from(schema.categories)
-		.where(eq(schema.categories.id, body.categoryId))
-		.limit(1);
-	if (!cat) throw notFound("Category");
+	await assertCategoryExists(db, body.categoryId);
 
 	const photoIds = body.photoMediaIds ?? [];
-	const baseSlug =
-		body.name
-			.toLowerCase()
-			.trim()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/^-|-$/g, "") || "place";
-	const slug = `${baseSlug}-${crypto.randomUUID().slice(0, 6)}`;
+	const slug = buildPlaceSlug(body.name);
 
 	const created = await db.transaction(async (tx) => {
 		if (photoIds.length > 0) {
 			await assertOwnedReadyMedia(tx, user.id, photoIds, "place_photo");
+		}
+		if (body.legalityDocumentMediaId) {
+			await assertOwnedReadyMedia(
+				tx,
+				user.id,
+				[body.legalityDocumentMediaId],
+				"claim_document",
+			);
 		}
 		const priceBounds = parsePriceBounds(body.priceRange);
 		const [place] = await tx
@@ -731,6 +719,7 @@ export async function createPlace(
 				priceMax: priceBounds.max,
 				openingHours: (body.openingHours as OpeningHours) ?? null,
 				coverMediaId: photoIds[0] ?? null,
+				legalityDocumentMediaId: body.legalityDocumentMediaId ?? null,
 				status: "pending",
 				createdById: user.id,
 			})
@@ -773,21 +762,12 @@ export async function addPlacePhotos(
 		if (!place) {
 			throw notFound("Place");
 		}
-		if (place.status !== "published" && user.role !== "admin") {
-			const [claim] = await tx
-				.select({ id: schema.businessClaims.id })
-				.from(schema.businessClaims)
-				.where(
-					and(
-						eq(schema.businessClaims.placeId, placeId),
-						eq(schema.businessClaims.claimantId, user.id),
-						eq(schema.businessClaims.status, "approved"),
-					),
-				)
-				.limit(1);
-			if (!claim) {
-				throw notFound("Place");
-			}
+		if (
+			place.status !== "published" &&
+			user.role !== "admin" &&
+			!(await hasApprovedClaim(tx, placeId, user.id))
+		) {
+			throw notFound("Place");
 		}
 
 		await assertOwnedReadyMedia(tx, user.id, photoMediaIds, "place_photo");
@@ -829,7 +809,7 @@ export async function addPlacePhotos(
 		return rows;
 	});
 
-	const urls = await resolveCoverUrls(
+	const urls = await resolveMediaUrlMap(
 		storage,
 		inserted.map((r) => r.mediaId),
 	);
@@ -856,9 +836,7 @@ export async function deletePlacePhoto(
 			.from(schema.places)
 			.where(eq(schema.places.id, placeId))
 			.for("update");
-		if (!place) {
-			throw notFound("Photo");
-		}
+		if (!place) throw notFound("Photo");
 
 		const [photo] = await tx
 			.select()
@@ -870,28 +848,13 @@ export async function deletePlacePhoto(
 				),
 			)
 			.limit(1);
-		if (!photo) {
-			throw notFound("Photo");
-		}
+		if (!photo) throw notFound("Photo");
 
-		let authorized = photo.uploadedById === user.id || user.role === "admin";
-		if (!authorized) {
-			const [claim] = await tx
-				.select({ id: schema.businessClaims.id })
-				.from(schema.businessClaims)
-				.where(
-					and(
-						eq(schema.businessClaims.placeId, placeId),
-						eq(schema.businessClaims.claimantId, user.id),
-						eq(schema.businessClaims.status, "approved"),
-					),
-				)
-				.limit(1);
-			authorized = Boolean(claim);
-		}
-		if (!authorized) {
-			throw forbidden("delete this photo");
-		}
+		const authorized =
+			photo.uploadedById === user.id ||
+			user.role === "admin" ||
+			(await hasApprovedClaim(tx, placeId, user.id));
+		if (!authorized) throw forbidden("delete this photo");
 
 		await tx
 			.delete(schema.placePhotos)
@@ -942,12 +905,7 @@ export async function adminUpdatePlace(
 		}
 
 		if (body.categoryId !== undefined) {
-			const [cat] = await tx
-				.select({ id: schema.categories.id })
-				.from(schema.categories)
-				.where(eq(schema.categories.id, body.categoryId))
-				.limit(1);
-			if (!cat) throw notFound("Category");
+			await assertCategoryExists(tx, body.categoryId);
 		}
 
 		if (body.coverMediaId !== undefined && body.coverMediaId !== null) {
@@ -987,10 +945,12 @@ export async function adminUpdatePlace(
 			updates.priceMin = priceBounds.min;
 			updates.priceMax = priceBounds.max;
 		}
-		if (body.openingHours !== undefined)
+		if (body.openingHours !== undefined) {
 			updates.openingHours = body.openingHours as OpeningHours | null;
-		if (body.coverMediaId !== undefined)
+		}
+		if (body.coverMediaId !== undefined) {
 			updates.coverMediaId = body.coverMediaId;
+		}
 		if (body.status !== undefined) updates.status = body.status;
 
 		await tx.update(schema.places).set(updates).where(eq(schema.places.id, id));

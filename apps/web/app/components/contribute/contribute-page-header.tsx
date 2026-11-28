@@ -15,10 +15,10 @@ export function ContributePageHeader({
 			<div>
 				<Link
 					to="/contribute"
-					className="inline-flex min-h-[44px] items-center gap-2 rounded-[6px] text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					className="inline-flex min-h-[44px] items-center gap-2.5 rounded-[6px] text-base font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
-					<ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
-					<span>Kembali ke Kontribusi</span>
+					<ArrowLeft className="size-5 shrink-0" aria-hidden="true" />
+					<span>Kembali</span>
 				</Link>
 			</div>
 

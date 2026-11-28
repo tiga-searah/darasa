@@ -2,8 +2,13 @@ import { and, count, eq } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
-import { recomputePlaceStats } from "../../lib/ranking";
-import { conflict, isUniqueViolation, notFound } from "../../utils";
+import { type DbOrTx, recomputePlaceStats } from "../../lib/ranking";
+import {
+	conflict,
+	isUniqueViolation,
+	notFound,
+	paginationMeta,
+} from "../../utils";
 import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
 
 export async function submitClaim(
@@ -127,13 +132,38 @@ export async function listAdminClaims(query: {
 
 	return {
 		data: rows,
-		meta: {
-			page,
-			limit,
-			total,
-			totalPages: Math.max(1, Math.ceil(total / limit)),
-		},
+		meta: paginationMeta(page, limit, total),
 	};
+}
+
+async function resolvePendingClaim(
+	tx: DbOrTx,
+	claimId: string,
+	adminId: string,
+	status: "approved" | "rejected",
+	note?: string,
+) {
+	const [claim] = await tx
+		.select()
+		.from(schema.businessClaims)
+		.where(eq(schema.businessClaims.id, claimId))
+		.for("update");
+
+	if (!claim) throw notFound("Claim");
+	if (claim.status !== "pending") throw conflict("Claim is not pending");
+
+	const [updated] = await tx
+		.update(schema.businessClaims)
+		.set({
+			status,
+			reviewedById: adminId,
+			reviewedAt: new Date(),
+			decisionNote: note ?? null,
+		})
+		.where(eq(schema.businessClaims.id, claimId))
+		.returning();
+
+	return updated;
 }
 
 export async function approveClaim(
@@ -142,43 +172,27 @@ export async function approveClaim(
 	body: { note?: string },
 ) {
 	return db.transaction(async (tx) => {
-		const [claim] = await tx
-			.select()
-			.from(schema.businessClaims)
-			.where(eq(schema.businessClaims.id, claimId))
-			.for("update");
-
-		if (!claim) {
-			throw notFound("Claim");
-		}
-		if (claim.status !== "pending") {
-			throw conflict("Claim is not pending");
-		}
-
-		const [updated] = await tx
-			.update(schema.businessClaims)
-			.set({
-				status: "approved",
-				reviewedById: adminId,
-				reviewedAt: new Date(),
-				decisionNote: body.note ?? null,
-			})
-			.where(eq(schema.businessClaims.id, claimId))
-			.returning();
+		const updated = await resolvePendingClaim(
+			tx,
+			claimId,
+			adminId,
+			"approved",
+			body.note,
+		);
 
 		await tx
 			.update(schema.places)
 			.set({ ownerVerified: true })
-			.where(eq(schema.places.id, claim.placeId));
+			.where(eq(schema.places.id, updated.placeId));
 
-		await recomputePlaceStats(tx, claim.placeId);
+		await recomputePlaceStats(tx, updated.placeId);
 
 		await tx
 			.update(schema.users)
 			.set({ role: "owner" })
 			.where(
 				and(
-					eq(schema.users.id, claim.claimantId),
+					eq(schema.users.id, updated.claimantId),
 					eq(schema.users.role, "user"),
 				),
 			);
@@ -192,31 +206,7 @@ export async function rejectClaim(
 	adminId: string,
 	body: { note?: string },
 ) {
-	return db.transaction(async (tx) => {
-		const [claim] = await tx
-			.select()
-			.from(schema.businessClaims)
-			.where(eq(schema.businessClaims.id, claimId))
-			.for("update");
-
-		if (!claim) {
-			throw notFound("Claim");
-		}
-		if (claim.status !== "pending") {
-			throw conflict("Claim is not pending");
-		}
-
-		const [updated] = await tx
-			.update(schema.businessClaims)
-			.set({
-				status: "rejected",
-				reviewedById: adminId,
-				reviewedAt: new Date(),
-				decisionNote: body.note ?? null,
-			})
-			.where(eq(schema.businessClaims.id, claimId))
-			.returning();
-
-		return updated;
-	});
+	return db.transaction(async (tx) =>
+		resolvePendingClaim(tx, claimId, adminId, "rejected", body.note),
+	);
 }

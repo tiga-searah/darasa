@@ -38,7 +38,7 @@ export function BatangMapPreview({
 					<p className="text-sm font-semibold text-foreground">{district}</p>
 					<p className="text-xs text-muted-foreground">{address}</p>
 					<p className="text-xs text-muted-foreground tabular-nums">
-						Koordinat: {lat.toFixed(4)}, {lng.toFixed(4)}
+						Koordinat: {lat.toFixed(6)}, {lng.toFixed(6)}
 					</p>
 				</div>
 				<Button asChild variant="secondary" size="sm">

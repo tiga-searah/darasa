@@ -10,8 +10,19 @@ export const ClaimEvidenceSchema = t.Object({
 	businessRole: t.Optional(t.String({ maxLength: 100 })),
 });
 
+export const SubmitClaimEvidenceSchema = t.Object({
+	note: t.String({ minLength: 1, maxLength: 2000 }),
+	documentMediaIds: t.Array(t.String({ format: "uuid" }), {
+		minItems: 1,
+		maxItems: 5,
+		uniqueItems: true,
+	}),
+	contactPhone: t.String({ minLength: 1, maxLength: 40 }),
+	businessRole: t.Optional(t.String({ maxLength: 100 })),
+});
+
 export const SubmitClaimBody = t.Object({
-	evidence: ClaimEvidenceSchema,
+	evidence: SubmitClaimEvidenceSchema,
 });
 
 export const AdminClaimsQuery = t.Object({

@@ -15,6 +15,7 @@ export default [
 		route("contribute/write-review", "routes/contribute-write-review.tsx"),
 		route("contribute/update-info", "routes/contribute-update-info.tsx"),
 		route("bookmarks", "routes/bookmarks.tsx"),
+		route("more", "routes/more.tsx"),
 		route("places/:slug", "routes/place-detail.tsx"),
 		route("claim", "routes/claim.tsx"),
 		route("owner", "routes/owner.tsx"),
@@ -24,4 +25,5 @@ export default [
 		route("login", "routes/login.tsx"),
 		route("register", "routes/register.tsx"),
 	]),
+	route("resolve-maps-link", "routes/resolve-maps-link.ts"),
 ] satisfies RouteConfig;

@@ -1,23 +1,38 @@
 import { Camera, CheckCircle2, PencilLine, RotateCcw, X } from "lucide-react";
 import {
-	type ChangeEvent,
-	type DragEvent,
 	type FormEvent,
+	useCallback,
 	useEffect,
 	useId,
 	useMemo,
 	useState,
 } from "react";
 import { Link } from "react-router";
+import {
+	OpeningHoursField,
+	PriceRangeField,
+} from "~/components/place-schedule-price-fields";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
+import { WhatsappInputField } from "~/components/whatsapp-input-field";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
-import { getPlacePhotoCount, readImageFiles } from "~/data/contribute";
+import { readImageFiles } from "~/data/contribute";
 import type { CulinaryPlace } from "~/lib/types";
-import { cn } from "~/lib/utils";
+import {
+	formatWhatsappAfter62,
+	toStoredWhatsappNumber,
+	validateWhatsappNumber,
+} from "~/lib/whatsapp";
+import {
+	parseOpeningHoursValue,
+	parsePriceRangeValue,
+	toEditableOpeningHours,
+	toEditablePriceRange,
+} from "./add-place-validation";
+import { PhotoUploadDropzone } from "./photo-upload-dropzone";
 import { PlacePicker } from "./place-picker";
 
 interface UpdateInfoFormProps {
@@ -50,15 +65,23 @@ export function UpdateInfoForm({
 		places.find((p) => p.id === selectedPlaceId) ?? places[0];
 
 	const [address, setAddress] = useState(selectedPlace?.address ?? "");
-	const [hours, setHours] = useState(selectedPlace?.openingHours ?? "");
-	const [price, setPrice] = useState(selectedPlace?.priceRange ?? "");
-	const [phone, setPhone] = useState(selectedPlace?.phone ?? "");
+	const [hours, setHours] = useState(() =>
+		toEditableOpeningHours(selectedPlace?.openingHours ?? ""),
+	);
+	const [hoursError, setHoursError] = useState<string | null>(null);
+	const [price, setPrice] = useState(() =>
+		toEditablePriceRange(selectedPlace?.priceRange ?? ""),
+	);
+	const [priceError, setPriceError] = useState<string | null>(null);
+	const [phoneSuffix, setPhoneSuffix] = useState(() =>
+		formatWhatsappAfter62(selectedPlace?.phone ?? ""),
+	);
+	const [phoneError, setPhoneError] = useState<string | null>(null);
 	const [description, setDescription] = useState(
 		selectedPlace?.description ?? "",
 	);
 	const [note, setNote] = useState("");
 	const [queuedPhotos, setQueuedPhotos] = useState<string[]>([]);
-	const [isDragActive, setIsDragActive] = useState(false);
 	const [photoError, setPhotoError] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [savedSummary, setSavedSummary] = useState<{
@@ -75,25 +98,24 @@ export function UpdateInfoForm({
 	const noteId = useId();
 	const photoInputId = useId();
 
-	// Keep form values synced when user selects a different place
-	useEffect(() => {
-		if (!selectedPlace) return;
-		setAddress(selectedPlace.address);
-		setHours(selectedPlace.openingHours);
-		setPrice(selectedPlace.priceRange);
-		setPhone(selectedPlace.phone ?? "");
-		setDescription(selectedPlace.description);
+	const syncFormFromPlace = useCallback((place: PlaceWithMetrics) => {
+		setAddress(place.address);
+		setHours(toEditableOpeningHours(place.openingHours));
+		setHoursError(null);
+		setPrice(toEditablePriceRange(place.priceRange));
+		setPriceError(null);
+		setPhoneSuffix(formatWhatsappAfter62(place.phone ?? ""));
+		setPhoneError(null);
+		setDescription(place.description);
 		setNote("");
 		setQueuedPhotos([]);
 		setPhotoError(null);
 		setError(null);
-	}, [selectedPlace]);
+	}, []);
 
-	const placesNeedingUpdates = useMemo(
-		() =>
-			places.filter((p) => !p.phone || getPlacePhotoCount(p) <= 1).slice(0, 3),
-		[places],
-	);
+	useEffect(() => {
+		if (selectedPlace) syncFormFromPlace(selectedPlace);
+	}, [selectedPlace, syncFormFromPlace]);
 
 	const changedFields = useMemo(() => {
 		if (!selectedPlace) {
@@ -107,12 +129,17 @@ export function UpdateInfoForm({
 		}
 		return {
 			address: address.trim() !== selectedPlace.address.trim(),
-			hours: hours.trim() !== selectedPlace.openingHours.trim(),
-			price: price.trim() !== selectedPlace.priceRange.trim(),
-			phone: phone.trim() !== (selectedPlace.phone ?? "").trim(),
+			hours:
+				hours.trim() !==
+				toEditableOpeningHours(selectedPlace.openingHours).trim(),
+			price:
+				price.trim() !== toEditablePriceRange(selectedPlace.priceRange).trim(),
+			phone:
+				phoneSuffix.trim() !==
+				formatWhatsappAfter62(selectedPlace.phone ?? "").trim(),
 			description: description.trim() !== selectedPlace.description.trim(),
 		};
-	}, [address, hours, price, phone, description, selectedPlace]);
+	}, [address, hours, price, phoneSuffix, description, selectedPlace]);
 
 	const hasInfoChanges =
 		Object.values(changedFields).some(Boolean) || note.trim().length > 0;
@@ -133,28 +160,8 @@ export function UpdateInfoForm({
 		);
 	};
 
-	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-		void handleFiles(e.target.files);
-		e.target.value = "";
-	};
-
-	const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
-		e.preventDefault();
-		setIsDragActive(false);
-		void handleFiles(e.dataTransfer.files);
-	};
-
 	const handleReset = () => {
-		if (!selectedPlace) return;
-		setAddress(selectedPlace.address);
-		setHours(selectedPlace.openingHours);
-		setPrice(selectedPlace.priceRange);
-		setPhone(selectedPlace.phone ?? "");
-		setDescription(selectedPlace.description);
-		setNote("");
-		setQueuedPhotos([]);
-		setPhotoError(null);
-		setError(null);
+		if (selectedPlace) syncFormFromPlace(selectedPlace);
 	};
 
 	const handleSubmit = (e: FormEvent) => {
@@ -167,14 +174,54 @@ export function UpdateInfoForm({
 			return;
 		}
 
+		let nextOpeningHours = selectedPlace.openingHours;
+		if (changedFields.hours) {
+			const hoursCheck = parseOpeningHoursValue(hours);
+			if (hoursCheck.error) {
+				setHoursError(hoursCheck.error);
+				setError(hoursCheck.error);
+				return;
+			}
+			nextOpeningHours = hoursCheck.formatted;
+		}
+
+		let nextPriceRange = selectedPlace.priceRange;
+		if (changedFields.price) {
+			const priceCheck = parsePriceRangeValue(price);
+			if (priceCheck.error) {
+				setPriceError(priceCheck.error);
+				setError(priceCheck.error);
+				return;
+			}
+			nextPriceRange = priceCheck.formatted;
+		}
+
+		let nextPhone = selectedPlace.phone;
+		if (changedFields.phone) {
+			if (!phoneSuffix.trim()) {
+				nextPhone = undefined;
+			} else {
+				const fullWhatsapp = toStoredWhatsappNumber(phoneSuffix);
+				const waCheck = validateWhatsappNumber(fullWhatsapp);
+				if (!waCheck.valid) {
+					const message =
+						waCheck.error ?? "Masukkan nomor WhatsApp aktif yang valid.";
+					setPhoneError(message);
+					setError(message);
+					return;
+				}
+				nextPhone = fullWhatsapp;
+			}
+		}
+
 		if (hasInfoChanges) {
 			onSuggestUpdate(
 				selectedPlace.id,
 				{
 					address: address.trim() || selectedPlace.address,
-					openingHours: hours.trim() || selectedPlace.openingHours,
-					priceRange: price.trim() || selectedPlace.priceRange,
-					phone: phone.trim() || undefined,
+					openingHours: nextOpeningHours,
+					priceRange: nextPriceRange,
+					phone: nextPhone,
 					description: description.trim() || selectedPlace.description,
 				},
 				note,
@@ -218,8 +265,6 @@ export function UpdateInfoForm({
 						setSavedSummary(null);
 					}}
 					label="Pilih tempat yang ingin diperbarui"
-					suggestedPlaces={placesNeedingUpdates}
-					suggestedLabel="Perlu dilengkapi:"
 					onRequestAddNewPlace={onRequestAddNewPlace}
 					renderPlaceMeta={(p) =>
 						`${p.photos.length} foto · ${p.phone ? p.openingHours : "Belum ada kontak"}`
@@ -317,48 +362,59 @@ export function UpdateInfoForm({
 						/>
 					</div>
 
-					<div className="space-y-1.5">
-						<div className="flex items-center justify-between gap-2">
-							<Label htmlFor={hoursId}>Jam Buka</Label>
-							{changedFields.hours ? (
+					<OpeningHoursField
+						id={hoursId}
+						label="Jam Buka"
+						value={hours}
+						error={hoursError}
+						labelExtra={
+							changedFields.hours ? (
 								<Badge variant="default">Diubah</Badge>
-							) : null}
-						</div>
-						<Input
-							id={hoursId}
-							value={hours}
-							onChange={(e) => setHours(e.target.value)}
-						/>
-					</div>
+							) : null
+						}
+						onChange={(nextValue, nextError) => {
+							setHours(nextValue);
+							setHoursError(nextError ?? null);
+							if (error) setError(null);
+						}}
+						onBlurError={setHoursError}
+					/>
 
-					<div className="space-y-1.5">
-						<div className="flex items-center justify-between gap-2">
-							<Label htmlFor={priceId}>Kisaran Harga</Label>
-							{changedFields.price ? (
+					<PriceRangeField
+						id={priceId}
+						label="Kisaran Harga"
+						value={price}
+						error={priceError}
+						labelExtra={
+							changedFields.price ? (
 								<Badge variant="default">Diubah</Badge>
-							) : null}
-						</div>
-						<Input
-							id={priceId}
-							value={price}
-							onChange={(e) => setPrice(e.target.value)}
-						/>
-					</div>
+							) : null
+						}
+						onChange={(nextValue) => {
+							setPrice(nextValue);
+							setPriceError(null);
+							if (error) setError(null);
+						}}
+						onBlurError={setPriceError}
+					/>
 
-					<div className="sm:col-span-2 space-y-1.5">
-						<div className="flex items-center justify-between gap-2">
-							<Label htmlFor={phoneId}>
-								Nomor Kontak / WhatsApp (opsional)
-							</Label>
-							{changedFields.phone ? (
-								<Badge variant="default">Diubah</Badge>
-							) : null}
-						</div>
-						<Input
+					<div className="sm:col-span-2">
+						<WhatsappInputField
 							id={phoneId}
-							value={phone}
-							onChange={(e) => setPhone(e.target.value)}
-							placeholder="0812-xxxx-xxxx"
+							label="Nomor Kontak / WhatsApp"
+							value={phoneSuffix}
+							error={phoneError}
+							labelExtra={
+								changedFields.phone ? (
+									<Badge variant="default">Diubah</Badge>
+								) : null
+							}
+							onChange={(formatted, typingErr) => {
+								setPhoneSuffix(formatted);
+								setPhoneError(typingErr);
+								if (error) setError(null);
+							}}
+							onBlurError={setPhoneError}
 						/>
 					</div>
 
@@ -393,36 +449,15 @@ export function UpdateInfoForm({
 							) : null}
 						</div>
 
-						<label
-							htmlFor={photoInputId}
-							onDragOver={(e) => {
-								e.preventDefault();
-								setIsDragActive(true);
-							}}
-							onDragLeave={() => setIsDragActive(false)}
-							onDrop={handleDrop}
-							className={cn(
-								"flex min-h-[92px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[10px] border border-dashed px-4 py-4 text-center text-sm transition-colors",
-								isDragActive
-									? "border-primary bg-primary-soft/60 text-foreground"
-									: "border-border bg-background/60 text-muted-foreground hover:border-primary hover:text-foreground",
-							)}
-						>
-							<Camera className="size-5 text-primary" aria-hidden="true" />
-							<span className="font-semibold text-foreground">
-								Pilih atau seret foto menu, hidangan, atau warung
-							</span>
-							<span className="text-xs text-muted-foreground">
-								Format JPG, PNG, atau WebP (maks. 5 MB per foto)
-							</span>
-						</label>
-						<input
+						<PhotoUploadDropzone
 							id={photoInputId}
-							type="file"
-							accept="image/*"
+							icon={Camera}
+							title="Pilih atau seret foto menu, hidangan, atau warung"
+							subtitle="Format JPG, PNG, atau WebP (maks. 5 MB per foto)"
 							multiple
-							onChange={handleFileChange}
-							className="sr-only"
+							className="min-h-[92px]"
+							titleClassName="font-semibold"
+							onFilesSelected={handleFiles}
 						/>
 
 						{photoError ? (

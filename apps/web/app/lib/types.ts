@@ -69,6 +69,8 @@ export interface CulinaryPlace {
 	createdAt: string;
 	isPendingModeration?: boolean;
 	isPrototypeSample?: boolean;
+	legalityDocumentName?: string;
+	legalityDocumentUrl?: string;
 }
 
 export type ClaimStatus = "pending" | "approved" | "rejected";
@@ -84,6 +86,7 @@ export interface BusinessClaim {
 	whatsappNumber: string;
 	evidenceSummary: string;
 	evidenceFileName?: string;
+	evidenceFileUrl?: string;
 	status: ClaimStatus;
 	adminNote?: string;
 	submittedAt: string;

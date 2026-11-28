@@ -1,6 +1,7 @@
-import { Check, RotateCcw, X } from "lucide-react";
+import { Check, FileCheck2, RotateCcw, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ClearableSearchInput } from "~/components/clearable-search-input";
+import { LegalityDocumentDialog } from "~/components/legality-document-dialog";
 import { PlacePagination } from "~/components/place-pagination";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -18,6 +19,15 @@ const STATUS_OPTIONS: Array<{ value: ClaimStatusFilter; label: string }> = [
 	{ value: "rejected", label: "Ditolak" },
 ];
 
+const CLAIM_STATUS_BADGE: Record<
+	ClaimStatus,
+	{ variant: "default" | "destructive" | "yellow"; label: string }
+> = {
+	approved: { variant: "default", label: "Disetujui" },
+	rejected: { variant: "destructive", label: "Ditolak" },
+	pending: { variant: "yellow", label: "Menunggu Tinjauan" },
+};
+
 interface AdminClaimsTabProps {
 	claims: BusinessClaim[];
 	onReviewClaim: (
@@ -33,6 +43,7 @@ export function AdminClaimsTab({ claims, onReviewClaim }: AdminClaimsTabProps) {
 	const [statusFilter, setStatusFilter] = useState<ClaimStatusFilter>("all");
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(DEFAULT_PLACES_PAGE_SIZE);
+	const [previewClaim, setPreviewClaim] = useState<BusinessClaim | null>(null);
 
 	const filteredClaims = useMemo(() => {
 		const q = keyword.trim().toLowerCase();
@@ -42,7 +53,7 @@ export function AdminClaimsTab({ claims, onReviewClaim }: AdminClaimsTabProps) {
 			}
 			if (q) {
 				const haystack =
-					`${claim.placeName} ${claim.claimantName} ${claim.claimantEmail} ${claim.businessRole} ${claim.evidenceSummary}`.toLowerCase();
+					`${claim.placeName} ${claim.claimantName} ${claim.claimantEmail} ${claim.businessRole} ${claim.evidenceSummary} ${claim.evidenceFileName ?? ""}`.toLowerCase();
 				if (!haystack.includes(q)) return false;
 			}
 			return true;
@@ -150,29 +161,34 @@ export function AdminClaimsTab({ claims, onReviewClaim }: AdminClaimsTabProps) {
 											{claim.whatsappNumber}
 										</p>
 									</div>
-									<Badge
-										variant={
-											claim.status === "approved"
-												? "default"
-												: claim.status === "rejected"
-													? "destructive"
-													: "yellow"
-										}
-									>
-										{claim.status === "approved"
-											? "Disetujui"
-											: claim.status === "rejected"
-												? "Ditolak"
-												: "Menunggu Tinjauan"}
+									<Badge variant={CLAIM_STATUS_BADGE[claim.status].variant}>
+										{CLAIM_STATUS_BADGE[claim.status].label}
 									</Badge>
 								</div>
 
-								<p className="border-l-2 border-border pl-3.5 py-0.5 text-sm text-foreground">
-									Bukti: {claim.evidenceSummary}
-									{claim.evidenceFileName
-										? ` (Lampiran: ${claim.evidenceFileName})`
-										: ""}
-								</p>
+								<div className="space-y-2 border-l-2 border-border pl-3.5 py-0.5 text-sm text-foreground">
+									<p>Bukti: {claim.evidenceSummary}</p>
+									{claim.evidenceFileName ? (
+										<div className="flex flex-wrap items-center gap-2 text-xs">
+											<span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-2.5 py-1 font-medium text-primary-hover">
+												<FileCheck2 className="size-3.5" aria-hidden="true" />
+												Surat Legalitas: {claim.evidenceFileName}
+											</span>
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={() => setPreviewClaim(claim)}
+											>
+												Lihat Dokumen
+											</Button>
+										</div>
+									) : (
+										<p className="text-xs text-red-text">
+											Belum ada surat legalitas terlampir.
+										</p>
+									)}
+								</div>
 
 								{claim.status === "pending" ? (
 									<div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
@@ -245,6 +261,16 @@ export function AdminClaimsTab({ claims, onReviewClaim }: AdminClaimsTabProps) {
 					/>
 				</>
 			)}
+
+			<LegalityDocumentDialog
+				open={Boolean(previewClaim)}
+				onOpenChange={(open) => {
+					if (!open) setPreviewClaim(null);
+				}}
+				title={previewClaim?.placeName ?? ""}
+				fileName={previewClaim?.evidenceFileName}
+				fileUrl={previewClaim?.evidenceFileUrl}
+			/>
 		</div>
 	);
 }

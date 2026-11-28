@@ -227,17 +227,12 @@ export default function ContributeDashboardPage() {
 				aria-labelledby="contribute-actions-heading"
 				className="space-y-3"
 			>
-				<div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-					<h2
-						id="contribute-actions-heading"
-						className="text-base font-bold tracking-tight text-foreground"
-					>
-						Pilih Kontribusi
-					</h2>
-					<p className="text-xs sm:text-sm text-muted-foreground">
-						Bantu warga menemukan kuliner Batang dengan data yang akurat.
-					</p>
-				</div>
+				<h2
+					id="contribute-actions-heading"
+					className="text-base font-bold tracking-tight text-foreground"
+				>
+					Pilih Kontribusi
+				</h2>
 
 				<div className="grid grid-cols-1 gap-px overflow-hidden rounded-[12px] border border-border bg-border sm:grid-cols-3">
 					{CONTRIBUTE_ACTIONS.map((action) => {

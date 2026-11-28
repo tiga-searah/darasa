@@ -289,7 +289,7 @@ export function PopularSpotlight({
 						);
 					})}
 				</div>
-				<div className="absolute inset-0 bg-gradient-to-b from-card/30 from-0% via-transparent via-32% to-card to-78% md:from-transparent md:via-card/55 md:via-50% md:to-card md:to-100%" />
+				<div className="absolute inset-0 bg-gradient-to-b from-card/30 from-0% via-transparent via-36% to-card to-80% md:from-transparent md:via-card/55 md:via-50% md:to-card md:to-100%" />
 			</div>
 
 			<div className="relative z-10">
@@ -335,7 +335,7 @@ export function PopularSpotlight({
 									</div>
 								</Link>
 
-								<div className="flex min-w-0 flex-col justify-between gap-5 pt-40 sm:pt-48 md:col-span-7 md:pt-0 lg:col-span-8">
+								<div className="flex min-w-0 flex-col justify-between gap-5 pt-52 sm:pt-60 md:col-span-7 md:pt-0 lg:col-span-8">
 									<div className="space-y-3">
 										<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-foreground">
 											<span className="text-primary tabular-nums">
@@ -348,10 +348,10 @@ export function PopularSpotlight({
 													<span aria-hidden="true">·</span>
 													<span
 														title="Hidden Gems"
-														className="inline-flex items-center text-yellow-text"
+														className="inline-flex items-center"
 													>
 														<Gem
-															className="size-4 fill-[#f7c95c] dark:fill-[#f7c95c]/30"
+															className="size-4 fill-[#f7c95c]/30 text-amber-500 dark:text-yellow-text"
 															aria-hidden="true"
 														/>
 														<span className="sr-only">Hidden Gems</span>

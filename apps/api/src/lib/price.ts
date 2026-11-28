@@ -1,8 +1,9 @@
 export type PriceTier = "under_25k" | "25k_50k" | "50k_100k" | "over_100k";
 
-export function parsePriceBounds(
-	priceRange: string | null | undefined,
-): { min: number | null; max: number | null } {
+export function parsePriceBounds(priceRange: string | null | undefined): {
+	min: number | null;
+	max: number | null;
+} {
 	if (!priceRange) return { min: null, max: null };
 	const matches = priceRange.match(/\d[\d.]*(?:\s*(?:rb|ribu|k))?/gi);
 	if (!matches || matches.length === 0) return { min: null, max: null };

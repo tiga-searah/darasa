@@ -43,12 +43,18 @@ export default function ContributeWriteReviewPage() {
 		setRating(parseInitialRating(ratingParam));
 	}, [ratingParam]);
 
-	const suggestedForReview = useMemo(
+	const unreviewedPlaces = useMemo(
 		() =>
-			places
-				.filter((p) => !p.reviews.some((r) => r.userId === currentUser.id))
-				.slice(0, 3),
+			places.filter((p) => !p.reviews.some((r) => r.userId === currentUser.id)),
 		[places, currentUser.id],
+	);
+
+	const effectiveSelectedPlaceId = useMemo(
+		() =>
+			unreviewedPlaces.find((p) => p.id === selectedPlaceId)?.id ??
+			unreviewedPlaces[0]?.id ??
+			"",
+		[unreviewedPlaces, selectedPlaceId],
 	);
 
 	return (
@@ -58,12 +64,12 @@ export default function ContributeWriteReviewPage() {
 			redirectPath={redirectPath}
 		>
 			<WriteReviewForm
-				places={places}
-				selectedPlaceId={selectedPlaceId}
+				places={unreviewedPlaces}
+				hasRegisteredPlaces={places.length > 0}
+				selectedPlaceId={effectiveSelectedPlaceId}
 				onSelectPlace={setSelectedPlaceId}
 				rating={rating}
 				onChangeRating={setRating}
-				suggestedPlaces={suggestedForReview}
 				onSubmitReview={submitReview}
 				onRequestAddNewPlace={handleRequestAddNewPlace}
 			/>

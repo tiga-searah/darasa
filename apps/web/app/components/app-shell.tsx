@@ -5,6 +5,7 @@ import {
 	Gem,
 	Home,
 	LayoutDashboard,
+	MoreHorizontal,
 	PlusCircle,
 	ShieldAlert,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import { Link, useLocation } from "react-router";
 import { DesktopSidebar } from "~/components/shell/desktop-sidebar";
 import { GlobalSearch } from "~/components/shell/global-search";
 import { MobileBottomNav } from "~/components/shell/mobile-bottom-nav";
+import { MobileMoreSheet } from "~/components/shell/mobile-more-sheet";
 import { ProfilePopover } from "~/components/shell/profile-popover";
 import { ToastBanner } from "~/components/shell/toast-banner";
 import { useDarasa } from "~/context/darasa-store";
@@ -38,6 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 	} = useDarasa();
 	const location = useLocation();
 	const [collapsed, setCollapsed] = useState(false);
+	const [moreOpen, setMoreOpen] = useState(false);
 
 	const headerRef = useRef<HTMLElement>(null);
 	const mainContentRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		const _path = location.pathname;
+		setMoreOpen(false);
 		const el = mainContentRef.current;
 		if (!_path || !el) return;
 		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -163,13 +167,41 @@ export function AppShell({ children }: { children: ReactNode }) {
 		return items;
 	}, [currentUser.role, adminAttentionCount]);
 
+	const navItems = useMemo(
+		() => [...discoveryLinks, ...managementLinks],
+		[discoveryLinks, managementLinks],
+	);
+
+	const mobileNavItems = useMemo<NavItem[]>(
+		() => [
+			{ to: "/", label: "Beranda", icon: Home },
+			{ to: "/explore", label: "Jelajah", icon: Compass },
+			{
+				to: "/hidden-gem",
+				label: "Hidden Gems",
+				mobileLabel: "Hidden Gems",
+				icon: Gem,
+			},
+			{ to: "/contribute", label: "Kontribusi", icon: PlusCircle },
+			{
+				to: "/more",
+				label: "Lainnya",
+				icon: MoreHorizontal,
+				badge:
+					currentUser.role === "admin" && adminAttentionCount > 0
+						? String(adminAttentionCount)
+						: undefined,
+			},
+		],
+		[currentUser.role, adminAttentionCount],
+	);
+
 	return (
 		<div className="flex min-h-dvh bg-card text-foreground">
 			<DesktopSidebar
 				collapsed={collapsed}
 				onToggleCollapse={() => setCollapsed((prev) => !prev)}
-				discoveryLinks={discoveryLinks}
-				managementLinks={managementLinks}
+				items={navItems}
 			/>
 
 			<div className="flex min-w-0 flex-1 flex-col bg-card">
@@ -235,7 +267,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</div>
 				</main>
 
-				<MobileBottomNav items={[...discoveryLinks, ...managementLinks]} />
+				<MobileBottomNav
+					items={mobileNavItems}
+					moreOpen={moreOpen}
+					onOpenMore={() => setMoreOpen(true)}
+				/>
+
+				<MobileMoreSheet
+					open={moreOpen}
+					onOpenChange={setMoreOpen}
+					currentUser={currentUser}
+					bookmarkCount={bookmarkedPlaceIds.length}
+					adminAttentionCount={adminAttentionCount}
+				/>
 
 				<ToastBanner toast={toast} onDismiss={dismissToast} />
 			</div>

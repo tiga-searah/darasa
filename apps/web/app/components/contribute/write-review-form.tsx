@@ -1,32 +1,25 @@
-import {
-	CheckCircle2,
-	ImagePlus,
-	MessageSquarePlus,
-	Star,
-	X,
-} from "lucide-react";
-import { type ChangeEvent, type FormEvent, useId, useState } from "react";
+import { CheckCircle2, MessageSquarePlus, Star } from "lucide-react";
+import { type FormEvent, useId, useState } from "react";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
-import { RATING_LABELS, readImageFiles } from "~/data/contribute";
+import { RATING_LABELS } from "~/data/contribute";
 import { cn } from "~/lib/utils";
 import { PlacePicker } from "./place-picker";
 
 interface WriteReviewFormProps {
 	places: PlaceWithMetrics[];
+	hasRegisteredPlaces?: boolean;
 	selectedPlaceId: string;
 	onSelectPlace: (placeId: string) => void;
 	rating: number;
 	onChangeRating: (rating: number) => void;
-	suggestedPlaces: PlaceWithMetrics[];
 	onSubmitReview: (input: {
 		placeId: string;
 		rating: number;
 		comment: string;
-		photoUrl?: string;
 	}) => void;
 	onRequestAddNewPlace: (prefillName: string) => void;
 }
@@ -42,17 +35,16 @@ const IMPRESSION_TAGS = [
 
 export function WriteReviewForm({
 	places,
+	hasRegisteredPlaces = places.length > 0,
 	selectedPlaceId,
 	onSelectPlace,
 	rating,
 	onChangeRating,
-	suggestedPlaces,
 	onSubmitReview,
 	onRequestAddNewPlace,
 }: WriteReviewFormProps) {
 	const [hoverRating, setHoverRating] = useState<number | null>(null);
 	const [comment, setComment] = useState("");
-	const [photoPreview, setPhotoPreview] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [successPlace, setSuccessPlace] = useState<{
 		name: string;
@@ -60,7 +52,6 @@ export function WriteReviewForm({
 	} | null>(null);
 
 	const commentId = useId();
-	const photoId = useId();
 
 	const selectedPlace =
 		places.find((p) => p.id === selectedPlaceId) ?? places[0];
@@ -72,19 +63,6 @@ export function WriteReviewForm({
 			if (trimmed.toLowerCase().includes(tag.toLowerCase())) return prev;
 			return trimmed ? `${trimmed}, ${tag.toLowerCase()}` : `${tag}. `;
 		});
-	};
-
-	const handlePhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		e.target.value = "";
-		if (!files || files.length === 0) return;
-		const { urls, error: fileErr } = await readImageFiles([files[0]]);
-		if (fileErr) {
-			setError(fileErr);
-			return;
-		}
-		setError(null);
-		if (urls[0]) setPhotoPreview(urls[0]);
 	};
 
 	const handleSubmit = (e: FormEvent) => {
@@ -101,11 +79,9 @@ export function WriteReviewForm({
 			placeId: selectedPlace.id,
 			rating,
 			comment,
-			photoUrl: photoPreview || undefined,
 		});
 		setError(null);
 		setComment("");
-		setPhotoPreview("");
 		onChangeRating(5);
 		setSuccessPlace({ name: selectedPlace.name, slug: selectedPlace.slug });
 	};
@@ -128,8 +104,14 @@ export function WriteReviewForm({
 						setSuccessPlace(null);
 					}}
 					label="Pilih tempat yang ingin diulas"
-					suggestedPlaces={suggestedPlaces}
-					suggestedLabel="Belum Anda ulas:"
+					emptyTitle={
+						hasRegisteredPlaces ? "Semua tempat sudah Anda ulas" : undefined
+					}
+					emptyDescription={
+						hasRegisteredPlaces
+							? "Setiap akun maksimal memberi 1 ulasan per tempat. Tambahkan tempat baru jika ingin mengulas warung lain."
+							: undefined
+					}
 					onRequestAddNewPlace={onRequestAddNewPlace}
 					renderPlaceMeta={(p) => `${p.reviewCount} ulasan`}
 					listClassName="lg:max-h-[420px]"
@@ -252,43 +234,6 @@ export function WriteReviewForm({
 						aria-invalid={Boolean(error && commentLen < 10)}
 						placeholder="Ceritakan menu yang Anda pesan, rasa, porsi, dan jam kunjungan terbaik..."
 					/>
-				</div>
-
-				<div className="space-y-2">
-					<Label htmlFor={photoId}>Foto pendukung ulasan (opsional)</Label>
-					<label
-						htmlFor={photoId}
-						className="flex min-h-[56px] cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-dashed border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-					>
-						<ImagePlus className="size-4 text-primary" aria-hidden="true" />
-						<span>Lampirkan foto hidangan atau suasana</span>
-					</label>
-					<input
-						id={photoId}
-						type="file"
-						accept="image/*"
-						onChange={handlePhotoChange}
-						className="sr-only"
-					/>
-					{photoPreview ? (
-						<div className="relative inline-block">
-							<img
-								src={photoPreview}
-								alt="Pratinjau foto ulasan"
-								width={280}
-								height={180}
-								className="h-28 w-44 rounded-[8px] border border-border object-cover"
-							/>
-							<button
-								type="button"
-								onClick={() => setPhotoPreview("")}
-								aria-label="Hapus pratinjau foto ulasan"
-								className="absolute right-1.5 top-1.5 inline-flex size-11 items-center justify-center rounded-full border border-border bg-card/95 text-foreground shadow-xs hover:bg-background"
-							>
-								<X className="size-4" aria-hidden="true" />
-							</button>
-						</div>
-					) : null}
 				</div>
 
 				<div className="flex justify-end pt-2">

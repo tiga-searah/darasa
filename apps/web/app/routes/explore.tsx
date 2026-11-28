@@ -128,7 +128,6 @@ export default function ExplorePage() {
 
 	return (
 		<div className="space-y-6 pb-8">
-			{/* Discovery Header + Search + Expandable Advanced Filter + Sort */}
 			<section
 				aria-label="Pencarian dan filter kuliner"
 				className="space-y-4 border-b border-border pb-5"
@@ -148,7 +147,6 @@ export default function ExplorePage() {
 					</p>
 				</div>
 
-				{/* Search Bar + Filter Toggle Button + Sort Dropdown */}
 				<search>
 					<form
 						onSubmit={(e) => e.preventDefault()}

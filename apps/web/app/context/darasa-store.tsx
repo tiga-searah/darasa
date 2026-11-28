@@ -58,6 +58,50 @@ export {
 
 const DarasaContext = createContext<DarasaContextValue | null>(null);
 
+function normalizeViews(views: number | undefined): number {
+	return typeof views === "number" && Number.isFinite(views) && views >= 0
+		? views
+		: 0;
+}
+
+function toggleIdInList(list: string[], id: string): string[] {
+	return list.includes(id) ? list.filter((item) => item !== id) : [id, ...list];
+}
+
+function promoteUserToOwner(
+	accounts: UserAccount[],
+	userId: string,
+	placeId: string,
+): UserAccount[] {
+	return accounts.map((acc) =>
+		acc.id === userId
+			? {
+					...acc,
+					role: acc.role === "admin" ? ("admin" as const) : ("owner" as const),
+					claimedPlaceId: placeId,
+				}
+			: acc,
+	);
+}
+
+function buildContributionActivity(
+	userId: string,
+	type: ContributionActivity["type"],
+	placeId: string,
+	placeName: string,
+	summary: string,
+): ContributionActivity {
+	return {
+		id: `ctb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+		userId,
+		type,
+		placeId,
+		placeName,
+		summary,
+		createdAt: new Date().toISOString(),
+	};
+}
+
 export function DarasaProvider({ children }: { children: ReactNode }) {
 	const [state, setState] = useState<PersistedState>(DEFAULT_STATE);
 	const [hydrated, setHydrated] = useState(false);
@@ -137,12 +181,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			const placeReviews = reviewsByPlace[place.id] ?? [];
 			const averageRating = getAverageRating(placeReviews);
 			const reviewCount = placeReviews.length;
-			const views =
-				typeof place.views === "number" &&
-				Number.isFinite(place.views) &&
-				place.views >= 0
-					? place.views
-					: 0;
+			const views = normalizeViews(place.views);
 			const exploreBreakdown = calculateExploreScore(place, placeReviews);
 			const hiddenGemEligible = isHiddenGemEligible(
 				averageRating,
@@ -201,6 +240,45 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			return { ok: true as const, user: found };
 		},
 		[state.accounts],
+	);
+
+	const loginWithGoogle: DarasaContextValue["loginWithGoogle"] = useCallback(
+		({ name, email, accountId }) => {
+			if (accountId) {
+				const target = state.accounts.find((acc) => acc.id === accountId);
+				if (target) {
+					setState((prev) => ({ ...prev, currentUserId: target.id }));
+					notify(`Masuk dengan Google sebagai ${target.name}.`);
+					return target;
+				}
+			}
+
+			const cleanEmail = email.trim().toLowerCase();
+			const existing = state.accounts.find(
+				(acc) =>
+					acc.email.toLowerCase() === cleanEmail && acc.role !== "visitor",
+			);
+			if (existing) {
+				setState((prev) => ({ ...prev, currentUserId: existing.id }));
+				notify(`Masuk dengan Google sebagai ${existing.name}.`);
+				return existing;
+			}
+
+			const newAccount: UserAccount = {
+				id: `usr-google-${Date.now()}`,
+				name: name.trim() || cleanEmail.split("@")[0] || "Pengguna Google",
+				email: cleanEmail,
+				role: "user",
+			};
+			setState((prev) => ({
+				...prev,
+				accounts: [...prev.accounts, newAccount],
+				currentUserId: newAccount.id,
+			}));
+			notify(`Berhasil masuk dengan Google (${newAccount.email}).`);
+			return newAccount;
+		},
+		[notify, state.accounts],
 	);
 
 	const registerAccount = useCallback(
@@ -278,7 +356,11 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				...prev,
 				places: [newPlace, ...prev.places],
 			}));
-			notify(`Tempat "${newPlace.name}" berhasil ditambahkan ke direktori!`);
+			notify(
+				newPlace.legalityDocumentName
+					? `Tempat "${newPlace.name}" beserta surat legalitas dikirim untuk verifikasi admin.`
+					: `Tempat "${newPlace.name}" berhasil ditambahkan ke direktori!`,
+			);
 			return newPlace;
 		},
 		[currentUser, notify],
@@ -288,23 +370,23 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 		setState((prev) => ({
 			...prev,
 			places: prev.places.map((p) =>
-				p.id === placeId
-					? {
-							...p,
-							views:
-								(typeof p.views === "number" &&
-								Number.isFinite(p.views) &&
-								p.views >= 0
-									? p.views
-									: 0) + 1,
-						}
-					: p,
+				p.id === placeId ? { ...p, views: normalizeViews(p.views) + 1 } : p,
 			),
 		}));
 	}, []);
 
 	const submitReview: DarasaContextValue["submitReview"] = useCallback(
-		({ placeId, rating, comment, photoUrl }) => {
+		({ placeId, rating, comment }) => {
+			const existingReview = state.reviews.find(
+				(r) => r.placeId === placeId && r.userId === currentUser.id,
+			);
+			if (existingReview) {
+				notify(
+					"Anda sudah menulis ulasan untuk tempat ini (maksimal 1 ulasan).",
+					"info",
+				);
+				return existingReview;
+			}
 			const newReview: ReviewItem = {
 				id: `rev-${Date.now()}`,
 				placeId,
@@ -312,28 +394,52 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				authorName: currentUser.name,
 				rating,
 				comment: comment.trim(),
-				photoUrl: photoUrl || undefined,
 				createdAt: new Date().toISOString(),
 			};
 			setState((prev) => {
-				const nextPlaces =
-					photoUrl && photoUrl.length > 0
-						? prev.places.map((p) =>
-								p.id === placeId && !p.photos.includes(photoUrl)
-									? { ...p, photos: [...p.photos, photoUrl] }
-									: p,
-							)
-						: prev.places;
+				if (
+					prev.reviews.some(
+						(r) => r.placeId === placeId && r.userId === currentUser.id,
+					)
+				) {
+					return prev;
+				}
 				return {
 					...prev,
-					places: nextPlaces,
 					reviews: [newReview, ...prev.reviews],
 				};
 			});
 			notify("Ulasan dan rating Anda berhasil disimpan.");
 			return newReview;
 		},
-		[currentUser, notify],
+		[currentUser, notify, state.reviews],
+	);
+
+	const deleteReview = useCallback(
+		(reviewId: string) => {
+			const target = state.reviews.find((r) => r.id === reviewId);
+			if (!target) return;
+			if (target.userId !== currentUser.id && currentUser.role !== "admin") {
+				return;
+			}
+			setState((prev) => {
+				const existing = prev.reviews.find((r) => r.id === reviewId);
+				if (!existing) return prev;
+				if (
+					existing.userId !== currentUser.id &&
+					currentUser.role !== "admin"
+				) {
+					return prev;
+				}
+				return {
+					...prev,
+					reviews: prev.reviews.filter((r) => r.id !== reviewId),
+					likedReviewIds: prev.likedReviewIds.filter((id) => id !== reviewId),
+				};
+			});
+			notify("Ulasan berhasil dihapus.", "info");
+		},
+		[currentUser.id, currentUser.role, notify, state.reviews],
 	);
 
 	const submitClaim: DarasaContextValue["submitClaim"] = useCallback(
@@ -343,6 +449,7 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			whatsappNumber,
 			evidenceSummary,
 			evidenceFileName,
+			evidenceFileUrl,
 		}) => {
 			const targetPlace = state.places.find((p) => p.id === placeId);
 			const claim: BusinessClaim = {
@@ -355,7 +462,8 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 				businessRole: businessRole.trim(),
 				whatsappNumber: whatsappNumber.trim(),
 				evidenceSummary: evidenceSummary.trim(),
-				evidenceFileName: evidenceFileName || undefined,
+				evidenceFileName: evidenceFileName.trim() || undefined,
+				evidenceFileUrl: evidenceFileUrl || undefined,
 				status: "pending",
 				submittedAt: new Date().toISOString(),
 			};
@@ -405,14 +513,10 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 							: p,
 					);
 
-					nextAccounts = prev.accounts.map((acc) =>
-						acc.id === targetClaim.claimantUserId
-							? {
-									...acc,
-									role: acc.role === "admin" ? "admin" : "owner",
-									claimedPlaceId: targetClaim.placeId,
-								}
-							: acc,
+					nextAccounts = promoteUserToOwner(
+						prev.accounts,
+						targetClaim.claimantUserId,
+						targetClaim.placeId,
 					);
 				}
 
@@ -452,15 +556,13 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			if (!photoUrl) return;
 			const targetPlace = state.places.find((p) => p.id === placeId);
 			if (!targetPlace || targetPlace.photos.includes(photoUrl)) return;
-			const activity: ContributionActivity = {
-				id: `ctb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-				userId: currentUser.id,
-				type: "photo",
+			const activity = buildContributionActivity(
+				currentUser.id,
+				"photo",
 				placeId,
-				placeName: targetPlace.name,
-				summary: "Menambahkan foto kuliner baru",
-				createdAt: new Date().toISOString(),
-			};
+				targetPlace.name,
+				"Menambahkan foto kuliner baru",
+			);
 			setState((prev) => ({
 				...prev,
 				places: prev.places.map((p) =>
@@ -480,16 +582,13 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			(placeId, updates, note) => {
 				const targetPlace = state.places.find((p) => p.id === placeId);
 				if (!targetPlace) return;
-				const activity: ContributionActivity = {
-					id: `ctb-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-					userId: currentUser.id,
-					type: "edit",
+				const activity = buildContributionActivity(
+					currentUser.id,
+					"edit",
 					placeId,
-					placeName: targetPlace.name,
-					summary:
-						note?.trim() || "Memperbarui informasi operasional tempat kuliner",
-					createdAt: new Date().toISOString(),
-				};
+					targetPlace.name,
+					note?.trim() || "Memperbarui informasi operasional tempat kuliner",
+				);
 				setState((prev) => ({
 					...prev,
 					places: prev.places.map((p) =>
@@ -525,20 +624,42 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 
 	const setPlaceVerification = useCallback(
 		(placeId: string, status: VerificationStatus, approvePending = true) => {
-			setState((prev) => ({
-				...prev,
-				places: prev.places.map((p) =>
+			setState((prev) => {
+				const targetPlace = prev.places.find((p) => p.id === placeId);
+				if (!targetPlace) return prev;
+
+				const promotedOwnerId =
+					status === "owner_verified"
+						? (targetPlace.ownerId ??
+							(targetPlace.submittedByUserId !== "usr-visitor"
+								? targetPlace.submittedByUserId
+								: undefined))
+						: targetPlace.ownerId;
+
+				const nextPlaces = prev.places.map((p) =>
 					p.id === placeId
 						? {
 								...p,
 								verificationStatus: status,
+								ownerId: promotedOwnerId,
 								isPendingModeration: approvePending
 									? false
 									: p.isPendingModeration,
 							}
 						: p,
-				),
-			}));
+				);
+
+				const nextAccounts =
+					status === "owner_verified" && promotedOwnerId
+						? promoteUserToOwner(prev.accounts, promotedOwnerId, placeId)
+						: prev.accounts;
+
+				return {
+					...prev,
+					places: nextPlaces,
+					accounts: nextAccounts,
+				};
+			});
 			notify("Status verifikasi tempat diperbarui.");
 		},
 		[notify],
@@ -572,15 +693,10 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 	const toggleBookmark = useCallback(
 		(placeId: string) => {
 			const alreadySaved = state.bookmarkedPlaceIds.includes(placeId);
-			setState((prev) => {
-				const exists = prev.bookmarkedPlaceIds.includes(placeId);
-				return {
-					...prev,
-					bookmarkedPlaceIds: exists
-						? prev.bookmarkedPlaceIds.filter((id) => id !== placeId)
-						: [placeId, ...prev.bookmarkedPlaceIds],
-				};
-			});
+			setState((prev) => ({
+				...prev,
+				bookmarkedPlaceIds: toggleIdInList(prev.bookmarkedPlaceIds, placeId),
+			}));
 			notify(
 				alreadySaved
 					? "Tempat dihapus dari Bookmark."
@@ -597,15 +713,10 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 	);
 
 	const toggleReviewLike = useCallback((reviewId: string) => {
-		setState((prev) => {
-			const exists = prev.likedReviewIds.includes(reviewId);
-			return {
-				...prev,
-				likedReviewIds: exists
-					? prev.likedReviewIds.filter((id) => id !== reviewId)
-					: [reviewId, ...prev.likedReviewIds],
-			};
-		});
+		setState((prev) => ({
+			...prev,
+			likedReviewIds: toggleIdInList(prev.likedReviewIds, reviewId),
+		}));
 	}, []);
 
 	const getReviewLikeCount = useCallback(
@@ -637,12 +748,14 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			notify,
 			dismissToast,
 			loginWithCredentials,
+			loginWithGoogle,
 			registerAccount,
 			switchDemoAccount,
 			logout,
 			submitPlace,
 			recordPlaceView,
 			submitReview,
+			deleteReview,
 			submitClaim,
 			reviewClaim,
 			updatePlaceProfile,
@@ -674,12 +787,14 @@ export function DarasaProvider({ children }: { children: ReactNode }) {
 			notify,
 			dismissToast,
 			loginWithCredentials,
+			loginWithGoogle,
 			registerAccount,
 			switchDemoAccount,
 			logout,
 			submitPlace,
 			recordPlaceView,
 			submitReview,
+			deleteReview,
 			submitClaim,
 			reviewClaim,
 			updatePlaceProfile,

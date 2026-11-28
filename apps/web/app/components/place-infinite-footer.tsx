@@ -10,6 +10,7 @@ interface PlaceInfiniteFooterProps {
 	error?: string | null;
 	sentinelRef: RefObject<HTMLDivElement | null>;
 	onRetry?: () => void;
+	loadingLabel?: string;
 }
 
 /**
@@ -23,6 +24,7 @@ export function PlaceInfiniteFooter({
 	error = null,
 	sentinelRef,
 	onRetry,
+	loadingLabel = "Memuat tempat lainnya...",
 }: PlaceInfiniteFooterProps) {
 	if (totalItems === 0 || (isInitialLoading && visibleCount === 0)) {
 		return null;
@@ -60,7 +62,7 @@ export function PlaceInfiniteFooter({
 						className="size-4 animate-spin text-primary"
 						aria-hidden="true"
 					/>
-					<span className="sr-only">Memuat tempat lainnya...</span>
+					<span className="sr-only">{loadingLabel}</span>
 				</div>
 			)}
 		</div>

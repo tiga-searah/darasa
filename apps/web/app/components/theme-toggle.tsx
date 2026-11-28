@@ -11,13 +11,18 @@ import { cn } from "~/lib/utils";
 interface ThemeToggleProps {
 	className?: string;
 	compact?: boolean;
+	variant?: "outline" | "ghost";
 }
 
 /**
  * Two-state color-scheme toggle rendered with both theme branches in HTML and toggled
  * via CSS so SSR and pre-hydration paint match without flash or hydration mismatch.
  */
-export function ThemeToggle({ className, compact = false }: ThemeToggleProps) {
+export function ThemeToggle({
+	className,
+	compact = false,
+	variant = "outline",
+}: ThemeToggleProps) {
 	useEffect(() => {
 		const handleStorage = (event: StorageEvent) => {
 			if (event.key === null || event.key === COLOR_SCHEME_STORAGE_KEY) {
@@ -42,7 +47,7 @@ export function ThemeToggle({ className, compact = false }: ThemeToggleProps) {
 	return (
 		<Button
 			type="button"
-			variant="outline"
+			variant={variant}
 			size={compact ? "icon" : "default"}
 			onClick={() => {
 				toggleColorScheme();

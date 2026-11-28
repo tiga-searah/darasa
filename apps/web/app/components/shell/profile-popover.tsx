@@ -1,11 +1,10 @@
-import { Check, LogIn, LogOut, Moon, Sun, UserPlus } from "lucide-react";
+import { Check, LogIn, LogOut, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useId, useRef } from "react";
 import { Link, useLocation } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
 import { DEMO_ACCOUNTS } from "~/data/batang-places";
 import { ROLE_LABELS, SHORT_ROLE_LABELS } from "~/data/nav-config";
-import { setColorSchemePreference } from "~/lib/theme";
 import type { UserAccount } from "~/lib/types";
 import { cn } from "~/lib/utils";
 
@@ -115,32 +114,6 @@ export function ProfilePopover({
 						Keluar Akun
 					</Button>
 				)}
-
-				<Separator />
-
-				<fieldset className="space-y-2 border-0 p-0 m-0">
-					<legend className="px-1 text-xs font-semibold text-muted-foreground">
-						Settings · Tema Tampilan
-					</legend>
-					<div className="grid grid-cols-2 gap-1.5">
-						<button
-							type="button"
-							onClick={() => setColorSchemePreference("light")}
-							className="darasa-theme-btn-light flex min-h-[38px] items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition-colors"
-						>
-							<Sun className="size-3.5" aria-hidden="true" />
-							<span>Light Mode</span>
-						</button>
-						<button
-							type="button"
-							onClick={() => setColorSchemePreference("dark")}
-							className="darasa-theme-btn-dark flex min-h-[38px] items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition-colors"
-						>
-							<Moon className="size-3.5" aria-hidden="true" />
-							<span>Dark Mode</span>
-						</button>
-					</div>
-				</fieldset>
 
 				<Separator />
 

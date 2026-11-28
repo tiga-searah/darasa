@@ -1,8 +1,8 @@
 export const XP_REWARDS = {
-	place: 50,
-	review: 25,
-	photo: 15,
-	edit: 10,
+	place: 15,
+	review: 8,
+	photo: 5,
+	edit: 4,
 } as const;
 
 export interface ContributorLevelTier {
@@ -24,10 +24,20 @@ export interface ContributorLevelInfo {
 
 export const CONTRIBUTOR_LEVELS: readonly ContributorLevelTier[] = [
 	{ level: 1, minXp: 0, title: "Penjelajah Baru" },
-	{ level: 2, minXp: 50, title: "Penjelajah Aktif" },
-	{ level: 3, minXp: 150, title: "Kurator Lokal" },
-	{ level: 4, minXp: 300, title: "Pemandu Kuliner" },
-	{ level: 5, minXp: 500, title: "Duta Kuliner Batang" },
+	{ level: 2, minXp: 100, title: "Penjelajah Aktif" },
+	{ level: 3, minXp: 220, title: "Pencicip Lokal" },
+	{ level: 4, minXp: 360, title: "Pengulas Setia" },
+	{ level: 5, minXp: 530, title: "Pemandu Rasa" },
+	{ level: 6, minXp: 730, title: "Pemburu Hidden Gem" },
+	{ level: 7, minXp: 970, title: "Kurator Lokal" },
+	{ level: 8, minXp: 1250, title: "Penjaga Data Kuliner" },
+	{ level: 9, minXp: 1580, title: "Pemandu Kuliner" },
+	{ level: 10, minXp: 1970, title: "Kurator Senior" },
+	{ level: 11, minXp: 2430, title: "Penggerak Komunitas" },
+	{ level: 12, minXp: 2970, title: "Pakar Kuliner Batang" },
+	{ level: 13, minXp: 3600, title: "Maestro Cita Rasa" },
+	{ level: 14, minXp: 4330, title: "Tokoh Kuliner Lokal" },
+	{ level: 15, minXp: 5200, title: "Duta Kuliner Batang" },
 ];
 
 function sanitizeCount(value: number): number {

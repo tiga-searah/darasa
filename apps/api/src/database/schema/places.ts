@@ -56,6 +56,11 @@ export const places = pgTable(
 		coverMediaId: uuid("cover_media_id").references(() => media.id, {
 			onDelete: "set null",
 		}),
+		/** Optional legality document (NIB/SKU/SIUP) when an owner submits their own business. */
+		legalityDocumentMediaId: uuid("legality_document_media_id").references(
+			() => media.id,
+			{ onDelete: "set null" },
+		),
 		status: placeStatus("status").notNull().default("pending"),
 		/** null for places seeded by the platform; FK keeps contributions attributed. */
 		createdById: uuid("created_by_id").references(() => users.id, {

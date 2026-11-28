@@ -160,6 +160,8 @@ export const PlaceDetail = t.Object({
 	openingHours: t.Nullable(t.Any()),
 	coverMediaId: t.Nullable(t.String()),
 	coverUrl: t.Nullable(t.String()),
+	legalityDocumentMediaId: t.Nullable(t.String()),
+	legalityDocumentUrl: t.Nullable(t.String()),
 	photos: t.Array(PlacePhotoItem),
 	status: t.String(),
 	communityVerified: t.Boolean(),
@@ -191,6 +193,8 @@ export type PlaceDetailType = {
 	openingHours: unknown;
 	coverMediaId: string | null;
 	coverUrl: string | null;
+	legalityDocumentMediaId: string | null;
+	legalityDocumentUrl: string | null;
 	photos: { id: string; mediaId: string; url: string; sortOrder: number }[];
 	status: string;
 	communityVerified: boolean;
@@ -257,6 +261,7 @@ export const CreatePlaceBody = t.Object({
 	photoMediaIds: t.Optional(
 		t.Array(t.String({ format: "uuid" }), { maxItems: 5, uniqueItems: true }),
 	),
+	legalityDocumentMediaId: t.Optional(t.String({ format: "uuid" })),
 });
 
 export type CreatePlaceBodyType = {
@@ -281,6 +286,7 @@ export type CreatePlaceBodyType = {
 		  }
 		| string;
 	photoMediaIds?: string[];
+	legalityDocumentMediaId?: string;
 };
 
 export const AddPlacePhotosBody = t.Object({

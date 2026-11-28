@@ -31,6 +31,8 @@ function createDefaultDraft(prefillName = ""): AddPlaceDraft {
 		priceRange: "",
 		description: "",
 		photoPreview: "",
+		legalityDocumentName: "",
+		legalityDocumentUrl: "",
 	};
 }
 

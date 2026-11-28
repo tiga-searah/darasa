@@ -1,6 +1,7 @@
-import { MapPin, RotateCcw, X } from "lucide-react";
+import { MapPin, RotateCcw } from "lucide-react";
 import { useId, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
+import { ActiveFilterChip } from "~/components/active-filter-chip";
 import { ClearableSearchInput } from "~/components/clearable-search-input";
 import { PlaceInfiniteFooter } from "~/components/place-infinite-footer";
 import { PlaceResultsList } from "~/components/place-results-list";
@@ -107,7 +108,6 @@ export default function HiddenGemPage() {
 
 	return (
 		<div className="space-y-6 pb-8">
-			{/* Cardless Golden Highlight Header with Smooth Bottom Fade */}
 			<section className="relative -mt-[6rem] pt-[6.5rem] pb-8 xl:-mt-[6rem] xl:pt-[6.5rem]">
 				<div
 					aria-hidden="true"
@@ -129,7 +129,6 @@ export default function HiddenGemPage() {
 			</section>
 
 			<div className="space-y-5">
-				{/* Search + District Filter + View Controls matching Explore */}
 				<div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center">
 					<ClearableSearchInput
 						value={keyword}
@@ -181,7 +180,6 @@ export default function HiddenGemPage() {
 					</div>
 				</div>
 
-				{/* Result Count & Clearable Active Filter Chips */}
 				<div className="flex flex-wrap items-center gap-2">
 					<span className="text-sm text-muted-foreground">
 						<strong className="font-semibold text-foreground tabular-nums">
@@ -191,51 +189,36 @@ export default function HiddenGemPage() {
 					</span>
 
 					{keyword.trim() ? (
-						<button
-							type="button"
-							onClick={() => setKeyword("")}
-							aria-label={`Hapus kata kunci ${keyword}`}
-							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-accent-yellow/50 bg-yellow-soft px-3 py-1 text-xs font-medium text-yellow-text hover:brightness-95"
-						>
-							&ldquo;{keyword.trim()}&rdquo;
-							<X className="size-3.5" aria-hidden="true" />
-						</button>
+						<ActiveFilterChip
+							label={`“${keyword.trim()}”`}
+							ariaLabel={`Hapus kata kunci ${keyword}`}
+							tone="yellow"
+							onClear={() => setKeyword("")}
+						/>
 					) : null}
 
 					{categoryFilter !== "all" ? (
-						<button
-							type="button"
-							onClick={() => setExploreFilters({ category: "all" })}
-							aria-label={`Hapus filter kategori ${categoryFilter}`}
-							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
-						>
-							{categoryFilter}
-							<X className="size-3.5" aria-hidden="true" />
-						</button>
+						<ActiveFilterChip
+							label={categoryFilter}
+							ariaLabel={`Hapus filter kategori ${categoryFilter}`}
+							onClear={() => setExploreFilters({ category: "all" })}
+						/>
 					) : null}
 
 					{districtFilter !== "all" ? (
-						<button
-							type="button"
-							onClick={() => setExploreFilters({ district: "all" })}
-							aria-label={`Hapus filter kawasan ${districtFilter}`}
-							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
-						>
-							{districtFilter}
-							<X className="size-3.5" aria-hidden="true" />
-						</button>
+						<ActiveFilterChip
+							label={districtFilter}
+							ariaLabel={`Hapus filter kawasan ${districtFilter}`}
+							onClear={() => setExploreFilters({ district: "all" })}
+						/>
 					) : null}
 
 					{verificationFilter !== "all" ? (
-						<button
-							type="button"
-							onClick={() => setExploreFilters({ verification: "all" })}
-							aria-label={`Hapus filter verifikasi ${VERIFICATION_LABELS[verificationFilter]}`}
-							className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
-						>
-							{VERIFICATION_LABELS[verificationFilter]}
-							<X className="size-3.5" aria-hidden="true" />
-						</button>
+						<ActiveFilterChip
+							label={VERIFICATION_LABELS[verificationFilter]}
+							ariaLabel={`Hapus filter verifikasi ${VERIFICATION_LABELS[verificationFilter]}`}
+							onClear={() => setExploreFilters({ verification: "all" })}
+						/>
 					) : null}
 
 					{hasActiveFilters ? (

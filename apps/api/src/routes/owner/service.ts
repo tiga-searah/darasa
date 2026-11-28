@@ -1,10 +1,17 @@
-import { and, asc, desc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, or, sql } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";
 import { parsePriceBounds } from "../../lib/price";
 import type { SessionUser } from "../../lib/session";
-import { ApiError, conflict, forbidden, notFound } from "../../utils";
+import {
+	ApiError,
+	conflict,
+	forbidden,
+	notFound,
+	paginationMeta,
+	toJakartaDayInt,
+} from "../../utils";
 import { resolveMediaUrl } from "../media/service";
 import { getPlaceDetail } from "../places/service";
 import { hydrateReviews } from "../reviews/service";
@@ -22,13 +29,18 @@ export async function assertPlaceOwnerOrAdmin(
 	placeId: string,
 ): Promise<void> {
 	const [place] = await db
-		.select({ id: schema.places.id })
+		.select({
+			id: schema.places.id,
+			ownerVerified: schema.places.ownerVerified,
+			createdById: schema.places.createdById,
+		})
 		.from(schema.places)
 		.where(eq(schema.places.id, placeId))
 		.limit(1);
 	if (!place) throw notFound("Place");
 
 	if (user.role === "admin") return;
+	if (place.ownerVerified && place.createdById === user.id) return;
 
 	const [claim] = await db
 		.select({ id: schema.businessClaims.id })
@@ -68,16 +80,23 @@ export async function listOwnerPlaces(storage: Storage, user: SessionUser) {
 			createdAt: schema.places.createdAt,
 			updatedAt: schema.places.updatedAt,
 		})
-		.from(schema.businessClaims)
-		.innerJoin(
-			schema.places,
-			eq(schema.businessClaims.placeId, schema.places.id),
+		.from(schema.places)
+		.leftJoin(
+			schema.businessClaims,
+			and(
+				eq(schema.businessClaims.placeId, schema.places.id),
+				eq(schema.businessClaims.claimantId, user.id),
+				eq(schema.businessClaims.status, "approved"),
+			),
 		)
 		.leftJoin(schema.media, eq(schema.places.coverMediaId, schema.media.id))
 		.where(
-			and(
-				eq(schema.businessClaims.claimantId, user.id),
+			or(
 				eq(schema.businessClaims.status, "approved"),
+				and(
+					eq(schema.places.ownerVerified, true),
+					eq(schema.places.createdById, user.id),
+				),
 			),
 		)
 		.orderBy(asc(schema.places.name));
@@ -174,14 +193,7 @@ export async function updateOwnerPlace(
 }
 
 function jakartaCutoffDay(days: number): number {
-	const cutoff = new Date(Date.now() - (days - 1) * 86_400_000);
-	const formatted = new Intl.DateTimeFormat("en-CA", {
-		timeZone: "Asia/Jakarta",
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-	}).format(cutoff);
-	return Number(formatted.replace(/-/g, ""));
+	return toJakartaDayInt(new Date(Date.now() - (days - 1) * 86_400_000));
 }
 
 export async function getOwnerPlaceStats(
@@ -287,12 +299,7 @@ export async function listOwnerReviews(
 	const data = await hydrateReviews(db, storage, rows, user.id);
 	return {
 		data,
-		meta: {
-			page,
-			limit,
-			total,
-			totalPages: Math.max(1, Math.ceil(total / limit)),
-		},
+		meta: paginationMeta(page, limit, total),
 	};
 }
 

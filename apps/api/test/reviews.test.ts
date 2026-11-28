@@ -91,7 +91,7 @@ describe("reviews & anomaly flags", () => {
 		expect(p?.reviewCount).toBe(0);
 	});
 
-	test("rejects unowned or wrong-purpose photoMediaIds with 403", async () => {
+	test("rejects photoMediaIds or extra attachments on POST /reviews with 422", async () => {
 		const place = await seedPublishedPlace();
 		const ownerCookie = await registerUser("own@b.test");
 		const otherCookie = await registerUser("other@b.test");
@@ -118,7 +118,7 @@ describe("reviews & anomaly flags", () => {
 				body: JSON.stringify({ rating: 5, photoMediaIds: [mediaId] }),
 			}),
 		);
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(422);
 	});
 
 	test("zero stdDev baseline does not crash or flag, while outlier triggers rating_outlier", async () => {

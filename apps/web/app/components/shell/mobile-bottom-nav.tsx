@@ -4,11 +4,31 @@ import { NavLink, useLocation } from "react-router";
 import type { NavItem } from "~/data/nav-config";
 import { cn } from "~/lib/utils";
 
-export function MobileBottomNav({ items }: { items: NavItem[] }) {
+const MORE_GROUP_PATHS = ["/more", "/bookmarks", "/owner", "/admin", "/claim"];
+
+interface MobileBottomNavProps {
+	items: NavItem[];
+	moreOpen: boolean;
+	onOpenMore: () => void;
+}
+
+export function MobileBottomNav({
+	items,
+	moreOpen,
+	onOpenMore,
+}: MobileBottomNavProps) {
 	const location = useLocation();
 	const listRef = useRef<HTMLUListElement>(null);
 	const indicatorRef = useRef<HTMLSpanElement>(null);
 	const hasPositionedRef = useRef(false);
+
+	const isMoreGroupActive =
+		moreOpen ||
+		MORE_GROUP_PATHS.some(
+			(prefix) =>
+				location.pathname === prefix ||
+				location.pathname.startsWith(`${prefix}/`),
+		);
 
 	const updateIndicator = useCallback((instant = false) => {
 		const mobileList = listRef.current;
@@ -19,7 +39,7 @@ export function MobileBottomNav({ items }: { items: NavItem[] }) {
 			"(prefers-reduced-motion: reduce)",
 		).matches;
 		const activeTab = mobileList.querySelector<HTMLElement>(
-			'[aria-current="page"]',
+			'[data-active="true"], [aria-current="page"]',
 		);
 
 		if (!activeTab) {
@@ -53,7 +73,7 @@ export function MobileBottomNav({ items }: { items: NavItem[] }) {
 	}, []);
 
 	useEffect(() => {
-		const _syncKey = `${location.pathname}:${items.length}`;
+		const _syncKey = `${location.pathname}:${items.length}:${moreOpen}`;
 		if (!_syncKey) return;
 		const frame = window.requestAnimationFrame(() => updateIndicator());
 		const settleTimer = window.setTimeout(() => updateIndicator(), 250);
@@ -61,7 +81,7 @@ export function MobileBottomNav({ items }: { items: NavItem[] }) {
 			window.cancelAnimationFrame(frame);
 			window.clearTimeout(settleTimer);
 		};
-	}, [updateIndicator, location.pathname, items.length]);
+	}, [updateIndicator, location.pathname, items.length, moreOpen]);
 
 	useEffect(() => {
 		const handleResize = () => updateIndicator(true);
@@ -87,43 +107,93 @@ export function MobileBottomNav({ items }: { items: NavItem[] }) {
 					{items.map((item) => {
 						const Icon = item.icon;
 						const tabLabel = item.mobileLabel ?? item.label;
+						const isMoreItem = item.to === "/more";
+
+						if (isMoreItem) {
+							return (
+								<li key={item.to} className="flex min-w-0 flex-1">
+									<button
+										type="button"
+										onClick={onOpenMore}
+										aria-label={item.label}
+										aria-expanded={moreOpen}
+										aria-haspopup="dialog"
+										data-active={isMoreGroupActive ? "true" : undefined}
+										className={cn(
+											"relative flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[10px] px-1 py-1.5 text-[10px] sm:text-[11px] font-semibold transition-colors duration-200 active:scale-[0.96]",
+											isMoreGroupActive
+												? "text-primary"
+												: "text-muted-foreground hover:text-foreground",
+										)}
+									>
+										<span
+											className={cn(
+												"relative inline-flex h-7 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-200",
+												isMoreGroupActive
+													? "scale-105 bg-primary-soft text-primary"
+													: "",
+											)}
+										>
+											<Icon className="size-5 shrink-0" aria-hidden="true" />
+											{item.badge ? (
+												<span className="absolute -top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground tabular-nums">
+													{item.badge}
+												</span>
+											) : null}
+										</span>
+										<span className="max-w-full truncate leading-none">
+											{tabLabel}
+										</span>
+									</button>
+								</li>
+							);
+						}
+
 						return (
 							<li key={item.to} className="flex min-w-0 flex-1">
 								<NavLink
 									to={item.to}
 									end={item.to === "/"}
 									aria-label={item.label}
-									className={({ isActive }) =>
-										cn(
+									data-active={undefined}
+									className={({ isActive }) => {
+										const active = isActive && !moreOpen;
+										return cn(
 											"relative flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[10px] px-1 py-1.5 text-[10px] sm:text-[11px] font-semibold transition-colors duration-200 active:scale-[0.96]",
-											isActive
+											active
 												? "text-primary"
 												: "text-muted-foreground hover:text-foreground",
-										)
-									}
+										);
+									}}
 								>
-									{({ isActive }) => (
-										<>
-											<span
-												className={cn(
-													"relative inline-flex h-7 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-200",
-													isActive
-														? "scale-105 bg-primary-soft text-primary"
-														: "",
-												)}
-											>
-												<Icon className="size-5 shrink-0" aria-hidden="true" />
-												{item.badge ? (
-													<span className="absolute -top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground tabular-nums">
-														{item.badge}
-													</span>
-												) : null}
-											</span>
-											<span className="max-w-full truncate leading-none">
-												{tabLabel}
-											</span>
-										</>
-									)}
+									{({ isActive }) => {
+										const active = isActive && !moreOpen;
+										return (
+											<>
+												<span
+													className={cn(
+														"relative inline-flex h-7 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-200",
+														active
+															? "scale-105 bg-primary-soft text-primary"
+															: "",
+													)}
+												>
+													<Icon
+														className="size-5 shrink-0"
+														aria-hidden="true"
+													/>
+													{item.badge ? (
+														<span className="absolute -top-0.5 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground tabular-nums">
+															{item.badge}
+														</span>
+													) : null}
+												</span>
+												<span className="max-w-full truncate leading-none">
+													{tabLabel}
+												</span>
+											</>
+										);
+									}}
 								</NavLink>
 							</li>
 						);

@@ -1,9 +1,11 @@
 import { and, count, desc, eq, ilike, type SQL } from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
+import type { Storage } from "../../lib/ports";
 import { recomputePlaceStats } from "../../lib/ranking";
 import type { SessionUser } from "../../lib/session";
-import { conflict, notFound } from "../../utils";
+import { conflict, notFound, paginationMeta } from "../../utils";
+import { resolveMediaUrlMap } from "../media/service";
 import type {
 	AdminAnomaliesQueryType,
 	AdminPlacesQueryType,
@@ -12,7 +14,10 @@ import type {
 	UpdateVerificationBodyType,
 } from "./model";
 
-export async function listAdminPlaces(query: AdminPlacesQueryType) {
+export async function listAdminPlaces(
+	storage: Storage | undefined,
+	query: AdminPlacesQueryType,
+) {
 	const page = query.page ?? 1;
 	const limit = query.limit ?? 20;
 	const offset = (page - 1) * limit;
@@ -41,6 +46,7 @@ export async function listAdminPlaces(query: AdminPlacesQueryType) {
 				phone: schema.places.phone,
 				openingHours: schema.places.openingHours,
 				coverMediaId: schema.places.coverMediaId,
+				legalityDocumentMediaId: schema.places.legalityDocumentMediaId,
 				status: schema.places.status,
 				createdById: schema.places.createdById,
 				communityVerified: schema.places.communityVerified,
@@ -76,21 +82,24 @@ export async function listAdminPlaces(query: AdminPlacesQueryType) {
 		db.select({ total: count() }).from(schema.places).where(where),
 	]);
 
+	const docUrlMap = await resolveMediaUrlMap(
+		storage,
+		rows.map((r) => r.legalityDocumentMediaId),
+	);
+
 	const total = totalRows[0]?.total ?? 0;
 	return {
 		data: rows.map((r) => ({
 			...r,
+			legalityDocumentUrl: r.legalityDocumentMediaId
+				? (docUrlMap.get(r.legalityDocumentMediaId) ?? null)
+				: null,
 			lastReviewAt: r.lastReviewAt ? r.lastReviewAt.toISOString() : null,
 			createdAt: r.createdAt.toISOString(),
 			updatedAt: r.updatedAt.toISOString(),
 			createdBy: r.createdBy?.id ? r.createdBy : null,
 		})),
-		meta: {
-			page,
-			limit,
-			total,
-			totalPages: Math.max(1, Math.ceil(total / limit)),
-		},
+		meta: paginationMeta(page, limit, total),
 	};
 }
 
@@ -138,6 +147,18 @@ export async function updatePlaceVerification(
 			.update(schema.places)
 			.set(updates)
 			.where(eq(schema.places.id, placeId));
+
+		if (body.ownerVerified === true && place.createdById) {
+			await tx
+				.update(schema.users)
+				.set({ role: "owner" })
+				.where(
+					and(
+						eq(schema.users.id, place.createdById),
+						eq(schema.users.role, "user"),
+					),
+				);
+		}
 
 		await recomputePlaceStats(tx, placeId);
 		const [refreshed] = await tx
@@ -232,14 +253,16 @@ export async function listAnomalies(query: AdminAnomaliesQueryType) {
 			review: r.review?.id ? r.review : null,
 			user: r.user?.id ? r.user : null,
 		})),
-		meta: {
-			page,
-			limit,
-			total,
-			totalPages: Math.max(1, Math.ceil(total / limit)),
-		},
+		meta: paginationMeta(page, limit, total),
 	};
 }
+
+const ANOMALY_RESOLUTION_STATUS = {
+	cleared: "dismissed",
+	flagged_hold: "confirmed",
+	confirmed: "confirmed",
+	dismissed: "dismissed",
+} as const;
 
 export async function resolveAnomaly(
 	user: SessionUser,
@@ -257,12 +280,7 @@ export async function resolveAnomaly(
 			throw conflict("Anomaly flag already resolved");
 		}
 
-		const mappedStatus =
-			body.status === "cleared"
-				? "dismissed"
-				: body.status === "flagged_hold"
-					? "confirmed"
-					: body.status;
+		const mappedStatus = ANOMALY_RESOLUTION_STATUS[body.status];
 
 		const [updated] = await tx
 			.update(schema.anomalyFlags)

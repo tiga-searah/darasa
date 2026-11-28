@@ -1,11 +1,21 @@
-import { LocateFixed } from "lucide-react";
-import { useId, useState } from "react";
+import { Loader2, LocateFixed, X } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import { GoogleMapPicker } from "~/components/google-map-picker";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { DISTRICT_COORDINATES } from "~/data/batang-places";
+import { isWithinBatangBounds, parseGoogleMapsCoordinates } from "~/lib/maps";
+import type { ResolveMapsLinkResponse } from "~/lib/maps-server";
+import { cn } from "~/lib/utils";
 import type { AddPlaceDraft, AddPlaceErrors } from "./add-place-validation";
+
+function parseCoordinateOrFallback(raw: string, fallback: number): number {
+	const trimmed = raw.trim();
+	if (!trimmed || trimmed === "-" || trimmed.endsWith(".")) return fallback;
+	const parsed = Number(trimmed);
+	return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 interface AddPlaceLocationSectionProps {
 	draft: AddPlaceDraft;
@@ -27,33 +37,93 @@ export function AddPlaceLocationSection({
 	onChangeDraft,
 }: AddPlaceLocationSectionProps) {
 	const [isLocating, setIsLocating] = useState(false);
+	const [isResolvingLink, setIsResolvingLink] = useState(false);
+	const [geoTone, setGeoTone] = useState<"info" | "error">("info");
+	const resolveAbortRef = useRef<AbortController | null>(null);
 	const mapsUrlId = useId();
 	const latId = useId();
 	const lngId = useId();
 
-	const parseGoogleMapsInput = (raw: string) => {
-		onMapsLinkInputChange(raw);
-		const trimmed = raw.trim();
-		if (!trimmed) return;
+	useEffect(() => {
+		return () => {
+			resolveAbortRef.current?.abort();
+		};
+	}, []);
 
-		const patterns = [
-			/@(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
-			/[?&](?:q|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
-			/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
-			/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/,
-		];
+	const resolveMapsUrlOnServer = async (targetUrl: string) => {
+		resolveAbortRef.current?.abort();
+		const controller = new AbortController();
+		resolveAbortRef.current = controller;
+		setIsResolvingLink(true);
+		setGeoTone("info");
+		onGeoMessageChange("Mengambil koordinat dari tautan Google Maps...");
 
-		for (const regex of patterns) {
-			const match = trimmed.match(regex);
-			if (match) {
-				const nextLat = Number(match[1]).toFixed(4);
-				const nextLng = Number(match[2]).toFixed(4);
-				onChangeDraft((prev) => ({ ...prev, lat: nextLat, lng: nextLng }));
+		try {
+			const res = await fetch(
+				`/resolve-maps-link?url=${encodeURIComponent(targetUrl)}`,
+				{ signal: controller.signal },
+			);
+			const payload = (await res.json()) as ResolveMapsLinkResponse;
+			if (controller.signal.aborted) return;
+
+			if (payload.ok && payload.result) {
+				const { lat, lng, inBatangBounds, message } = payload.result;
+				onChangeDraft((prev) => ({ ...prev, lat, lng }));
+				setGeoTone(inBatangBounds ? "info" : "error");
+				onGeoMessageChange(message);
+			} else {
+				setGeoTone("error");
 				onGeoMessageChange(
-					"Koordinat berhasil diambil dari tautan Google Maps.",
+					payload.error ??
+						"Koordinat tidak ditemukan dari tautan Google Maps tersebut.",
 				);
-				return;
 			}
+		} catch (err) {
+			if (err instanceof Error && err.name === "AbortError") return;
+			setGeoTone("error");
+			onGeoMessageChange(
+				"Gagal memproses tautan Google Maps. Periksa koneksi atau tempel koordinatnya langsung.",
+			);
+		} finally {
+			if (resolveAbortRef.current === controller) {
+				setIsResolvingLink(false);
+			}
+		}
+	};
+
+	const parseGoogleMapsInput = (raw: string) => {
+		resolveAbortRef.current?.abort();
+		setIsResolvingLink(false);
+		onMapsLinkInputChange(raw);
+
+		if (!raw.trim()) {
+			setGeoTone("info");
+			onGeoMessageChange(null);
+			return;
+		}
+
+		const { result, needsServerResolve, resolvedUrlCandidate, warning } =
+			parseGoogleMapsCoordinates(raw);
+
+		if (result) {
+			onChangeDraft((prev) => ({
+				...prev,
+				lat: result.lat,
+				lng: result.lng,
+			}));
+			setGeoTone(result.inBatangBounds ? "info" : "error");
+			onGeoMessageChange(result.message);
+			return;
+		}
+
+		if (needsServerResolve && resolvedUrlCandidate) {
+			void resolveMapsUrlOnServer(resolvedUrlCandidate);
+			return;
+		}
+
+		if (warning) {
+			setGeoTone("error");
+			onGeoMessageChange(warning);
 		}
 	};
 
@@ -63,20 +133,49 @@ export function AddPlaceLocationSection({
 			return;
 		}
 		setIsLocating(true);
-		onGeoMessageChange("Mengambil koordinat lokasi Anda...");
+		onGeoMessageChange("Mengambil koordinat GPS presisi tinggi...");
 		navigator.geolocation.getCurrentPosition(
 			(pos) => {
-				const nextLat = pos.coords.latitude.toFixed(4);
-				const nextLng = pos.coords.longitude.toFixed(4);
+				const rawLat = pos.coords.latitude;
+				const rawLng = pos.coords.longitude;
+				const nextLat = rawLat.toFixed(6);
+				const nextLng = rawLng.toFixed(6);
+				const accuracyMeters = Math.round(pos.coords.accuracy);
+
 				onChangeDraft((prev) => ({ ...prev, lat: nextLat, lng: nextLng }));
-				onGeoMessageChange("Koordinat GPS berhasil diterapkan ke peta.");
+
+				if (!isWithinBatangBounds(rawLat, rawLng)) {
+					setGeoTone("error");
+					onGeoMessageChange(
+						`GPS terbaca di luar Kabupaten Batang (${nextLat}, ${nextLng}). Geser pin ke lokasi warung di Batang.`,
+					);
+				} else if (Number.isFinite(accuracyMeters) && accuracyMeters > 100) {
+					setGeoTone("info");
+					onGeoMessageChange(
+						`Koordinat GPS perkiraan (±${accuracyMeters} m). Perbesar peta dan geser pin tepat ke bangunan usaha.`,
+					);
+				} else {
+					const accuracyLabel = Number.isFinite(accuracyMeters)
+						? ` (akurasi ±${accuracyMeters} m)`
+						: "";
+					setGeoTone("info");
+					onGeoMessageChange(
+						`Koordinat GPS presisi berhasil diterapkan${accuracyLabel}.`,
+					);
+				}
 				setIsLocating(false);
 			},
 			() => {
+				setGeoTone("error");
 				onGeoMessageChange(
-					"Izin lokasi ditolak atau tidak tersedia. Silakan geser pin langsung di peta.",
+					"Izin lokasi ditolak atau sinyal GPS lemah. Cari alamat atau geser pin langsung di peta.",
 				);
 				setIsLocating(false);
+			},
+			{
+				enableHighAccuracy: true,
+				timeout: 12000,
+				maximumAge: 0,
 			},
 		);
 	};
@@ -106,15 +205,24 @@ export function AddPlaceLocationSection({
 			</div>
 
 			<GoogleMapPicker
-				lat={Number(draft.lat) || DISTRICT_COORDINATES["Batang Kota"].lat}
-				lng={Number(draft.lng) || DISTRICT_COORDINATES["Batang Kota"].lng}
+				lat={parseCoordinateOrFallback(
+					draft.lat,
+					DISTRICT_COORDINATES[draft.district].lat,
+				)}
+				lng={parseCoordinateOrFallback(
+					draft.lng,
+					DISTRICT_COORDINATES[draft.district].lng,
+				)}
 				onPickLocation={(nextLat, nextLng, note) => {
 					onChangeDraft((prev) => ({
 						...prev,
-						lat: String(nextLat),
-						lng: String(nextLng),
+						lat: nextLat.toFixed(6),
+						lng: nextLng.toFixed(6),
 					}));
-					if (note) onGeoMessageChange(note);
+					if (note) {
+						setGeoTone("info");
+						onGeoMessageChange(note);
+					}
 				}}
 			/>
 
@@ -122,19 +230,44 @@ export function AddPlaceLocationSection({
 				<Label htmlFor={mapsUrlId} className="text-xs text-muted-foreground">
 					Tempel tautan Google Maps atau koordinat (opsional)
 				</Label>
-				<Input
-					id={mapsUrlId}
-					type="text"
-					value={mapsLinkInput}
-					onChange={(e) => parseGoogleMapsInput(e.target.value)}
-					placeholder="https://maps.google.com/... atau -6.9078, 109.7302"
-				/>
+				<div className="relative">
+					<Input
+						id={mapsUrlId}
+						type="text"
+						value={mapsLinkInput}
+						onChange={(e) => parseGoogleMapsInput(e.target.value)}
+						placeholder="https://maps.app.goo.gl/... atau -6.9078, 109.7302"
+						className="pr-11"
+					/>
+					{isResolvingLink ? (
+						<span
+							aria-hidden="true"
+							className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary"
+						>
+							<Loader2 className="size-4 animate-spin" />
+						</span>
+					) : mapsLinkInput.trim().length > 0 ? (
+						<button
+							type="button"
+							onClick={() => parseGoogleMapsInput("")}
+							aria-label="Hapus tautan Google Maps"
+							className="absolute right-0.5 top-1/2 inline-flex min-h-[40px] min-w-[40px] -translate-y-1/2 items-center justify-center rounded-[6px] text-muted-foreground hover:bg-muted hover:text-foreground"
+						>
+							<X className="size-4" aria-hidden="true" />
+						</button>
+					) : null}
+				</div>
 			</div>
 
 			{geoMessage ? (
 				<p
-					role="status"
-					className="rounded-[8px] border border-primary/25 bg-primary-soft px-3 py-2 text-xs font-medium text-primary-hover"
+					role={geoTone === "error" ? "alert" : "status"}
+					className={cn(
+						"rounded-[8px] border px-3 py-2 text-xs font-medium",
+						geoTone === "error"
+							? "border-secondary-red/40 bg-red-soft text-red-text"
+							: "border-primary/25 bg-primary-soft text-primary-hover",
+					)}
 				>
 					{geoMessage}
 				</p>

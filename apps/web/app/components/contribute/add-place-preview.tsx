@@ -1,21 +1,4 @@
-import {
-	Clock,
-	ImagePlus,
-	MapPin,
-	MapPinPlus,
-	Star,
-	Store,
-} from "lucide-react";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "~/components/ui/dialog";
+import { Clock, ImagePlus, MapPin, Star } from "lucide-react";
 import { VerificationBadge } from "~/components/verification-badge";
 import { cn } from "~/lib/utils";
 import {
@@ -54,17 +37,12 @@ export function AddPlaceLivePreview({ draft }: AddPlaceLivePreviewProps) {
 			aria-labelledby="add-place-live-preview-heading"
 			className="space-y-4"
 		>
-			<div className="space-y-0.5">
-				<h2
-					id="add-place-live-preview-heading"
-					className="text-base font-bold text-foreground"
-				>
-					Pratinjau Kartu Kuliner
-				</h2>
-				<p className="text-xs text-muted-foreground">
-					Tampilan langsung tempat kuliner Anda di direktori Darasa.
-				</p>
-			</div>
+			<h2
+				id="add-place-live-preview-heading"
+				className="text-base font-bold text-foreground"
+			>
+				Pratinjau Kartu Kuliner
+			</h2>
 
 			<article className="space-y-3">
 				<div className="relative aspect-[16/10] w-full overflow-hidden rounded-[12px] bg-muted">
@@ -175,135 +153,5 @@ export function AddPlaceLivePreview({ draft }: AddPlaceLivePreviewProps) {
 				</div>
 			</article>
 		</section>
-	);
-}
-
-interface AddPlacePreviewDialogProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	draft: AddPlaceDraft;
-	parsedLat: number;
-	parsedLng: number;
-	onConfirmSubmit: () => void;
-}
-
-export function AddPlacePreviewDialog({
-	open,
-	onOpenChange,
-	draft,
-	parsedLat,
-	parsedLng,
-	onConfirmSubmit,
-}: AddPlacePreviewDialogProps) {
-	const coordText =
-		Number.isFinite(parsedLat) && Number.isFinite(parsedLng)
-			? `${parsedLat.toFixed(5)}, ${parsedLng.toFixed(5)}`
-			: `${draft.lat}, ${draft.lng}`;
-	const formattedHours = parseOpeningHoursValue(draft.openingHours).formatted;
-	const formattedPrice = parsePriceRangeValue(draft.priceRange).formatted;
-
-	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="w-[min(94dvw,640px)]">
-				<DialogHeader>
-					<DialogTitle>Pratinjau Tempat Kuliner</DialogTitle>
-					<DialogDescription>
-						Periksa seluruh data sebelum dikirim ke direktori Darasa dan antrean
-						validasi komunitas.
-					</DialogDescription>
-				</DialogHeader>
-
-				<div className="space-y-4">
-					{draft.photoPreview ? (
-						<div className="overflow-hidden rounded-[12px] bg-muted">
-							<img
-								src={draft.photoPreview}
-								alt={`Foto ${draft.name.trim()}`}
-								width={640}
-								height={400}
-								className="aspect-[16/10] w-full object-cover"
-							/>
-						</div>
-					) : null}
-
-					<div className="space-y-2">
-						<div className="flex flex-wrap items-center gap-2">
-							<Badge variant="secondary">{draft.category}</Badge>
-							<VerificationBadge status="unverified" isPendingModeration />
-						</div>
-						<h3 className="text-xl font-bold leading-snug text-foreground">
-							{draft.name.trim()}
-						</h3>
-						<p className="text-sm leading-relaxed text-muted-foreground">
-							{draft.description.trim()}
-						</p>
-					</div>
-
-					<dl className="grid grid-cols-1 gap-3 pt-1 text-sm sm:grid-cols-2">
-						<div className="flex items-start gap-2.5 sm:col-span-2">
-							<MapPin
-								className="mt-0.5 size-4 shrink-0 text-primary"
-								aria-hidden="true"
-							/>
-							<div className="min-w-0">
-								<dt className="text-xs font-medium text-muted-foreground">
-									Alamat &amp; Lokasi Peta
-								</dt>
-								<dd className="font-medium text-foreground">
-									{draft.address.trim()}
-								</dd>
-								<dd className="text-xs text-muted-foreground tabular-nums">
-									{draft.district}, Kabupaten Batang · Koordinat {coordText}
-								</dd>
-							</div>
-						</div>
-
-						<div className="flex items-start gap-2.5">
-							<Clock
-								className="mt-0.5 size-4 shrink-0 text-primary"
-								aria-hidden="true"
-							/>
-							<div>
-								<dt className="text-xs font-medium text-muted-foreground">
-									Jam Operasional
-								</dt>
-								<dd className="font-medium text-foreground">
-									{formattedHours}
-								</dd>
-							</div>
-						</div>
-
-						<div className="flex items-start gap-2.5">
-							<Store
-								className="mt-0.5 size-4 shrink-0 text-primary"
-								aria-hidden="true"
-							/>
-							<div>
-								<dt className="text-xs font-medium text-muted-foreground">
-									Kisaran Harga
-								</dt>
-								<dd className="font-medium text-foreground tabular-nums">
-									{formattedPrice}
-								</dd>
-							</div>
-						</div>
-					</dl>
-				</div>
-
-				<DialogFooter>
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => onOpenChange(false)}
-					>
-						Ubah Data
-					</Button>
-					<Button type="button" onClick={onConfirmSubmit}>
-						<MapPinPlus className="size-4" aria-hidden="true" />
-						Kirim Tempat Kuliner
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
 	);
 }

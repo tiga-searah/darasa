@@ -1,12 +1,14 @@
-import { MessageSquareReply, RotateCcw, Star } from "lucide-react";
-import { useMemo, useState } from "react";
+import { MessageSquareReply, RotateCcw } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { ClearableSearchInput } from "~/components/clearable-search-input";
-import { PlacePagination } from "~/components/place-pagination";
+import { PlaceInfiniteFooter } from "~/components/place-infinite-footer";
 import { RatingBreakdownBars } from "~/components/rating-breakdown-bars";
+import { ReviewCardItem } from "~/components/review-card-item";
+import { ReviewListSkeleton } from "~/components/review-list-skeleton";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
-import { DEFAULT_PLACES_PAGE_SIZE, paginateItems } from "~/lib/pagination";
+import { useIncrementalReveal, useInfiniteList } from "~/lib/use-infinite-list";
 import { cn } from "~/lib/utils";
 
 interface OwnerReviewsPanelProps {
@@ -22,8 +24,7 @@ export function OwnerReviewsPanel({
 	const [reviewFilter, setReviewFilter] = useState<"all" | "unanswered">("all");
 	const [ratingFilter, setRatingFilter] = useState<number | null>(null);
 	const [keyword, setKeyword] = useState("");
-	const [page, setPage] = useState(1);
-	const [pageSize, setPageSize] = useState(DEFAULT_PLACES_PAGE_SIZE);
+	const listRef = useRef<HTMLUListElement>(null);
 
 	const unansweredCount = place.reviews.filter((r) => !r.ownerReply).length;
 
@@ -40,10 +41,21 @@ export function OwnerReviewsPanel({
 		});
 	}, [place.reviews, reviewFilter, ratingFilter, keyword]);
 
-	const pagination = useMemo(
-		() => paginateItems(displayedReviews, page, pageSize),
-		[displayedReviews, page, pageSize],
-	);
+	const filterSignature = `${place.id}|${reviewFilter}|${ratingFilter ?? "all"}|${keyword.trim()}`;
+
+	const {
+		visibleItems: visibleReviews,
+		visibleCount,
+		totalItems,
+		isInitialLoading,
+		isFetchingMore,
+		error,
+		batchSize,
+		sentinelRef,
+		retry,
+	} = useInfiniteList(displayedReviews, { filterKey: filterSignature });
+
+	useIncrementalReveal(listRef, visibleReviews.length, filterSignature);
 
 	const hasActiveFilters =
 		reviewFilter !== "all" ||
@@ -54,7 +66,6 @@ export function OwnerReviewsPanel({
 		setReviewFilter("all");
 		setRatingFilter(null);
 		setKeyword("");
-		setPage(1);
 	};
 
 	const handleReplySubmit = (reviewId: string) => {
@@ -65,19 +76,16 @@ export function OwnerReviewsPanel({
 	};
 
 	return (
-		<section className="lg:col-span-7 lg:border-l lg:border-border lg:pl-7 space-y-6">
+		<section className="lg:col-span-7 space-y-6">
 			<div className="border-b border-border pb-6 space-y-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<h2 className="text-lg font-bold text-foreground">
-						Distribusi Bintang dari Ulasan Terdata
+						Distribusi Rating
 					</h2>
 					{ratingFilter !== null ? (
 						<button
 							type="button"
-							onClick={() => {
-								setRatingFilter(null);
-								setPage(1);
-							}}
+							onClick={() => setRatingFilter(null)}
 							className="text-xs font-semibold text-primary hover:text-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 						>
 							Reset filter ({ratingFilter} bintang)
@@ -88,26 +96,20 @@ export function OwnerReviewsPanel({
 				<RatingBreakdownBars
 					reviews={place.reviews}
 					ratingFilter={ratingFilter}
-					onSelectRatingFilter={(nextRating) => {
-						setRatingFilter(nextRating);
-						setPage(1);
-					}}
+					onSelectRatingFilter={setRatingFilter}
 				/>
 			</div>
 
 			<div className="space-y-4">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<h2 className="text-lg font-bold text-foreground">
-						Balas Ulasan Pengunjung ({displayedReviews.length})
+						Ulasan Pelanggan ({displayedReviews.length})
 					</h2>
 					<div className="flex flex-wrap items-center gap-2">
 						<button
 							type="button"
 							aria-pressed={reviewFilter === "all"}
-							onClick={() => {
-								setReviewFilter("all");
-								setPage(1);
-							}}
+							onClick={() => setReviewFilter("all")}
 							className={cn(
 								"inline-flex min-h-[36px] items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
 								reviewFilter === "all"
@@ -120,10 +122,7 @@ export function OwnerReviewsPanel({
 						<button
 							type="button"
 							aria-pressed={reviewFilter === "unanswered"}
-							onClick={() => {
-								setReviewFilter("unanswered");
-								setPage(1);
-							}}
+							onClick={() => setReviewFilter("unanswered")}
 							className={cn(
 								"inline-flex min-h-[36px] items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors",
 								reviewFilter === "unanswered"
@@ -145,10 +144,7 @@ export function OwnerReviewsPanel({
 				{place.reviews.length > 0 ? (
 					<ClearableSearchInput
 						value={keyword}
-						onChange={(val) => {
-							setKeyword(val);
-							setPage(1);
-						}}
+						onChange={setKeyword}
 						label="Cari ulasan pelanggan"
 						placeholder="Cari nama pengulas atau isi ulasan..."
 					/>
@@ -158,7 +154,7 @@ export function OwnerReviewsPanel({
 					<div className="border-t border-border py-10 text-center text-sm text-muted-foreground">
 						Belum ada ulasan pengunjung untuk usaha Anda saat ini.
 					</div>
-				) : displayedReviews.length === 0 ? (
+				) : !isInitialLoading && displayedReviews.length === 0 ? (
 					<div className="border-t border-border py-10 text-center space-y-3">
 						<p className="text-sm text-muted-foreground">
 							{reviewFilter === "unanswered" &&
@@ -178,74 +174,22 @@ export function OwnerReviewsPanel({
 							</Button>
 						) : null}
 					</div>
+				) : isInitialLoading && visibleReviews.length === 0 ? (
+					<ReviewListSkeleton
+						count={Math.min(batchSize, displayedReviews.length)}
+						withTopBorder
+					/>
 				) : (
 					<>
-						<ul className="divide-y divide-border border-t border-border">
-							{pagination.items.map((rev) => (
-								<li key={rev.id} className="py-5 space-y-3">
-									<div className="flex flex-wrap items-center justify-between gap-2">
-										<div className="flex items-center gap-2.5">
-											<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
-												{rev.authorName.slice(0, 1).toUpperCase()}
-											</span>
-											<div>
-												<p className="text-sm font-semibold text-foreground">
-													{rev.authorName}
-												</p>
-												<p className="text-xs text-muted-foreground">
-													{new Date(rev.createdAt).toLocaleDateString("id-ID", {
-														day: "numeric",
-														month: "short",
-														year: "numeric",
-													})}
-												</p>
-											</div>
-										</div>
-
-										<div
-											role="img"
-											className="flex items-center gap-0.5"
-											aria-label={`${rev.rating} dari 5 bintang`}
-										>
-											{[1, 2, 3, 4, 5].map((starValue) => (
-												<Star
-													key={starValue}
-													className={cn(
-														"size-4",
-														starValue <= rev.rating
-															? "fill-accent-yellow text-accent-yellow"
-															: "text-border",
-													)}
-													aria-hidden="true"
-												/>
-											))}
-										</div>
-									</div>
-
-									<p className="text-sm leading-relaxed text-foreground">
-										{rev.comment}
-									</p>
-
-									{rev.photoUrl ? (
-										<img
-											src={rev.photoUrl}
-											alt={`Foto ulasan oleh ${rev.authorName}`}
-											width={360}
-											height={220}
-											className="mt-2 h-44 w-full max-w-xs rounded-[10px] border border-border object-cover"
-										/>
-									) : null}
-
-									{rev.ownerReply ? (
-										<div className="mt-2 rounded-[10px] border border-border bg-muted/45 p-3.5 space-y-1">
-											<p className="text-xs font-semibold text-primary-hover">
-												{rev.ownerReply.authorName}
-											</p>
-											<p className="text-sm text-muted-foreground leading-relaxed">
-												{rev.ownerReply.message}
-											</p>
-										</div>
-									) : (
+						<ul
+							ref={listRef}
+							className="divide-y divide-border border-t border-border"
+						>
+							{visibleReviews.map((rev) => (
+								<ReviewCardItem
+									key={rev.id}
+									review={rev}
+									replyFallback={
 										<div className="flex flex-col sm:flex-row gap-2">
 											<label className="sr-only" htmlFor={`reply-${rev.id}`}>
 												Balas ulasan {rev.authorName}
@@ -274,24 +218,20 @@ export function OwnerReviewsPanel({
 												Kirim Balasan
 											</Button>
 										</div>
-									)}
-								</li>
+									}
+								/>
 							))}
 						</ul>
 
-						<PlacePagination
-							currentPage={pagination.currentPage}
-							totalPages={pagination.totalPages}
-							totalItems={pagination.totalItems}
-							pageSize={pagination.pageSize}
-							startItem={pagination.startItem}
-							endItem={pagination.endItem}
-							onPageChange={setPage}
-							onPageSizeChange={(nextSize) => {
-								setPageSize(nextSize);
-								setPage(1);
-							}}
-							itemLabel="ulasan"
+						<PlaceInfiniteFooter
+							visibleCount={visibleCount}
+							totalItems={totalItems}
+							isInitialLoading={isInitialLoading}
+							isFetchingMore={isFetchingMore}
+							error={error}
+							sentinelRef={sentinelRef}
+							onRetry={retry}
+							loadingLabel="Memuat ulasan lainnya..."
 						/>
 					</>
 				)}

@@ -1,5 +1,5 @@
-import { ImagePlus, Star } from "lucide-react";
-import { type ChangeEvent, type FormEvent, useId, useState } from "react";
+import { Star } from "lucide-react";
+import { type FormEvent, useId, useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
 	Dialog,
@@ -24,11 +24,7 @@ interface WriteReviewDialogProps {
 	open: boolean;
 	placeName: string;
 	onOpenChange: (open: boolean) => void;
-	onSubmitReview: (input: {
-		rating: number;
-		comment: string;
-		photoUrl?: string;
-	}) => void;
+	onSubmitReview: (input: { rating: number; comment: string }) => void;
 }
 
 export function WriteReviewDialog({
@@ -40,31 +36,10 @@ export function WriteReviewDialog({
 	const [rating, setRating] = useState(5);
 	const [hoverRating, setHoverRating] = useState<number | null>(null);
 	const [comment, setComment] = useState("");
-	const [photoPreview, setPhotoPreview] = useState("");
 	const [formError, setFormError] = useState<string | null>(null);
 
 	const commentId = useId();
-	const photoInputId = useId();
 	const errorId = useId();
-
-	const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) {
-			setPhotoPreview("");
-			return;
-		}
-		if (!file.type.startsWith("image/")) {
-			setFormError("File harus berupa gambar (JPG, PNG, WebP).");
-			return;
-		}
-		const reader = new FileReader();
-		reader.onload = () => {
-			if (typeof reader.result === "string") {
-				setPhotoPreview(reader.result);
-			}
-		};
-		reader.readAsDataURL(file);
-	};
 
 	const handleSubmit = (e: FormEvent) => {
 		e.preventDefault();
@@ -77,11 +52,9 @@ export function WriteReviewDialog({
 		onSubmitReview({
 			rating,
 			comment,
-			photoUrl: photoPreview || undefined,
 		});
 		setFormError(null);
 		setComment("");
-		setPhotoPreview("");
 		setRating(5);
 		onOpenChange(false);
 	};
@@ -166,35 +139,6 @@ export function WriteReviewDialog({
 							aria-describedby={formError ? errorId : undefined}
 							placeholder="Ceritakan rasa makanan, harga, porsi, atau suasana warung..."
 						/>
-					</div>
-
-					<div className="space-y-1.5">
-						<Label htmlFor={photoInputId}>
-							Unggah foto makanan atau tempat (opsional)
-						</Label>
-						<label
-							htmlFor={photoInputId}
-							className="flex min-h-[44px] items-center gap-2 rounded-[8px] border border-dashed border-border bg-background px-3.5 py-2 text-xs font-medium text-muted-foreground hover:border-primary"
-						>
-							<ImagePlus className="size-4 text-primary" aria-hidden="true" />
-							<span>Pilih file gambar dari perangkat Anda</span>
-						</label>
-						<input
-							id={photoInputId}
-							type="file"
-							accept="image/*"
-							onChange={handlePhotoChange}
-							className="visually-hidden"
-						/>
-						{photoPreview ? (
-							<img
-								src={photoPreview}
-								alt="Pratinjau foto ulasan"
-								width={240}
-								height={140}
-								className="mt-2 h-28 w-44 rounded-[8px] border border-border object-cover"
-							/>
-						) : null}
 					</div>
 
 					<DialogFooter>

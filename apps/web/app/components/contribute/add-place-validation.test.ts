@@ -6,6 +6,8 @@ import {
 	formatOpeningDigits,
 	formatPriceRangeInput,
 	handleOpeningHoursInput,
+	toEditableOpeningHours,
+	toEditablePriceRange,
 	validateAddPlaceDraft,
 } from "./add-place-validation";
 
@@ -22,6 +24,8 @@ function makeValidDraft(): AddPlaceDraft {
 		description:
 			"Soto ayam kampung kuah bening dengan perkedel hangat dan sambal kemiri.",
 		photoPreview: "data:image/png;base64,iVBORw0KGgo=",
+		legalityDocumentName: "",
+		legalityDocumentUrl: "",
 	};
 }
 
@@ -97,6 +101,23 @@ describe("validateAddPlaceDraft", () => {
 		assert.ok(result.errors.description);
 		assert.ok(result.errors.photo);
 	});
+
+	it("accepts optional legality document when valid PDF/image and rejects invalid URL", () => {
+		const withPdf = validateAddPlaceDraft({
+			...makeValidDraft(),
+			legalityDocumentName: "nib-warung.pdf",
+			legalityDocumentUrl: "data:application/pdf;base64,JVBERi0=",
+		});
+		assert.equal(withPdf.isValid, true);
+
+		const withInvalidDoc = validateAddPlaceDraft({
+			...makeValidDraft(),
+			legalityDocumentName: "file.txt",
+			legalityDocumentUrl: "data:text/plain;base64,SGVsbG8=",
+		});
+		assert.equal(withInvalidDoc.isValid, false);
+		assert.ok(withInvalidDoc.errors.legalityDocument);
+	});
 });
 
 describe("combined numeric input formatters", () => {
@@ -144,5 +165,12 @@ describe("combined numeric input formatters", () => {
 			formatPriceRangeInput("12000abc-25000xyz", ""),
 			"12.000 - 25.000",
 		);
+		assert.equal(toEditableOpeningHours("06.00 - 15.00 WIB"), "06.00 - 15.00");
+		assert.equal(toEditableOpeningHours("Buka 24 Jam"), "Buka 24 Jam");
+		assert.equal(
+			toEditablePriceRange("Rp 12.000 - Rp 25.000"),
+			"12.000 - 25.000",
+		);
+		assert.equal(toEditablePriceRange("Rp 15.000"), "15.000 - 15.000");
 	});
 });

@@ -12,6 +12,8 @@ export interface AddPlaceDraft {
 	priceRange: string;
 	description: string;
 	photoPreview: string;
+	legalityDocumentName: string;
+	legalityDocumentUrl: string;
 }
 
 export type AddPlaceErrorField =
@@ -24,7 +26,8 @@ export type AddPlaceErrorField =
 	| "openingHours"
 	| "priceRange"
 	| "description"
-	| "photo";
+	| "photo"
+	| "legalityDocument";
 
 export type AddPlaceErrors = Partial<Record<AddPlaceErrorField, string>>;
 
@@ -184,6 +187,29 @@ export function formatPriceRangeInput(
 	return formatIdrDigits(leftDigits);
 }
 
+/**
+ * Converts a stored openingHours string (e.g. "06.00 - 15.00 WIB") into the editable form value.
+ */
+export function toEditableOpeningHours(stored: string): string {
+	const trimmed = stored.trim();
+	if (!trimmed) return "";
+	if (trimmed === "Buka 24 Jam") return "Buka 24 Jam";
+	return trimmed.replace(/\s*WIB$/i, "").trim();
+}
+
+/**
+ * Converts a stored priceRange string (e.g. "Rp 12.000 - Rp 25.000") into the editable form value.
+ */
+export function toEditablePriceRange(stored: string): string {
+	const trimmed = stored.trim();
+	if (!trimmed) return "";
+	const formatted = formatPriceRangeInput(trimmed, "");
+	if (formatted && !formatted.includes("-")) {
+		return `${formatted} - ${formatted}`;
+	}
+	return formatted;
+}
+
 const OPENING_HOURS_RE = /^(\d{2})\.(\d{2})\s*-\s*(\d{2})\.(\d{2})$/;
 
 export function parseOpeningHoursValue(raw: string): {
@@ -300,11 +326,10 @@ export function parsePriceRangeValue(raw: string): {
 	};
 }
 
-export function validateAddPlaceDraft(
+function validatePlaceTextFields(
 	draft: AddPlaceDraft,
-): AddPlaceValidationResult {
-	const errors: AddPlaceErrors = {};
-
+	errors: AddPlaceErrors,
+): void {
 	const cleanName = draft.name.trim().replace(/\s+/g, " ");
 	const nameLetterCount = (cleanName.match(/\p{L}/gu) ?? []).length;
 	if (cleanName.length < 3 || cleanName.length > 120 || nameLetterCount < 2) {
@@ -330,6 +355,26 @@ export function validateAddPlaceDraft(
 			"Alamat atau patokan lokasi wajib diisi jelas (min. 6 karakter).";
 	}
 
+	const cleanDesc = draft.description.trim().replace(/\s+/g, " ");
+	const descWords = cleanDesc ? cleanDesc.split(" ").filter(Boolean) : [];
+	const descLetters = (cleanDesc.match(/\p{L}/gu) ?? []).length;
+	const uniqueDescChars = new Set(cleanDesc.replace(/\s+/g, "").toLowerCase())
+		.size;
+	if (
+		cleanDesc.length < 15 ||
+		descWords.length < 3 ||
+		descLetters < 10 ||
+		uniqueDescChars < 5
+	) {
+		errors.description =
+			"Deskripsi singkat wajib informatif (min. 15 karakter dan 3 kata).";
+	}
+}
+
+function validatePlaceCoordinates(
+	draft: AddPlaceDraft,
+	errors: AddPlaceErrors,
+): { parsedLat: number; parsedLng: number } {
 	const latStr = draft.lat.trim();
 	const lngStr = draft.lng.trim();
 	const parsedLat = latStr ? Number(latStr) : Number.NaN;
@@ -350,6 +395,39 @@ export function validateAddPlaceDraft(
 		errors.lng = `Longitude wajib berada di wilayah Batang (${BATANG_LNG_BOUNDS.min} s.d. ${BATANG_LNG_BOUNDS.max}).`;
 	}
 
+	return { parsedLat, parsedLng };
+}
+
+function validatePlaceAttachments(
+	draft: AddPlaceDraft,
+	errors: AddPlaceErrors,
+): void {
+	const photo = draft.photoPreview.trim();
+	const hasValidPhoto =
+		photo.startsWith("data:image/") || photo.startsWith("/images/");
+	if (!hasValidPhoto) {
+		errors.photo = "Foto tempat kuliner wajib diunggah.";
+	}
+
+	const legalityUrl = draft.legalityDocumentUrl.trim();
+	if (
+		legalityUrl &&
+		!legalityUrl.startsWith("data:application/pdf") &&
+		!legalityUrl.startsWith("data:image/")
+	) {
+		errors.legalityDocument =
+			"Format surat legalitas tidak valid. Unggah PDF, JPG, PNG, atau WebP.";
+	}
+}
+
+export function validateAddPlaceDraft(
+	draft: AddPlaceDraft,
+): AddPlaceValidationResult {
+	const errors: AddPlaceErrors = {};
+
+	validatePlaceTextFields(draft, errors);
+	const { parsedLat, parsedLng } = validatePlaceCoordinates(draft, errors);
+
 	const hoursCheck = parseOpeningHoursValue(draft.openingHours);
 	if (hoursCheck.error) {
 		errors.openingHours = hoursCheck.error;
@@ -360,27 +438,7 @@ export function validateAddPlaceDraft(
 		errors.priceRange = priceCheck.error;
 	}
 
-	const cleanDesc = draft.description.trim().replace(/\s+/g, " ");
-	const descWords = cleanDesc ? cleanDesc.split(" ").filter(Boolean) : [];
-	const descLetters = (cleanDesc.match(/\p{L}/gu) ?? []).length;
-	const uniqueDescChars = new Set(cleanDesc.replace(/\s+/g, "").toLowerCase())
-		.size;
-	if (
-		cleanDesc.length < 15 ||
-		descWords.length < 3 ||
-		descLetters < 10 ||
-		uniqueDescChars < 5
-	) {
-		errors.description =
-			"Deskripsi singkat wajib informatif (min. 15 karakter dan 3 kata).";
-	}
-
-	const photo = draft.photoPreview.trim();
-	const hasValidPhoto =
-		photo.startsWith("data:image/") || photo.startsWith("/images/");
-	if (!hasValidPhoto) {
-		errors.photo = "Foto tempat kuliner wajib diunggah.";
-	}
+	validatePlaceAttachments(draft, errors);
 
 	return {
 		errors,

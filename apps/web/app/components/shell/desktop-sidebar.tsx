@@ -2,6 +2,7 @@ import gsap from "gsap";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { Link, NavLink, useLocation } from "react-router";
+import { ThemeToggle } from "~/components/theme-toggle";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -15,32 +16,18 @@ import {
 } from "~/components/ui/sidebar";
 import { GITHUB_REPO_URL, type NavItem } from "~/data/nav-config";
 import { cn } from "~/lib/utils";
-
-function GitHubMark({ className }: { className?: string }) {
-	return (
-		<svg
-			viewBox="0 0 24 24"
-			fill="currentColor"
-			aria-hidden="true"
-			className={className}
-		>
-			<path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-		</svg>
-	);
-}
+import { GitHubMark } from "./github-mark";
 
 interface DesktopSidebarProps {
 	collapsed: boolean;
 	onToggleCollapse: () => void;
-	discoveryLinks: NavItem[];
-	managementLinks: NavItem[];
+	items: NavItem[];
 }
 
 export function DesktopSidebar({
 	collapsed,
 	onToggleCollapse,
-	discoveryLinks,
-	managementLinks,
+	items,
 }: DesktopSidebarProps) {
 	const location = useLocation();
 	const sidebarRef = useRef<HTMLElement>(null);
@@ -87,7 +74,7 @@ export function DesktopSidebar({
 	}, []);
 
 	useEffect(() => {
-		const _syncKey = `${location.pathname}:${collapsed}:${managementLinks.length}`;
+		const _syncKey = `${location.pathname}:${collapsed}:${items.length}`;
 		if (!_syncKey) return;
 		const frame = window.requestAnimationFrame(() => updateIndicator());
 		const settleTimer = window.setTimeout(() => updateIndicator(), 250);
@@ -95,7 +82,7 @@ export function DesktopSidebar({
 			window.cancelAnimationFrame(frame);
 			window.clearTimeout(settleTimer);
 		};
-	}, [updateIndicator, location.pathname, collapsed, managementLinks.length]);
+	}, [updateIndicator, location.pathname, collapsed, items.length]);
 
 	useEffect(() => {
 		const handleResize = () => updateIndicator(true);
@@ -137,9 +124,9 @@ export function DesktopSidebar({
 		};
 	}, [collapsed, updateIndicator]);
 
-	const renderNavItems = (items: NavItem[]) => (
+	const renderNavItems = (navItems: NavItem[]) => (
 		<SidebarMenu>
-			{items.map((item) => {
+			{navItems.map((item) => {
 				const Icon = item.icon;
 				return (
 					<SidebarMenuItem key={item.to}>
@@ -271,7 +258,7 @@ export function DesktopSidebar({
 				</div>
 			</SidebarHeader>
 
-			<SidebarContent className="py-3">
+			<SidebarContent className="justify-between py-3">
 				<nav
 					ref={navContainerRef}
 					aria-label="Menu utama"
@@ -283,25 +270,16 @@ export function DesktopSidebar({
 						className="pointer-events-none absolute left-0 right-0 top-0 z-0 rounded-[10px] bg-primary opacity-0 shadow-xs"
 					/>
 
-					<SidebarGroup>{renderNavItems(discoveryLinks)}</SidebarGroup>
-
-					{managementLinks.length > 0 ? (
-						<SidebarGroup className="border-t border-sidebar-border pt-3">
-							<p
-								aria-hidden={collapsed}
-								className={cn(
-									"overflow-hidden whitespace-nowrap px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-[max-height,opacity,padding] duration-200 motion-reduce:transition-none",
-									collapsed
-										? "max-h-0 pb-0 opacity-0"
-										: "max-h-6 pb-1 opacity-100",
-								)}
-							>
-								Pengelolaan
-							</p>
-							{renderNavItems(managementLinks)}
-						</SidebarGroup>
-					) : null}
+					<SidebarGroup>{renderNavItems(items)}</SidebarGroup>
 				</nav>
+
+				<div className="mt-auto flex justify-center pt-2">
+					<ThemeToggle
+						compact
+						variant="ghost"
+						className="size-9 rounded-[8px] text-muted-foreground hover:bg-background hover:text-foreground"
+					/>
+				</div>
 			</SidebarContent>
 
 			<SidebarFooter className="bg-sidebar p-3">

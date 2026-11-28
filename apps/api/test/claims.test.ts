@@ -46,15 +46,54 @@ async function seedPlace(status: "published" | "pending" = "published") {
 	return place;
 }
 
+const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]);
+
+async function seedClaimDocument(ownerEmail: string) {
+	const [user] = await db
+		.select()
+		.from(schema.users)
+		.where(eq(schema.users.email, ownerEmail));
+	const [doc] = await db
+		.insert(schema.media)
+		.values({
+			key: `claims/${crypto.randomUUID()}.pdf`,
+			purpose: "claim_document",
+			status: "ready",
+			isPrivate: true,
+			ownerId: user.id,
+			mime: "application/pdf",
+			sizeBytes: PDF.length,
+		})
+		.returning();
+	return doc.id;
+}
+
 describe("business claims", () => {
 	beforeEach(resetDb);
 
-	test("submit claim, reject frees slot, re-submit and approve promotes owner", async () => {
+	test("submit claim requires legality document (422 if missing), reject frees slot, re-submit and approve promotes owner", async () => {
 		const place = await seedPlace("published");
 		const pendingPlace = await seedPlace("pending");
 		const userCookie = await registerAs("owner@b.test");
 		const adminCookie = await registerAs("admin@b.test", "admin");
+		const docId = await seedClaimDocument("owner@b.test");
 		const app = freshApp({ storage: memoryStorage() });
+
+		// 422 when legality document is omitted
+		const missingDoc = await app.handle(
+			new Request(`http://test/api/places/${place.id}/claims`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie: userCookie },
+				body: JSON.stringify({
+					evidence: {
+						note: "Pemilik",
+						documentMediaIds: [],
+						contactPhone: "+62812",
+					},
+				}),
+			}),
+		);
+		expect(missingDoc.status).toBe(422);
 
 		// 404 on non-published place
 		const onPending = await app.handle(
@@ -64,7 +103,7 @@ describe("business claims", () => {
 				body: JSON.stringify({
 					evidence: {
 						note: "Pemilik",
-						documentMediaIds: [],
+						documentMediaIds: [docId],
 						contactPhone: "+62812",
 					},
 				}),
@@ -80,7 +119,7 @@ describe("business claims", () => {
 				body: JSON.stringify({
 					evidence: {
 						note: "NIB 123",
-						documentMediaIds: [],
+						documentMediaIds: [docId],
 						contactPhone: "+62812",
 					},
 				}),
@@ -97,7 +136,7 @@ describe("business claims", () => {
 				body: JSON.stringify({
 					evidence: {
 						note: "NIB 123",
-						documentMediaIds: [],
+						documentMediaIds: [docId],
 						contactPhone: "+62812",
 					},
 				}),
@@ -124,7 +163,7 @@ describe("business claims", () => {
 				body: JSON.stringify({
 					evidence: {
 						note: "NIB jelas",
-						documentMediaIds: [],
+						documentMediaIds: [docId],
 						contactPhone: "+62812",
 					},
 				}),
@@ -157,7 +196,7 @@ describe("business claims", () => {
 
 	test("GET /claims/mine with coverUrl, GET /admin/claims, 403s, and 409 on resolved claim", async () => {
 		const userCookie = await registerAs("claimant@b.test");
-		const otherCookie = await registerAs("other@b.test");
+		await registerAs("other@b.test");
 		const adminCookie = await registerAs("admin2@b.test", "admin");
 		const app = freshApp({ storage: memoryStorage() });
 
@@ -256,6 +295,8 @@ describe("business claims", () => {
 		);
 		expect(unownedRes.status).toBe(403);
 
+		const ownedDocId = await seedClaimDocument("claimant@b.test");
+
 		// submit valid claim
 		const createRes = await app.handle(
 			new Request(`http://test/api/places/${place.id}/claims`, {
@@ -264,7 +305,7 @@ describe("business claims", () => {
 				body: JSON.stringify({
 					evidence: {
 						note: "NIB 999",
-						documentMediaIds: [],
+						documentMediaIds: [ownedDocId],
 						contactPhone: "+62812",
 					},
 				}),
@@ -341,6 +382,7 @@ describe("business claims", () => {
 		const place = await seedPlace("published");
 		const userCookie = await registerAs("claimant@b.test");
 		const adminCookie = await registerAs("admin2@b.test", "admin");
+		const docId = await seedClaimDocument("claimant@b.test");
 		const app = freshApp({ storage: memoryStorage() });
 
 		const submitRes = await app.handle(
@@ -350,7 +392,7 @@ describe("business claims", () => {
 				body: JSON.stringify({
 					evidence: {
 						note: "Owner",
-						documentMediaIds: [],
+						documentMediaIds: [docId],
 						contactPhone: "+6281234",
 						businessRole: "Founder",
 					},

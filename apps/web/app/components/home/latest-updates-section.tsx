@@ -2,6 +2,7 @@ import { ArrowRight, MessageSquare, PlusCircle, Star } from "lucide-react";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
+import { formatShortIndonesianDate } from "~/lib/format";
 
 export interface UpdateFeedEntry {
 	id: string;
@@ -12,16 +13,6 @@ export interface UpdateFeedEntry {
 	actorName: string;
 	rating?: number;
 	timestamp: string;
-}
-
-function formatShortDate(isoDate: string): string {
-	const parsed = Date.parse(isoDate);
-	if (Number.isNaN(parsed)) return "Baru";
-	return new Intl.DateTimeFormat("id-ID", {
-		day: "numeric",
-		month: "short",
-		year: "numeric",
-	}).format(new Date(parsed));
 }
 
 interface LatestUpdatesSectionProps {
@@ -124,7 +115,7 @@ export function LatestUpdatesSection({
 									dateTime={entry.timestamp}
 									className="shrink-0 tabular-nums"
 								>
-									{formatShortDate(entry.timestamp)}
+									{formatShortIndonesianDate(entry.timestamp)}
 								</time>
 							</div>
 						</div>

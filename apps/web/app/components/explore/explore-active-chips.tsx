@@ -1,9 +1,9 @@
-import { RotateCcw, X } from "lucide-react";
+import { RotateCcw } from "lucide-react";
+import { ActiveFilterChip } from "~/components/active-filter-chip";
 import { Button } from "~/components/ui/button";
 import { ViewModeToggle } from "~/components/view-mode-toggle";
 import type { ExploreFilters, ExploreViewMode } from "~/context/darasa-store";
 import { PRICE_TIER_LABELS, VERIFICATION_LABELS } from "~/data/explore-filters";
-import { cn } from "~/lib/utils";
 
 interface ExploreActiveChipsProps {
 	totalResults: number;
@@ -112,21 +112,13 @@ export function ExploreActiveChips({
 				</span>
 
 				{chips.map((chip) => (
-					<button
+					<ActiveFilterChip
 						key={chip.key}
-						type="button"
-						onClick={chip.onClear}
-						aria-label={chip.ariaLabel}
-						className={cn(
-							"inline-flex min-h-[32px] items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium hover:brightness-95",
-							chip.tone === "yellow"
-								? "border-accent-yellow/50 bg-yellow-soft text-yellow-text"
-								: "border-primary/25 bg-primary-soft text-primary-hover",
-						)}
-					>
-						{chip.label}
-						<X className="size-3.5" aria-hidden="true" />
-					</button>
+						label={chip.label}
+						ariaLabel={chip.ariaLabel}
+						tone={chip.tone}
+						onClear={chip.onClear}
+					/>
 				))}
 
 				{hasActiveFilters ? (

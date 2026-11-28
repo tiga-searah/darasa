@@ -1,10 +1,26 @@
 import { CheckCircle2, Save } from "lucide-react";
 import { type FormEvent, useEffect, useId, useState } from "react";
+import {
+	parseOpeningHoursValue,
+	parsePriceRangeValue,
+	toEditableOpeningHours,
+	toEditablePriceRange,
+} from "~/components/contribute/add-place-validation";
+import {
+	OpeningHoursField,
+	PriceRangeField,
+} from "~/components/place-schedule-price-fields";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
+import { WhatsappInputField } from "~/components/whatsapp-input-field";
 import type { PlaceWithMetrics } from "~/context/darasa-store";
+import {
+	formatWhatsappAfter62,
+	toStoredWhatsappNumber,
+	validateWhatsappNumber,
+} from "~/lib/whatsapp";
 
 interface OwnerProfileFormProps {
 	place: PlaceWithMetrics;
@@ -21,10 +37,20 @@ interface OwnerProfileFormProps {
 export function OwnerProfileForm({ place, onSave }: OwnerProfileFormProps) {
 	const [name, setName] = useState(place.name);
 	const [address, setAddress] = useState(place.address);
-	const [openingHours, setOpeningHours] = useState(place.openingHours);
-	const [priceRange, setPriceRange] = useState(place.priceRange);
-	const [phone, setPhone] = useState(place.phone ?? "");
+	const [openingHours, setOpeningHours] = useState(() =>
+		toEditableOpeningHours(place.openingHours),
+	);
+	const [hoursError, setHoursError] = useState<string | null>(null);
+	const [priceRange, setPriceRange] = useState(() =>
+		toEditablePriceRange(place.priceRange),
+	);
+	const [priceError, setPriceError] = useState<string | null>(null);
+	const [phoneSuffix, setPhoneSuffix] = useState(() =>
+		formatWhatsappAfter62(place.phone ?? ""),
+	);
+	const [phoneError, setPhoneError] = useState<string | null>(null);
 	const [description, setDescription] = useState(place.description);
+	const [formError, setFormError] = useState<string | null>(null);
 	const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
 	const nameId = useId();
@@ -37,20 +63,61 @@ export function OwnerProfileForm({ place, onSave }: OwnerProfileFormProps) {
 	useEffect(() => {
 		setName(place.name);
 		setAddress(place.address);
-		setOpeningHours(place.openingHours);
-		setPriceRange(place.priceRange);
-		setPhone(place.phone ?? "");
+		setOpeningHours(toEditableOpeningHours(place.openingHours));
+		setHoursError(null);
+		setPriceRange(toEditablePriceRange(place.priceRange));
+		setPriceError(null);
+		setPhoneSuffix(formatWhatsappAfter62(place.phone ?? ""));
+		setPhoneError(null);
 		setDescription(place.description);
+		setFormError(null);
 	}, [place]);
 
 	const handleSubmit = (e: FormEvent) => {
 		e.preventDefault();
+		if (name.trim().length < 3) {
+			setFormError("Nama usaha minimal 3 karakter.");
+			return;
+		}
+		if (address.trim().length < 6) {
+			setFormError("Alamat usaha minimal 6 karakter.");
+			return;
+		}
+		const hoursCheck = parseOpeningHoursValue(openingHours);
+		if (hoursCheck.error) {
+			setHoursError(hoursCheck.error);
+			setFormError(hoursCheck.error);
+			return;
+		}
+		const priceCheck = parsePriceRangeValue(priceRange);
+		if (priceCheck.error) {
+			setPriceError(priceCheck.error);
+			setFormError(priceCheck.error);
+			return;
+		}
+
+		const storedPhone = toStoredWhatsappNumber(phoneSuffix);
+		if (storedPhone) {
+			const waCheck = validateWhatsappNumber(storedPhone);
+			if (!waCheck.valid) {
+				const message =
+					waCheck.error ?? "Masukkan nomor WhatsApp aktif yang valid.";
+				setPhoneError(message);
+				setFormError(message);
+				return;
+			}
+		}
+
+		setFormError(null);
+		setHoursError(null);
+		setPriceError(null);
+		setPhoneError(null);
 		onSave({
 			name: name.trim(),
 			address: address.trim(),
-			openingHours: openingHours.trim(),
-			priceRange: priceRange.trim(),
-			phone: phone.trim(),
+			openingHours: hoursCheck.formatted,
+			priceRange: priceCheck.formatted,
+			phone: storedPhone,
 			description: description.trim(),
 		});
 		setSavedNotice("Informasi profil usaha berhasil diperbarui.");
@@ -72,7 +139,16 @@ export function OwnerProfileForm({ place, onSave }: OwnerProfileFormProps) {
 				</div>
 			) : null}
 
-			<form onSubmit={handleSubmit} className="space-y-4">
+			{formError ? (
+				<div
+					role="alert"
+					className="rounded-[8px] border border-secondary-red/40 bg-red-soft px-3.5 py-2.5 text-xs font-medium text-red-text"
+				>
+					{formError}
+				</div>
+			) : null}
+
+			<form onSubmit={handleSubmit} noValidate className="space-y-4">
 				<div className="space-y-1.5">
 					<Label htmlFor={nameId}>Nama usaha</Label>
 					<Input
@@ -96,36 +172,47 @@ export function OwnerProfileForm({ place, onSave }: OwnerProfileFormProps) {
 				</div>
 
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					<div className="space-y-1.5">
-						<Label htmlFor={hoursId}>Jam buka</Label>
-						<Input
-							id={hoursId}
-							type="text"
-							value={openingHours}
-							onChange={(e) => setOpeningHours(e.target.value)}
-						/>
-					</div>
+					<OpeningHoursField
+						id={hoursId}
+						label="Jam buka"
+						required
+						value={openingHours}
+						error={hoursError}
+						onChange={(nextValue, nextError) => {
+							setOpeningHours(nextValue);
+							setHoursError(nextError ?? null);
+							if (formError) setFormError(null);
+						}}
+						onBlurError={setHoursError}
+					/>
 
-					<div className="space-y-1.5">
-						<Label htmlFor={priceId}>Kisaran harga</Label>
-						<Input
-							id={priceId}
-							type="text"
-							value={priceRange}
-							onChange={(e) => setPriceRange(e.target.value)}
-						/>
-					</div>
-				</div>
-
-				<div className="space-y-1.5">
-					<Label htmlFor={phoneId}>Nomor kontak / WhatsApp</Label>
-					<Input
-						id={phoneId}
-						type="tel"
-						value={phone}
-						onChange={(e) => setPhone(e.target.value)}
+					<PriceRangeField
+						id={priceId}
+						label="Kisaran harga"
+						required
+						value={priceRange}
+						error={priceError}
+						onChange={(nextValue) => {
+							setPriceRange(nextValue);
+							setPriceError(null);
+							if (formError) setFormError(null);
+						}}
+						onBlurError={setPriceError}
 					/>
 				</div>
+
+				<WhatsappInputField
+					id={phoneId}
+					label="Nomor kontak / WhatsApp"
+					value={phoneSuffix}
+					error={phoneError}
+					onChange={(formatted, typingErr) => {
+						setPhoneSuffix(formatted);
+						setPhoneError(typingErr);
+						if (formError) setFormError(null);
+					}}
+					onBlurError={setPhoneError}
+				/>
 
 				<div className="space-y-1.5">
 					<Label htmlFor={descId}>Deskripsi usaha</Label>

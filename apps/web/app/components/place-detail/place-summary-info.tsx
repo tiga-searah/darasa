@@ -1,5 +1,6 @@
 import {
 	Award,
+	CheckCircle2,
 	Clock,
 	Compass,
 	Eye,
@@ -20,12 +21,14 @@ import type { PlaceWithMetrics } from "~/context/darasa-store";
 interface PlaceSummaryInfoProps {
 	place: PlaceWithMetrics;
 	isVisitor: boolean;
+	hasReviewed?: boolean;
 	onOpenReviewModal: () => void;
 }
 
 export function PlaceSummaryInfo({
 	place,
 	isVisitor,
+	hasReviewed = false,
 	onOpenReviewModal,
 }: PlaceSummaryInfoProps) {
 	const isClaimed = Boolean(place.ownerId);
@@ -137,7 +140,10 @@ export function PlaceSummaryInfo({
 					</div>
 					<div className="pl-4">
 						<p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-							<Gem className="size-3.5 text-yellow-text" aria-hidden="true" />
+							<Gem
+								className="size-3.5 fill-[#f7c95c]/30 text-amber-500 dark:text-yellow-text"
+								aria-hidden="true"
+							/>
 							Hidden Gem Score
 						</p>
 						<p className="mt-0.5 text-lg font-bold text-foreground tabular-nums">
@@ -158,6 +164,11 @@ export function PlaceSummaryInfo({
 							<MessageSquarePlus className="size-4" aria-hidden="true" />
 							Masuk untuk Menulis Ulasan
 						</Link>
+					</Button>
+				) : hasReviewed ? (
+					<Button type="button" variant="outline" disabled className="w-full">
+						<CheckCircle2 className="size-4" aria-hidden="true" />
+						Anda Sudah Mengulas Tempat Ini
 					</Button>
 				) : (
 					<Button onClick={onOpenReviewModal} className="w-full">

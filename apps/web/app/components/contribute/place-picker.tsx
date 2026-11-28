@@ -12,8 +12,8 @@ interface PlacePickerProps {
 	onSelectPlace: (placeId: string) => void;
 	label: string;
 	helperText?: string;
-	suggestedPlaces?: PlaceWithMetrics[];
-	suggestedLabel?: string;
+	emptyTitle?: string;
+	emptyDescription?: string;
 	onRequestAddNewPlace?: (prefillName: string) => void;
 	renderPlaceMeta?: (place: PlaceWithMetrics) => string;
 	listClassName?: string;
@@ -25,8 +25,8 @@ export function PlacePicker({
 	onSelectPlace,
 	label,
 	helperText,
-	suggestedPlaces = [],
-	suggestedLabel = "Disarankan:",
+	emptyTitle = "Belum ada tempat kuliner terdaftar",
+	emptyDescription = "Tambahkan tempat pertama agar warga bisa memberi ulasan dan foto.",
 	onRequestAddNewPlace,
 	renderPlaceMeta,
 	listClassName,
@@ -45,48 +45,12 @@ export function PlacePicker({
 		});
 	}, [places, query]);
 
-	const selectedPlace = places.find((p) => p.id === selectedPlaceId) ?? null;
-
 	return (
 		<div className="space-y-3">
-			<div className="flex flex-wrap items-baseline justify-between gap-2">
-				<Label htmlFor={searchId}>{label}</Label>
-				{selectedPlace ? (
-					<span className="text-xs font-medium text-primary-hover">
-						Terpilih: {selectedPlace.name}
-					</span>
-				) : null}
-			</div>
+			<Label htmlFor={searchId}>{label}</Label>
 
 			{helperText ? (
 				<p className="text-xs text-muted-foreground">{helperText}</p>
-			) : null}
-
-			{suggestedPlaces.length > 0 ? (
-				<div className="flex flex-wrap items-center gap-1.5">
-					<span className="text-xs font-medium text-muted-foreground">
-						{suggestedLabel}
-					</span>
-					{suggestedPlaces.map((p) => {
-						const active = p.id === selectedPlaceId;
-						return (
-							<button
-								key={p.id}
-								type="button"
-								onClick={() => onSelectPlace(p.id)}
-								aria-pressed={active}
-								className={cn(
-									"inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-									active
-										? "border-primary bg-primary-soft text-primary-hover"
-										: "border-border bg-card text-foreground hover:border-card-hover-border hover:bg-background",
-								)}
-							>
-								<span className="truncate max-w-[180px]">{p.name}</span>
-							</button>
-						);
-					})}
-				</div>
 			) : null}
 
 			<div className="relative">
@@ -116,13 +80,9 @@ export function PlacePicker({
 			</div>
 
 			{places.length === 0 ? (
-				<div className="rounded-[10px] border border-dashed border-border bg-background/60 p-5 text-center space-y-3">
-					<p className="text-sm font-medium text-foreground">
-						Belum ada tempat kuliner terdaftar
-					</p>
-					<p className="text-xs text-muted-foreground">
-						Tambahkan tempat pertama agar warga bisa memberi ulasan dan foto.
-					</p>
+				<div className="border-t border-border py-8 text-center space-y-3">
+					<p className="text-sm font-medium text-foreground">{emptyTitle}</p>
+					<p className="text-xs text-muted-foreground">{emptyDescription}</p>
 					{onRequestAddNewPlace ? (
 						<Button
 							type="button"
@@ -135,7 +95,7 @@ export function PlacePicker({
 					) : null}
 				</div>
 			) : filteredPlaces.length === 0 ? (
-				<div className="rounded-[10px] border border-dashed border-border bg-background/60 p-5 text-center space-y-3">
+				<div className="border-t border-border py-8 text-center space-y-3">
 					<p className="text-sm font-medium text-foreground">
 						Tidak ada tempat cocok untuk "{query.trim()}"
 					</p>
@@ -168,7 +128,7 @@ export function PlacePicker({
 				<div
 					id={listboxId}
 					className={cn(
-						"grid max-h-[248px] grid-cols-1 gap-2 overflow-y-auto overscroll-contain rounded-[10px] border border-border bg-background/50 p-2 sm:grid-cols-2 lg:grid-cols-1",
+						"max-h-[260px] divide-y divide-border overflow-y-auto overscroll-contain border-t border-border",
 						listClassName,
 					)}
 				>
@@ -182,10 +142,8 @@ export function PlacePicker({
 								aria-pressed={isSelected}
 								onClick={() => onSelectPlace(place.id)}
 								className={cn(
-									"flex min-h-[60px] items-center gap-3 rounded-[8px] border p-2.5 text-left transition-colors",
-									isSelected
-										? "border-primary bg-primary-soft/60"
-										: "border-border bg-card hover:border-card-hover-border hover:bg-background",
+									"flex w-full min-h-[60px] items-center gap-3 px-2 py-3 text-left transition-colors",
+									isSelected ? "bg-primary-soft/50" : "hover:bg-muted/45",
 								)}
 							>
 								<img

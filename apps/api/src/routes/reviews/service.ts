@@ -4,19 +4,24 @@ import { schema } from "../../database/schema";
 import { evaluateReviewAnomalies } from "../../lib/anomaly";
 import type { Storage } from "../../lib/ports";
 import { type DbOrTx, recomputePlaceStats } from "../../lib/ranking";
-
-type SessionUser = { id: string; role?: string };
-
+import type { SessionUser } from "../../lib/session";
 import {
 	ApiError,
 	conflict,
 	forbidden,
 	isUniqueViolation,
 	notFound,
+	paginationMeta,
 } from "../../utils";
-import { assertOwnedReadyMedia, resolveMediaUrl } from "../media/service";
+import { resolveMediaUrl } from "../media/service";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const REVIEW_SORT_ORDER = {
+	highest: [desc(schema.reviews.rating), desc(schema.reviews.createdAt)],
+	lowest: [asc(schema.reviews.rating), desc(schema.reviews.createdAt)],
+	recent: [desc(schema.reviews.createdAt)],
+} as const;
 
 export async function hydrateReviews(
 	tx: DbOrTx,
@@ -167,12 +172,7 @@ export async function listPlaceReviews(
 
 	const whereClause = and(...conditions);
 
-	const orderBy =
-		query.sort === "highest"
-			? [desc(schema.reviews.rating), desc(schema.reviews.createdAt)]
-			: query.sort === "lowest"
-				? [asc(schema.reviews.rating), desc(schema.reviews.createdAt)]
-				: [desc(schema.reviews.createdAt)];
+	const orderBy = REVIEW_SORT_ORDER[query.sort ?? "recent"];
 
 	const [[totalRow], rows] = await Promise.all([
 		db.select({ total: count() }).from(schema.reviews).where(whereClause),
@@ -190,12 +190,7 @@ export async function listPlaceReviews(
 
 	return {
 		data,
-		meta: {
-			page,
-			limit,
-			total,
-			totalPages: Math.max(1, Math.ceil(total / limit)),
-		},
+		meta: paginationMeta(page, limit, total),
 	};
 }
 
@@ -206,7 +201,6 @@ export async function createReview(
 	input: {
 		rating: number;
 		body?: string;
-		photoMediaIds?: string[];
 	},
 ) {
 	const place = await db.query.places.findFirst({
@@ -236,15 +230,6 @@ export async function createReview(
 		throw conflict("You have already reviewed this place");
 	}
 	const review = await db.transaction(async (tx) => {
-		if (input.photoMediaIds?.length) {
-			await assertOwnedReadyMedia(
-				tx,
-				user.id,
-				input.photoMediaIds,
-				"review_photo",
-			);
-		}
-
 		let inserted: typeof schema.reviews.$inferSelect;
 		try {
 			const [row] = await tx
@@ -263,15 +248,6 @@ export async function createReview(
 				throw conflict("You have already reviewed this place");
 			}
 			throw err;
-		}
-
-		if (input.photoMediaIds?.length) {
-			await tx.insert(schema.reviewPhotos).values(
-				input.photoMediaIds.map((mediaId) => ({
-					reviewId: inserted.id,
-					mediaId,
-				})),
-			);
 		}
 
 		await tx.insert(schema.reviewRateLimits).values({
@@ -301,7 +277,6 @@ export async function updateReview(
 	input: {
 		rating?: number;
 		body?: string | null;
-		photoMediaIds?: string[];
 	},
 ) {
 	const existing = await db.query.reviews.findFirst({
@@ -314,29 +289,6 @@ export async function updateReview(
 	}
 
 	const updated = await db.transaction(async (tx) => {
-		if (input.photoMediaIds !== undefined) {
-			if (input.photoMediaIds.length > 0) {
-				await assertOwnedReadyMedia(
-					tx,
-					user.id,
-					input.photoMediaIds,
-					"review_photo",
-				);
-			}
-			await tx
-				.delete(schema.reviewPhotos)
-				.where(eq(schema.reviewPhotos.reviewId, reviewId));
-
-			if (input.photoMediaIds.length > 0) {
-				await tx.insert(schema.reviewPhotos).values(
-					input.photoMediaIds.map((mediaId) => ({
-						reviewId,
-						mediaId,
-					})),
-				);
-			}
-		}
-
 		const [row] = await tx
 			.update(schema.reviews)
 			.set({
@@ -374,6 +326,14 @@ export async function deleteReview(reviewId: string, user: SessionUser) {
 	});
 }
 
+async function getReviewLikeCount(reviewId: string): Promise<number> {
+	const [row] = await db
+		.select({ total: count() })
+		.from(schema.reviewLikes)
+		.where(eq(schema.reviewLikes.reviewId, reviewId));
+	return row?.total ?? 0;
+}
+
 export async function likeReview(reviewId: string, user: SessionUser) {
 	const review = await db.query.reviews.findFirst({
 		where: { id: reviewId, status: "published" },
@@ -385,12 +345,7 @@ export async function likeReview(reviewId: string, user: SessionUser) {
 		.values({ userId: user.id, reviewId })
 		.onConflictDoNothing();
 
-	const [row] = await db
-		.select({ total: count() })
-		.from(schema.reviewLikes)
-		.where(eq(schema.reviewLikes.reviewId, reviewId));
-
-	return { liked: true, likeCount: row?.total ?? 0 };
+	return { liked: true, likeCount: await getReviewLikeCount(reviewId) };
 }
 
 export async function unlikeReview(reviewId: string, user: SessionUser) {
@@ -408,10 +363,5 @@ export async function unlikeReview(reviewId: string, user: SessionUser) {
 			),
 		);
 
-	const [row] = await db
-		.select({ total: count() })
-		.from(schema.reviewLikes)
-		.where(eq(schema.reviewLikes.reviewId, reviewId));
-
-	return { liked: false, likeCount: row?.total ?? 0 };
+	return { liked: false, likeCount: await getReviewLikeCount(reviewId) };
 }

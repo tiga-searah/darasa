@@ -1,35 +1,41 @@
 import {
+	ArrowLeft,
 	Award,
 	CheckCircle2,
 	Clock,
-	FileCheck2,
+	Compass,
 	LogIn,
+	MapPin,
 	XCircle,
 } from "lucide-react";
-import {
-	type ChangeEvent,
-	type FormEvent,
-	useId,
-	useMemo,
-	useState,
-} from "react";
+import { type FormEvent, useId, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { LegalityDocumentField } from "~/components/legality-document-field";
 import { PlacePagination } from "~/components/place-pagination";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
+import { WhatsappInputField } from "~/components/whatsapp-input-field";
 import { useDarasa } from "~/context/darasa-store";
 import { DEFAULT_PLACES_PAGE_SIZE, paginateItems } from "~/lib/pagination";
+import type { ClaimStatus } from "~/lib/types";
+import { toStoredWhatsappNumber, validateWhatsappNumber } from "~/lib/whatsapp";
 import type { Route } from "./+types/claim";
+
+const CLAIM_STATUS_BADGE: Record<
+	ClaimStatus,
+	{
+		variant: "default" | "destructive" | "yellow";
+		icon: typeof CheckCircle2;
+		label: string;
+	}
+> = {
+	approved: { variant: "default", icon: CheckCircle2, label: "Disetujui" },
+	rejected: { variant: "destructive", icon: XCircle, label: "Ditolak" },
+	pending: { variant: "yellow", icon: Clock, label: "Menunggu" },
+};
 
 export function meta(_args: Route.MetaArgs) {
 	return [
@@ -43,27 +49,35 @@ export function meta(_args: Route.MetaArgs) {
 }
 
 export default function ClaimBusinessPage() {
-	const { places, claims, currentUser, submitClaim } = useDarasa();
+	const { hydrated, places, claims, currentUser, submitClaim } = useDarasa();
 	const [searchParams] = useSearchParams();
-	const preselectedPlaceId = searchParams.get("placeId") || "";
+	const requestedPlaceId = searchParams.get("placeId")?.trim() ?? "";
 
-	const unclaimedPlaces = useMemo(
-		() => places.filter((p) => !p.ownerId),
-		[places],
+	const targetPlace = useMemo(
+		() =>
+			requestedPlaceId
+				? places.find(
+						(p) => p.id === requestedPlaceId || p.slug === requestedPlaceId,
+					)
+				: undefined,
+		[places, requestedPlaceId],
 	);
 
-	const [selectedPlaceId, setSelectedPlaceId] = useState(
-		preselectedPlaceId || unclaimedPlaces[0]?.id || "",
-	);
+	const redirectPath = requestedPlaceId
+		? `/claim?placeId=${encodeURIComponent(requestedPlaceId)}`
+		: "/claim";
+
 	const [businessRole, setBusinessRole] = useState("Pemilik Usaha");
-	const [whatsappNumber, setWhatsappNumber] = useState("");
+	const [whatsappSuffix, setWhatsappSuffix] = useState("");
+	const [whatsappError, setWhatsappError] = useState<string | null>(null);
 	const [evidenceSummary, setEvidenceSummary] = useState("");
 	const [evidenceFileName, setEvidenceFileName] = useState("");
+	const [evidenceFileUrl, setEvidenceFileUrl] = useState("");
+	const [fileError, setFileError] = useState<string | null>(null);
 	const [formError, setFormError] = useState<string | null>(null);
 	const [submittedNotice, setSubmittedNotice] = useState<string | null>(null);
 	const [claimsPage, setClaimsPage] = useState(1);
 
-	const placeSelectId = useId();
 	const roleInputId = useId();
 	const waInputId = useId();
 	const evidenceId = useId();
@@ -79,243 +93,332 @@ export default function ClaimBusinessPage() {
 		[myClaims, claimsPage],
 	);
 
-	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		setEvidenceFileName(file ? file.name : "");
-	};
-
 	const handleSubmit = (e: FormEvent) => {
 		e.preventDefault();
-		if (!selectedPlaceId) {
-			setFormError("Pilih profil tempat kuliner yang ingin Anda klaim.");
+		if (!targetPlace || targetPlace.ownerId) {
+			setFormError(
+				"Pilih profil tempat kuliner yang belum diklaim dari halaman detail tempat.",
+			);
 			return;
 		}
-		if (whatsappNumber.trim().length < 8) {
-			setFormError("Masukkan nomor WhatsApp aktif usaha minimal 8 digit.");
+		const fullWhatsapp = toStoredWhatsappNumber(whatsappSuffix);
+		const waCheck = validateWhatsappNumber(fullWhatsapp);
+		if (!waCheck.valid) {
+			const message =
+				waCheck.error ?? "Masukkan nomor WhatsApp aktif yang valid.";
+			setWhatsappError(message);
+			setFormError(message);
 			return;
 		}
 		if (evidenceSummary.trim().length < 15) {
 			setFormError("Jelaskan bukti kepemilikan usaha minimal 15 karakter.");
 			return;
 		}
+		if (!evidenceFileName.trim()) {
+			const message =
+				"Unggah surat legalitas usaha (NIB, SKU, SIUP, atau surat keterangan usaha) sebagai bukti klaim.";
+			setFileError(message);
+			setFormError(message);
+			return;
+		}
 
 		submitClaim({
-			placeId: selectedPlaceId,
+			placeId: targetPlace.id,
 			businessRole,
-			whatsappNumber,
+			whatsappNumber: fullWhatsapp,
 			evidenceSummary,
 			evidenceFileName,
+			evidenceFileUrl,
 		});
 
 		setFormError(null);
-		setWhatsappNumber("");
+		setWhatsappError(null);
+		setFileError(null);
+		setWhatsappSuffix("");
 		setEvidenceSummary("");
 		setEvidenceFileName("");
+		setEvidenceFileUrl("");
 		setClaimsPage(1);
 		setSubmittedNotice(
-			"Pengajuan klaim berhasil dicatat dengan status Menunggu Tinjauan Admin.",
+			`Pengajuan klaim untuk "${targetPlace.name}" beserta surat legalitas berhasil dicatat dengan status Menunggu Tinjauan Admin.`,
+		);
+	};
+
+	const renderClaimFormBody = () => {
+		if (!hydrated) {
+			return (
+				<div className="space-y-4" aria-busy="true">
+					<div className="h-20 rounded-[10px] bg-muted" />
+					<div className="h-11 rounded-[8px] bg-muted" />
+					<div className="h-24 rounded-[10px] bg-muted" />
+				</div>
+			);
+		}
+		if (currentUser.role === "visitor") {
+			return (
+				<div className="rounded-[12px] border border-border bg-card p-6 text-center space-y-3">
+					<p className="text-sm font-medium text-foreground">
+						Masuk untuk mengajukan klaim usaha.
+					</p>
+					<Button asChild>
+						<Link to={`/login?redirect=${encodeURIComponent(redirectPath)}`}>
+							<LogIn className="size-4" aria-hidden="true" />
+							Masuk
+						</Link>
+					</Button>
+				</div>
+			);
+		}
+		if (!requestedPlaceId) {
+			return (
+				<div className="rounded-[12px] border border-dashed border-border bg-card p-6 text-center space-y-3">
+					<p className="text-sm font-medium text-foreground">
+						Pilih usaha dari halaman tempatnya terlebih dahulu.
+					</p>
+					<Button asChild>
+						<Link to="/explore">
+							<Compass className="size-4" aria-hidden="true" />
+							Pilih Usaha di Jelajah
+						</Link>
+					</Button>
+				</div>
+			);
+		}
+		if (!targetPlace) {
+			return (
+				<div className="rounded-[12px] border border-dashed border-border bg-card p-6 text-center space-y-3">
+					<p className="text-sm font-medium text-foreground">
+						Profil usaha tidak ditemukan.
+					</p>
+					<Button asChild variant="outline">
+						<Link to="/explore">
+							<Compass className="size-4" aria-hidden="true" />
+							Buka Jelajah
+						</Link>
+					</Button>
+				</div>
+			);
+		}
+		if (targetPlace.ownerId) {
+			return (
+				<div className="rounded-[12px] border border-border bg-card p-6 text-center space-y-3">
+					<p className="text-sm font-medium text-foreground">
+						&ldquo;{targetPlace.name}&rdquo; sudah diklaim pemiliknya.
+					</p>
+					<div className="flex flex-wrap justify-center gap-2.5">
+						<Button asChild variant="outline">
+							<Link to={`/places/${targetPlace.slug}`}>Lihat Profil</Link>
+						</Button>
+						<Button asChild>
+							<Link to="/explore">Cari Usaha Lain</Link>
+						</Button>
+					</div>
+				</div>
+			);
+		}
+
+		return (
+			<form onSubmit={handleSubmit} noValidate className="space-y-4">
+				{submittedNotice ? (
+					<div
+						role="status"
+						className="rounded-[8px] border border-primary/30 bg-primary-soft px-4 py-3 text-sm font-medium text-primary-hover"
+					>
+						{submittedNotice}
+					</div>
+				) : null}
+
+				{formError ? (
+					<div
+						role="alert"
+						className="rounded-[8px] border border-secondary-red/40 bg-red-soft px-4 py-3 text-sm font-medium text-red-text"
+					>
+						{formError}
+					</div>
+				) : null}
+
+				<div className="space-y-1.5">
+					<p className="text-sm font-medium text-foreground">
+						Profil usaha yang diklaim
+					</p>
+					<div className="flex items-center gap-2.5 rounded-[8px] border border-primary/40 bg-primary-soft/50 p-2.5">
+						<img
+							src={targetPlace.photos[0] ?? "/images/megono-batang.svg"}
+							alt=""
+							width={44}
+							height={44}
+							className="size-11 shrink-0 rounded-[6px] border border-border object-cover bg-muted"
+						/>
+						<div className="min-w-0 flex-1 space-y-0.5">
+							<p className="truncate text-[13px] font-semibold text-foreground leading-tight">
+								{targetPlace.name}
+							</p>
+							<p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+								<MapPin
+									className="size-3 shrink-0 text-primary"
+									aria-hidden="true"
+								/>
+								<span className="truncate">
+									{targetPlace.category} · {targetPlace.district}
+								</span>
+							</p>
+							<p className="truncate text-[11px] text-muted-foreground">
+								{targetPlace.address}
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<div className="space-y-1.5">
+						<Label htmlFor={roleInputId}>Peran di usaha</Label>
+						<Input
+							id={roleInputId}
+							type="text"
+							required
+							value={businessRole}
+							onChange={(e) => setBusinessRole(e.target.value)}
+							placeholder="Pemilik / Pengelola"
+						/>
+					</div>
+
+					<WhatsappInputField
+						id={waInputId}
+						label="Nomor WhatsApp aktif usaha"
+						required
+						value={whatsappSuffix}
+						error={whatsappError}
+						onChange={(formatted, typingErr) => {
+							setWhatsappSuffix(formatted);
+							setWhatsappError(typingErr);
+							if (formError) setFormError(null);
+						}}
+						onBlurError={setWhatsappError}
+					/>
+				</div>
+
+				<div className="space-y-1.5">
+					<Label htmlFor={evidenceId}>Keterangan bukti kepemilikan</Label>
+					<Textarea
+						id={evidenceId}
+						rows={3}
+						required
+						value={evidenceSummary}
+						onChange={(e) => setEvidenceSummary(e.target.value)}
+						placeholder="Contoh: Foto papan nama warung dari sisi dalam, akun WhatsApp usaha, atau surat keterangan domisili UMKM."
+					/>
+				</div>
+
+				<LegalityDocumentField
+					id={fileId}
+					label="Surat legalitas usaha"
+					required
+					helperText="Lampirkan NIB, SKU, SIUP, IUMK, atau surat keterangan usaha sebagai bukti kepemilikan."
+					fileName={evidenceFileName}
+					fileUrl={evidenceFileUrl}
+					error={fileError}
+					onChangeFile={(file) => {
+						setEvidenceFileName(file?.fileName ?? "");
+						setEvidenceFileUrl(file?.fileUrl ?? "");
+						if (file) setFormError(null);
+					}}
+					onError={setFileError}
+				/>
+
+				<Button type="submit" size="lg">
+					<Award className="size-4" aria-hidden="true" />
+					Ajukan Klaim Profil Usaha
+				</Button>
+			</form>
 		);
 	};
 
 	return (
 		<div className="space-y-6 pb-8">
-			<div className="border-b border-border pb-5 space-y-1.5">
-				<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
-					Klaim Profil Usaha Kuliner
-				</h1>
-				<p className="max-w-2xl text-sm sm:text-base text-muted-foreground">
-					Pemilik usaha dapat mengajukan klaim atas profil yang sudah
-					ditambahkan komunitas. Akses pengelolaan dasbor dibuka setelah
-					administrator menyetujui klaim.
-				</p>
+			<div className="border-b border-border pb-5 space-y-2">
+				{targetPlace ? (
+					<div>
+						<Link
+							to={`/places/${targetPlace.slug}`}
+							className="inline-flex min-h-[44px] items-center gap-2.5 rounded-[6px] text-base font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						>
+							<ArrowLeft className="size-5 shrink-0" aria-hidden="true" />
+							<span>Kembali</span>
+						</Link>
+					</div>
+				) : null}
+
+				<div className="space-y-1.5">
+					<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
+						Klaim Profil Usaha
+					</h1>
+					<p className="max-w-2xl text-sm sm:text-base text-muted-foreground">
+						Ajukan kepemilikan profil usaha untuk dikelola setelah disetujui
+						admin.
+					</p>
+				</div>
 			</div>
 
-			<div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+			<div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
 				<section className="lg:col-span-7 space-y-5">
 					<h2 className="text-lg font-bold text-foreground">
 						Formulir Pengajuan Klaim
 					</h2>
 
-					{currentUser.role === "visitor" ? (
-						<div className="rounded-[12px] border border-border bg-card p-6 sm:p-8 text-center space-y-4">
-							<p className="text-sm font-medium text-foreground">
-								Silakan masuk terlebih dahulu untuk mengajukan klaim kepemilikan
-								profil usaha.
-							</p>
-							<Button asChild>
-								<Link to="/login?redirect=/claim">
-									<LogIn className="size-4" aria-hidden="true" />
-									Masuk untuk Mengajukan Klaim
-								</Link>
-							</Button>
-						</div>
-					) : (
-						<form onSubmit={handleSubmit} noValidate className="space-y-4">
-							{submittedNotice ? (
-								<div
-									role="status"
-									className="rounded-[8px] border border-primary/30 bg-primary-soft px-4 py-3 text-sm font-medium text-primary-hover"
-								>
-									{submittedNotice}
-								</div>
-							) : null}
-
-							{formError ? (
-								<div
-									role="alert"
-									className="rounded-[8px] border border-secondary-red/40 bg-red-soft px-4 py-3 text-sm font-medium text-red-text"
-								>
-									{formError}
-								</div>
-							) : null}
-
-							<div className="space-y-1.5">
-								<Label htmlFor={placeSelectId}>
-									Pilih profil tempat yang diklaim
-								</Label>
-								<Select
-									value={selectedPlaceId}
-									onValueChange={setSelectedPlaceId}
-									disabled={unclaimedPlaces.length === 0}
-								>
-									<SelectTrigger id={placeSelectId}>
-										<SelectValue placeholder="Pilih tempat kuliner" />
-									</SelectTrigger>
-									<SelectContent>
-										{unclaimedPlaces.map((p) => (
-											<SelectItem key={p.id} value={p.id}>
-												{p.name} ({p.district})
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-								<div className="space-y-1.5">
-									<Label htmlFor={roleInputId}>Peran di usaha</Label>
-									<Input
-										id={roleInputId}
-										type="text"
-										required
-										value={businessRole}
-										onChange={(e) => setBusinessRole(e.target.value)}
-										placeholder="Pemilik / Pengelola"
-									/>
-								</div>
-
-								<div className="space-y-1.5">
-									<Label htmlFor={waInputId}>Nomor WhatsApp aktif usaha</Label>
-									<Input
-										id={waInputId}
-										type="tel"
-										inputMode="tel"
-										required
-										value={whatsappNumber}
-										onChange={(e) => setWhatsappNumber(e.target.value)}
-										placeholder="0812-xxxx-xxxx"
-									/>
-								</div>
-							</div>
-
-							<div className="space-y-1.5">
-								<Label htmlFor={evidenceId}>Keterangan bukti kepemilikan</Label>
-								<Textarea
-									id={evidenceId}
-									rows={3}
-									required
-									value={evidenceSummary}
-									onChange={(e) => setEvidenceSummary(e.target.value)}
-									placeholder="Contoh: Foto papan nama warung dari sisi dalam, akun WhatsApp usaha, atau surat keterangan domisili UMKM."
-								/>
-							</div>
-
-							<div className="space-y-1.5">
-								<Label htmlFor={fileId}>
-									Lampiran berkas pendukung (opsional)
-								</Label>
-								<label
-									htmlFor={fileId}
-									className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[8px] border border-dashed border-border bg-background px-3.5 text-xs font-medium text-muted-foreground hover:border-primary"
-								>
-									<FileCheck2
-										className="size-4 text-primary"
-										aria-hidden="true"
-									/>
-									<span>
-										{evidenceFileName ||
-											"Pilih foto warung atau dokumen pendukung"}
-									</span>
-								</label>
-								<input
-									id={fileId}
-									type="file"
-									onChange={handleFileChange}
-									className="sr-only"
-								/>
-							</div>
-
-							<Button
-								type="submit"
-								size="lg"
-								disabled={unclaimedPlaces.length === 0}
-							>
-								<Award className="size-4" aria-hidden="true" />
-								Ajukan Klaim Profil Usaha
-							</Button>
-						</form>
-					)}
+					{renderClaimFormBody()}
 				</section>
 
-				<section className="lg:col-span-5 lg:border-l lg:border-border lg:pl-7 space-y-4">
+				<section className="lg:col-span-5 space-y-4">
 					<h2 className="text-lg font-bold text-foreground">
 						Status Pengajuan Klaim
 					</h2>
 
 					{myClaims.length === 0 ? (
-						<p className="py-6 text-sm text-muted-foreground border-t border-border">
+						<p className="py-4 text-sm text-muted-foreground">
 							Belum ada pengajuan klaim dari akun Anda saat ini.
 						</p>
 					) : (
 						<>
-							<ul className="divide-y divide-border border-t border-border">
-								{claimsPagination.items.map((claim) => (
-									<li key={claim.id} className="py-4 space-y-2">
-										<div className="flex items-start justify-between gap-2">
-											<p className="text-sm font-semibold text-foreground">
-												{claim.placeName}
+							<ul className="space-y-5">
+								{claimsPagination.items.map((claim) => {
+									const badgeMeta = CLAIM_STATUS_BADGE[claim.status];
+									const StatusIcon = badgeMeta.icon;
+									return (
+										<li key={claim.id} className="space-y-2.5">
+											<div className="flex items-start justify-between gap-2">
+												<p className="text-sm font-semibold text-foreground">
+													{claim.placeName}
+												</p>
+												<Badge variant={badgeMeta.variant}>
+													<StatusIcon className="size-3.5" aria-hidden="true" />
+													{badgeMeta.label}
+												</Badge>
+											</div>
+											<p className="text-xs text-muted-foreground">
+												Pengaju: {claim.claimantName} ({claim.businessRole}) ·
+												WA {claim.whatsappNumber}
 											</p>
-											{claim.status === "approved" ? (
-												<Badge variant="default">
-													<CheckCircle2
-														className="size-3.5"
-														aria-hidden="true"
-													/>
-													Disetujui
-												</Badge>
-											) : claim.status === "rejected" ? (
-												<Badge variant="destructive">
-													<XCircle className="size-3.5" aria-hidden="true" />
-													Ditolak
-												</Badge>
-											) : (
-												<Badge variant="yellow">
-													<Clock className="size-3.5" aria-hidden="true" />
-													Menunggu
-												</Badge>
-											)}
-										</div>
-										<p className="text-xs text-muted-foreground">
-											Pengaju: {claim.claimantName} ({claim.businessRole}) · WA{" "}
-											{claim.whatsappNumber}
-										</p>
-										{claim.adminNote ? (
-											<p className="border-l-2 border-primary pl-3 py-0.5 text-xs text-muted-foreground">
-												Catatan Admin: {claim.adminNote}
-											</p>
-										) : null}
-									</li>
-								))}
+											{claim.evidenceFileName ? (
+												<p className="text-xs text-muted-foreground">
+													Surat legalitas:{" "}
+													<span className="font-medium text-foreground">
+														{claim.evidenceFileName}
+													</span>
+												</p>
+											) : null}
+											{claim.adminNote ? (
+												<div className="mt-1.5 rounded-[8px] bg-card px-3 py-2.5 space-y-0.5 dark:bg-muted">
+													<p className="text-[11px] font-semibold text-primary-hover">
+														Catatan Admin
+													</p>
+													<p className="text-xs text-muted-foreground leading-relaxed">
+														{claim.adminNote}
+													</p>
+												</div>
+											) : null}
+										</li>
+									);
+								})}
 							</ul>
 
 							{claimsPagination.totalPages > 1 ? (

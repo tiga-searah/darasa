@@ -63,7 +63,7 @@ export function PlaceScoreBadge({
 	const label = isHiddenGem ? "Skor Hidden Gem" : "Skor Explore";
 	const Icon = isHiddenGem ? Gem : Compass;
 	const iconColor = isHiddenGem
-		? "fill-[#f7c95c] text-yellow-text dark:fill-[#f7c95c]/30"
+		? "fill-[#f7c95c]/30 text-amber-500 dark:text-yellow-text"
 		: "text-primary";
 
 	if (surface === "inline") {

@@ -178,6 +178,28 @@ export async function resolveMediaUrl(
 	);
 }
 
+/** Batch-resolves media IDs to URLs, skipping nulls and deduplicating IDs. */
+export async function resolveMediaUrlMap(
+	storage: Storage | undefined,
+	mediaIds: Array<string | null>,
+): Promise<Map<string, string>> {
+	const ids = [...new Set(mediaIds.filter((id): id is string => id !== null))];
+	const map = new Map<string, string>();
+	if (ids.length === 0 || !storage) return map;
+
+	const rows = await db
+		.select({ id: schema.media.id, key: schema.media.key })
+		.from(schema.media)
+		.where(inArray(schema.media.id, ids));
+
+	await Promise.all(
+		rows.map(async (row) => {
+			map.set(row.id, await resolveMediaUrl(storage, row.key));
+		}),
+	);
+	return map;
+}
+
 export async function assertOwnedReadyMedia(
 	tx: DbOrTx,
 	userId: string,

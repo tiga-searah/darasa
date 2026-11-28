@@ -127,6 +127,11 @@ export interface DarasaContextValue {
 		email: string,
 		password: string,
 	) => { ok: true; user: UserAccount } | { ok: false; error: string };
+	loginWithGoogle: (input: {
+		name: string;
+		email: string;
+		accountId?: string;
+	}) => UserAccount;
 	registerAccount: (
 		name: string,
 		email: string,
@@ -152,14 +157,15 @@ export interface DarasaContextValue {
 		placeId: string;
 		rating: number;
 		comment: string;
-		photoUrl?: string;
 	}) => ReviewItem;
+	deleteReview: (reviewId: string) => void;
 	submitClaim: (input: {
 		placeId: string;
 		businessRole: string;
 		whatsappNumber: string;
 		evidenceSummary: string;
-		evidenceFileName?: string;
+		evidenceFileName: string;
+		evidenceFileUrl?: string;
 	}) => BusinessClaim;
 	reviewClaim: (
 		claimId: string,

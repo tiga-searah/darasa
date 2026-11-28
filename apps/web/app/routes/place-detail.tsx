@@ -44,6 +44,7 @@ export default function PlaceDetailPage() {
 		currentUser,
 		recordPlaceView,
 		submitReview,
+		deleteReview,
 		isBookmarked,
 		toggleBookmark,
 		isReviewLiked,
@@ -86,10 +87,10 @@ export default function PlaceDetailPage() {
 					Profil kuliner yang Anda cari mungkin belum tersedia atau tautannya
 					berubah.
 				</p>
-				<Button asChild>
+				<Button asChild size="lg" className="text-base">
 					<Link to="/explore">
-						<ArrowLeft className="size-4" aria-hidden="true" />
-						Kembali ke Jelajah
+						<ArrowLeft className="size-5" aria-hidden="true" />
+						Kembali
 					</Link>
 				</Button>
 			</div>
@@ -97,16 +98,18 @@ export default function PlaceDetailPage() {
 	}
 
 	const saved = isBookmarked(place.id);
+	const hasReviewed = place.reviews.some((r) => r.userId === currentUser.id);
 
 	return (
 		<div className="space-y-8">
 			<div className="flex items-center justify-between gap-3">
-				<Button asChild variant="ghost" size="sm" className="-ml-3">
-					<Link to="/explore">
-						<ArrowLeft className="size-4" aria-hidden="true" />
-						Kembali ke Jelajah Kuliner
-					</Link>
-				</Button>
+				<Link
+					to="/explore"
+					className="inline-flex min-h-[44px] items-center gap-2.5 rounded-[6px] text-base font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				>
+					<ArrowLeft className="size-5 shrink-0" aria-hidden="true" />
+					<span>Kembali</span>
+				</Link>
 
 				<Button
 					type="button"
@@ -141,7 +144,10 @@ export default function PlaceDetailPage() {
 				<PlaceSummaryInfo
 					place={place}
 					isVisitor={currentUser.role === "visitor"}
-					onOpenReviewModal={() => setReviewModalOpen(true)}
+					hasReviewed={hasReviewed}
+					onOpenReviewModal={() => {
+						if (!hasReviewed) setReviewModalOpen(true);
+					}}
 				/>
 			</div>
 
@@ -155,12 +161,19 @@ export default function PlaceDetailPage() {
 						onSelectRatingFilter={setRatingFilter}
 					/>
 					<PlaceReviewList
+						key={place.id}
 						reviews={place.reviews}
 						ratingFilter={ratingFilter}
 						onClearFilter={() => setRatingFilter(null)}
 						isReviewLiked={isReviewLiked}
 						getReviewLikeCount={getReviewLikeCount}
 						onToggleReviewLike={toggleReviewLike}
+						currentUserId={currentUser.id}
+						canDeleteAnyReview={currentUser.role === "admin"}
+						onDeleteReview={(reviewId) => {
+							deleteReview(reviewId);
+							setSubmitSuccess(null);
+						}}
 					/>
 				</section>
 
@@ -182,12 +195,11 @@ export default function PlaceDetailPage() {
 				open={reviewModalOpen}
 				placeName={place.name}
 				onOpenChange={setReviewModalOpen}
-				onSubmitReview={({ rating, comment, photoUrl }) => {
+				onSubmitReview={({ rating, comment }) => {
 					submitReview({
 						placeId: place.id,
 						rating,
 						comment,
-						photoUrl,
 					});
 					setSubmitSuccess(
 						"Ulasan Anda berhasil disimpan dan skor Explore serta Hidden Gem telah diperbarui.",

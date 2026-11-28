@@ -1,7 +1,9 @@
-import { MapPin, RotateCcw, ShieldCheck, Star, X } from "lucide-react";
+import { FileCheck2, MapPin, RotateCcw, ShieldCheck, Star } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Link } from "react-router";
+import { ActiveFilterChip } from "~/components/active-filter-chip";
 import { ClearableSearchInput } from "~/components/clearable-search-input";
+import { LegalityDocumentDialog } from "~/components/legality-document-dialog";
 import { PlacePagination } from "~/components/place-pagination";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
@@ -51,6 +53,9 @@ export function AdminPlacesTab({
 	>("all");
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(DEFAULT_PLACES_PAGE_SIZE);
+	const [previewPlace, setPreviewPlace] = useState<PlaceWithMetrics | null>(
+		null,
+	);
 
 	const districtId = useId();
 	const verifyId = useId();
@@ -192,48 +197,36 @@ export function AdminPlacesTab({
 				</span>
 
 				{keyword.trim() ? (
-					<button
-						type="button"
-						onClick={() => {
+					<ActiveFilterChip
+						label={`“${keyword.trim()}”`}
+						ariaLabel={`Hapus kata kunci ${keyword}`}
+						onClear={() => {
 							setKeyword("");
 							setPage(1);
 						}}
-						aria-label={`Hapus kata kunci ${keyword}`}
-						className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
-					>
-						&ldquo;{keyword.trim()}&rdquo;
-						<X className="size-3.5" aria-hidden="true" />
-					</button>
+					/>
 				) : null}
 
 				{districtFilter !== "all" ? (
-					<button
-						type="button"
-						onClick={() => {
+					<ActiveFilterChip
+						label={districtFilter}
+						ariaLabel={`Hapus filter kawasan ${districtFilter}`}
+						onClear={() => {
 							setDistrictFilter("all");
 							setPage(1);
 						}}
-						aria-label={`Hapus filter kawasan ${districtFilter}`}
-						className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
-					>
-						{districtFilter}
-						<X className="size-3.5" aria-hidden="true" />
-					</button>
+					/>
 				) : null}
 
 				{verificationFilter !== "all" ? (
-					<button
-						type="button"
-						onClick={() => {
+					<ActiveFilterChip
+						label={VERIFICATION_LABELS[verificationFilter]}
+						ariaLabel={`Hapus filter verifikasi ${VERIFICATION_LABELS[verificationFilter]}`}
+						onClear={() => {
 							setVerificationFilter("all");
 							setPage(1);
 						}}
-						aria-label={`Hapus filter verifikasi ${VERIFICATION_LABELS[verificationFilter]}`}
-						className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-primary/25 bg-primary-soft px-3 py-1 text-xs font-medium text-primary-hover hover:brightness-95"
-					>
-						{VERIFICATION_LABELS[verificationFilter]}
-						<X className="size-3.5" aria-hidden="true" />
-					</button>
+					/>
 				) : null}
 
 				{hasActiveFilters ? (
@@ -284,6 +277,18 @@ export function AdminPlacesTab({
 											<p className="text-xs text-muted-foreground">
 												{p.category}
 											</p>
+											{p.legalityDocumentName ? (
+												<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+													<button
+														type="button"
+														onClick={() => setPreviewPlace(p)}
+														className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary-hover hover:brightness-95"
+													>
+														<FileCheck2 className="size-3" aria-hidden="true" />
+														Surat Legalitas: {p.legalityDocumentName}
+													</button>
+												</div>
+											) : null}
 										</TableCell>
 										<TableCell className="text-muted-foreground">
 											{p.district}
@@ -310,6 +315,20 @@ export function AdminPlacesTab({
 										</TableCell>
 										<TableCell>
 											<div className="flex flex-wrap justify-end gap-2">
+												{p.legalityDocumentName ? (
+													<Button
+														size="sm"
+														onClick={() =>
+															onSetPlaceVerification(
+																p.id,
+																"owner_verified",
+																true,
+															)
+														}
+													>
+														Verifikasi Pemilik
+													</Button>
+												) : null}
 												<Button
 													variant="secondary"
 													size="sm"
@@ -355,6 +374,16 @@ export function AdminPlacesTab({
 					/>
 				</>
 			)}
+
+			<LegalityDocumentDialog
+				open={Boolean(previewPlace)}
+				onOpenChange={(open) => {
+					if (!open) setPreviewPlace(null);
+				}}
+				title={previewPlace?.name ?? ""}
+				fileName={previewPlace?.legalityDocumentName}
+				fileUrl={previewPlace?.legalityDocumentUrl}
+			/>
 		</div>
 	);
 }
