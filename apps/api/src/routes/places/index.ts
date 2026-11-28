@@ -21,6 +21,7 @@ import {
 	listHiddenGems,
 	listPlaces,
 	recordPlaceView,
+	suggestPlaceUpdate,
 } from "./service";
 
 const storageFrom = (ctx: unknown): Storage | undefined =>
@@ -120,6 +121,22 @@ export const placeRoutes = new Elysia({ prefix: "/places" })
 			ctx.set.status = 204;
 			return;
 		},
+	)
+	.post(
+		"/:id/suggestions",
+		{
+			params: t.Object({ id: t.String() }),
+			body: SuggestPlaceUpdateBody,
+			response: { 200: PlaceDetailResponse },
+		},
+		async (ctx) => ({
+			data: await suggestPlaceUpdate(
+				storageFrom(ctx),
+				ctx.sessionUser,
+				ctx.params.id,
+				ctx.body,
+			),
+		}),
 	)
 	.group("", (g) =>
 		g

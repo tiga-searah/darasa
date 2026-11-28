@@ -621,4 +621,139 @@ describe("place photos", () => {
 		);
 		expect(unownedRes.status).toBe(403);
 	});
+
+	test("POST accepts 6 photos and rejects 7 with 422", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const user = (await db.query.users.findFirst({
+			where: { email: "p@b.test" },
+		}))!;
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-six-photos",
+				name: "Warung Six Photos",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+
+		const sevenIds = Array.from({ length: 7 }, () => crypto.randomUUID());
+		const res7 = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: sevenIds }),
+			}),
+		);
+		expect(res7.status).toBe(422);
+
+		const sixMedia = await Promise.all(
+			Array.from({ length: 6 }, (_, i) =>
+				db
+					.insert(schema.media)
+					.values({
+						ownerId: user.id,
+						purpose: "place_photo",
+						key: `uploads/six-${i}.png`,
+						mime: "image/png",
+						sizeBytes: 100,
+						status: "ready",
+					})
+					.returning()
+					.then(([m]) => m.id),
+			),
+		);
+		const res6 = await app.handle(
+			new Request(`http://test/api/places/${place.id}/photos`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({ photoMediaIds: sixMedia }),
+			}),
+		);
+		expect(res6.status).toBe(201);
+	});
+});
+
+describe("POST /api/places/:id/suggestions", () => {
+	beforeEach(resetDb);
+
+	test("returns 401 when unauthenticated", async () => {
+		const app = freshApp();
+		const res = await app.handle(
+			new Request(`http://test/api/places/${crypto.randomUUID()}/suggestions`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ address: "Jl. Baru" }),
+			}),
+		);
+		expect(res.status).toBe(401);
+	});
+
+	test("returns 422 on empty submission", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-empty-suggest",
+				name: "Warung Empty Suggest",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+
+		const res = await app.handle(
+			new Request(`http://test/api/places/${place.id}/suggestions`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({}),
+			}),
+		);
+		expect(res.status).toBe(422);
+	});
+
+	test("updates published place, recomputes price bounds, and awards +4 XP", async () => {
+		const storage = memoryStorage();
+		const { app, cookie, cat } = await setupUserAndCat(storage);
+		const user = (await db.query.users.findFirst({
+			where: { email: "p@b.test" },
+		}))!;
+		const [place] = await db
+			.insert(schema.places)
+			.values({
+				slug: "warung-suggest",
+				name: "Warung Suggest",
+				categoryId: cat.id,
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+			})
+			.returning();
+
+		const res = await app.handle(
+			new Request(`http://test/api/places/${place.id}/suggestions`, {
+				method: "POST",
+				headers: { "content-type": "application/json", cookie },
+				body: JSON.stringify({
+					address: "Jl. Baru",
+					priceRange: "Rp 20.000 - Rp 40.000",
+					note: "Jam buka baru",
+				}),
+			}),
+		);
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.data.address).toBe("Jl. Baru");
+		expect(body.data.priceRange).toBe("Rp 20.000 - Rp 40.000");
+
+		const updatedUser = await db.query.users.findFirst({
+			where: { id: user.id },
+		});
+		expect(updatedUser?.xpTotal).toBe(user.xpTotal + 4);
+	});
 });

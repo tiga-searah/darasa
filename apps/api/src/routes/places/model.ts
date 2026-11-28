@@ -292,7 +292,7 @@ export type CreatePlaceBodyType = {
 export const AddPlacePhotosBody = t.Object({
 	photoMediaIds: t.Array(t.String({ format: "uuid" }), {
 		minItems: 1,
-		maxItems: 5,
+		maxItems: 6,
 		uniqueItems: true,
 	}),
 });
@@ -336,4 +336,22 @@ export type AdminUpdatePlaceBodyType = {
 	openingHours?: CreatePlaceBodyType["openingHours"] | null;
 	coverMediaId?: string | null;
 	status?: "pending" | "published" | "rejected" | "archived";
+};
+
+export const SuggestPlaceUpdateBody = t.Object({
+	address: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
+	openingHours: t.Optional(t.Nullable(OpeningHoursInput)),
+	priceRange: t.Optional(t.Nullable(t.String({ maxLength: 100 }))),
+	phone: t.Optional(t.Nullable(t.String({ maxLength: 40 }))),
+	description: t.Optional(t.Nullable(t.String({ maxLength: 5000 }))),
+	note: t.Optional(t.String({ maxLength: 500 })),
+});
+
+export type SuggestPlaceUpdateBodyType = {
+	address?: string | null;
+	openingHours?: CreatePlaceBodyType["openingHours"] | null;
+	priceRange?: string | null;
+	phone?: string | null;
+	description?: string | null;
+	note?: string;
 };

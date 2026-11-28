@@ -44,6 +44,7 @@ import type {
 	PlaceDetailType,
 	PlaceListItemType,
 	PlaceListQueryType,
+	SuggestPlaceUpdateBodyType,
 } from "./model";
 
 type VerifiedFilter = "community" | "owner" | "any" | "unverified";
@@ -978,4 +979,63 @@ export async function adminArchivePlace(id: string): Promise<void> {
 		.where(eq(schema.places.id, id))
 		.returning({ id: schema.places.id });
 	if (!updated) throw notFound("Place");
+}
+
+export async function suggestPlaceUpdate(
+	storage: Storage | undefined,
+	user: SessionUser,
+	id: string,
+	body: SuggestPlaceUpdateBodyType,
+): Promise<PlaceDetailType> {
+	const hasField =
+		body.address !== undefined ||
+		body.openingHours !== undefined ||
+		body.priceRange !== undefined ||
+		body.phone !== undefined ||
+		body.description !== undefined;
+	const hasNote = Boolean(body.note?.trim());
+	if (!hasField && !hasNote) {
+		throw new ApiError(
+			"VALIDATION_ERROR",
+			422,
+			"At least one field or note is required",
+		);
+	}
+
+	await db.transaction(async (tx) => {
+		const [existing] = await tx
+			.select({ id: schema.places.id, status: schema.places.status })
+			.from(schema.places)
+			.where(eq(schema.places.id, id))
+			.for("update");
+		if (!existing || existing.status !== "published") {
+			throw notFound("Place");
+		}
+
+		const updates: Partial<typeof schema.places.$inferInsert> = {
+			updatedAt: new Date(),
+		};
+		if (body.address !== undefined) updates.address = body.address;
+		if (body.openingHours !== undefined) {
+			updates.openingHours = body.openingHours as OpeningHours | null;
+		}
+		if (body.priceRange !== undefined) {
+			const priceBounds = parsePriceBounds(body.priceRange);
+			updates.priceRange = body.priceRange;
+			updates.priceMin = priceBounds.min;
+			updates.priceMax = priceBounds.max;
+		}
+		if (body.phone !== undefined) updates.phone = body.phone;
+		if (body.description !== undefined) updates.description = body.description;
+
+		await tx.update(schema.places).set(updates).where(eq(schema.places.id, id));
+		await awardXp(tx, {
+			userId: user.id,
+			placeId: id,
+			action: "update_info",
+			summary: body.note?.trim() || "Usulkan pembaruan info",
+		});
+	});
+
+	return getPlaceDetail(storage, id, user);
 }
