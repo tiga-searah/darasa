@@ -41,12 +41,20 @@ darasa/
       utils.ts          # global utilities function
       index.ts          # elysia server entrypoint
     web/                # react router framework frontend
+      app/              # main app directory
+        routes/         # routes components
+        components/
+        lib/     
+        app.css         # global style
+        root.tsx
+        routes.ts       # routes declaration
+      public/           # static assets
   packages/             # shared packages
   package.json
   turbo.json
 ```
 
-## Usefull Commands
+## Useful Commands
 
 - `bun dev` - Run dev server. Don't run when dev server is already ran by user
 - `bun build` - Run local build
