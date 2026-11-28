@@ -530,4 +530,302 @@ describe("place discovery", () => {
 			expect(slugs).not.toContain("warung-biasa");
 		}
 	});
+	test("GET /places returns description and openingHours, and supports verified=community_verified and owner_verified", async () => {
+		const { cat } = await seedPlaces();
+		const hours = { mon: { open: "08:00", close: "21:00" } };
+		await db.insert(schema.places).values([
+			{
+				slug: "kopi-owner",
+				name: "Kopi Owner",
+				categoryId: cat.id,
+				description: "Manual brew coffee",
+				openingHours: hours,
+				latitude: -6.92,
+				longitude: 109.74,
+				status: "published",
+				ownerVerified: true,
+			},
+		]);
+
+		const app = freshApp({ storage: memoryStorage() });
+		const allRes = await app.handle(new Request("http://test/api/places"));
+		expect(allRes.status).toBe(200);
+		const allBody = await json(allRes);
+		const kopi = allBody.data.find(
+			(p: { slug: string }) => p.slug === "kopi-owner",
+		);
+		expect(kopi.description).toBe("Manual brew coffee");
+		expect(kopi.openingHours).toEqual(hours);
+
+		const communityRes = await app.handle(
+			new Request("http://test/api/places?verified=community_verified"),
+		);
+		expect(communityRes.status).toBe(200);
+		expect(
+			(await json(communityRes)).data.map((p: { slug: string }) => p.slug),
+		).toEqual(["warung-bu-tini"]);
+
+		const ownerRes = await app.handle(
+			new Request("http://test/api/places?verified=owner_verified"),
+		);
+		expect(ownerRes.status).toBe(200);
+		expect(
+			(await json(ownerRes)).data.map((p: { slug: string }) => p.slug),
+		).toEqual(["kopi-owner"]);
+	});
+
+	test("GET /places/hidden-gems?q=... filters by keyword", async () => {
+		const { cat } = await seedPlaces();
+		await db.insert(schema.places).values({
+			slug: "bakmi-hidden",
+			name: "Bakmi Tersembunyi",
+			categoryId: cat.id,
+			description: "Bakmi jawa malam hari",
+			latitude: -6.92,
+			longitude: 109.74,
+			status: "published",
+			ratingAvg: 4.9,
+			reviewCount: 4,
+			hiddenGemScore: 2.1,
+		});
+
+		const res = await freshApp({ storage: memoryStorage() }).handle(
+			new Request("http://test/api/places/hidden-gems?q=Bakmi"),
+		);
+		expect(res.status).toBe(200);
+		expect((await json(res)).data.map((p: { slug: string }) => p.slug)).toEqual(
+			["bakmi-hidden"],
+		);
+	});
+
+	test("GET /places/:slug returns ratingHistogram from published reviews only", async () => {
+		const { pubHigh, pubLow } = await seedPlaces();
+		const [u1, u2, u3, u4] = await db
+			.insert(schema.users)
+			.values([
+				{ name: "R1", email: "r1@b.test" },
+				{ name: "R2", email: "r2@b.test" },
+				{ name: "R3", email: "r3@b.test" },
+				{ name: "R4", email: "r4@b.test" },
+			])
+			.returning();
+
+		await db.insert(schema.reviews).values([
+			{
+				placeId: pubHigh.id,
+				userId: u1.id,
+				rating: 5,
+				body: "Enak banget sotonya!",
+				status: "published",
+			},
+			{
+				placeId: pubHigh.id,
+				userId: u2.id,
+				rating: 5,
+				body: "Kuahnya mantap sekali!",
+				status: "published",
+			},
+			{
+				placeId: pubHigh.id,
+				userId: u3.id,
+				rating: 3,
+				body: "Lumayan buat makan siang.",
+				status: "published",
+			},
+			{
+				placeId: pubHigh.id,
+				userId: u4.id,
+				rating: 1,
+				body: "Hidden spam review here.",
+				status: "hidden",
+			},
+		]);
+
+		const app = freshApp({ storage: memoryStorage() });
+		const highRes = await app.handle(
+			new Request(`http://test/api/places/${pubHigh.slug}`),
+		);
+		expect(highRes.status).toBe(200);
+		expect((await json(highRes)).data.ratingHistogram).toEqual({
+			"1": 0,
+			"2": 0,
+			"3": 1,
+			"4": 0,
+			"5": 2,
+		});
+
+		const lowRes = await app.handle(
+			new Request(`http://test/api/places/${pubLow.slug}`),
+		);
+		expect(lowRes.status).toBe(200);
+		expect((await json(lowRes)).data.ratingHistogram).toEqual({
+			"1": 0,
+			"2": 0,
+			"3": 0,
+			"4": 0,
+			"5": 0,
+		});
+	});
+
+	test("GET /activity returns empty array then combined published places and reviews sorted desc", async () => {
+		const app = freshApp({ storage: memoryStorage() });
+
+		const emptyRes = await app.handle(new Request("http://test/api/activity"));
+		expect(emptyRes.status).toBe(200);
+		expect(await json(emptyRes)).toEqual({ data: [] });
+
+		const [cat] = await db
+			.insert(schema.categories)
+			.values({ name: "Warung", slug: "warung", sortOrder: 1 })
+			.returning();
+		const [user] = await db
+			.insert(schema.users)
+			.values({ name: "Andi", email: "andi@b.test" })
+			.returning();
+
+		const t1 = new Date("2026-01-01T10:00:00Z");
+		const t2 = new Date("2026-01-02T10:00:00Z");
+		const t3 = new Date("2026-01-03T10:00:00Z");
+		const t4 = new Date("2026-01-04T10:00:00Z");
+
+		const [placeA] = await db
+			.insert(schema.places)
+			.values({
+				slug: "place-a",
+				name: "Place A",
+				categoryId: cat.id,
+				district: "Batang",
+				description: "First place",
+				latitude: -6.91,
+				longitude: 109.73,
+				status: "published",
+				createdById: user.id,
+				createdAt: t1,
+				updatedAt: t1,
+			})
+			.returning();
+
+		const [placeB] = await db
+			.insert(schema.places)
+			.values({
+				slug: "place-b",
+				name: "Place B",
+				categoryId: cat.id,
+				district: "Limpung",
+				description: "Second place",
+				latitude: -6.92,
+				longitude: 109.74,
+				status: "published",
+				createdAt: t2,
+				updatedAt: t2,
+			})
+			.returning();
+
+		const [pendingPlace] = await db
+			.insert(schema.places)
+			.values({
+				slug: "place-pending",
+				name: "Place Pending",
+				categoryId: cat.id,
+				latitude: -6.93,
+				longitude: 109.75,
+				status: "pending",
+				createdAt: t4,
+				updatedAt: t4,
+			})
+			.returning();
+
+		const [reviewA] = await db
+			.insert(schema.reviews)
+			.values([
+				{
+					placeId: placeA.id,
+					userId: user.id,
+					rating: 5,
+					body: "Sangat direkomendasikan!",
+					status: "published",
+					createdAt: t3,
+					updatedAt: t3,
+				},
+				{
+					placeId: pendingPlace.id,
+					userId: user.id,
+					rating: 4,
+					body: "Review on pending place should not show.",
+					status: "published",
+					createdAt: t4,
+					updatedAt: t4,
+				},
+			])
+			.returning();
+
+		await db.insert(schema.reviews).values({
+			placeId: placeB.id,
+			userId: user.id,
+			rating: 2,
+			body: "Hidden review should not show.",
+			status: "hidden",
+			createdAt: t4,
+			updatedAt: t4,
+		});
+
+		const res = await app.handle(new Request("http://test/api/activity"));
+		expect(res.status).toBe(200);
+		const body = await json(res);
+		expect(body.data).toEqual([
+			{
+				id: reviewA.id,
+				kind: "review",
+				placeId: placeA.id,
+				placeSlug: "place-a",
+				placeName: "Place A",
+				district: "Batang",
+				coverUrl: null,
+				description: "First place",
+				authorName: "Andi",
+				rating: 5,
+				comment: "Sangat direkomendasikan!",
+				createdAt: t3.toISOString(),
+			},
+			{
+				id: placeB.id,
+				kind: "place",
+				placeId: placeB.id,
+				placeSlug: "place-b",
+				placeName: "Place B",
+				district: "Limpung",
+				coverUrl: null,
+				description: "Second place",
+				authorName: null,
+				rating: null,
+				comment: null,
+				createdAt: t2.toISOString(),
+			},
+			{
+				id: placeA.id,
+				kind: "place",
+				placeId: placeA.id,
+				placeSlug: "place-a",
+				placeName: "Place A",
+				district: "Batang",
+				coverUrl: null,
+				description: "First place",
+				authorName: "Andi",
+				rating: null,
+				comment: null,
+				createdAt: t1.toISOString(),
+			},
+		]);
+
+		const limited = await app.handle(
+			new Request("http://test/api/activity?limit=2"),
+		);
+		expect(limited.status).toBe(200);
+		expect((await json(limited)).data).toHaveLength(2);
+
+		const tooMany = await app.handle(
+			new Request("http://test/api/activity?limit=21"),
+		);
+		expect(tooMany.status).toBe(422);
+	});
 });

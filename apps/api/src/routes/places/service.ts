@@ -38,16 +38,18 @@ import {
 	resolveMediaUrlMap,
 } from "../media/service";
 import type {
+	ActivityItemType,
 	AdminUpdatePlaceBodyType,
 	CreatePlaceBodyType,
 	HiddenGemsQueryType,
 	PlaceDetailType,
 	PlaceListItemType,
 	PlaceListQueryType,
+	PlaceVerifiedType,
 	SuggestPlaceUpdateBodyType,
 } from "./model";
 
-type VerifiedFilter = "community" | "owner" | "any" | "unverified";
+type VerifiedFilter = PlaceVerifiedType;
 type PlaceSortKey = NonNullable<PlaceListQueryType["sort"]>;
 
 function haversineSql(lat: number, lng: number) {
@@ -59,8 +61,10 @@ function verifiedCondition(
 ): SQL | undefined {
 	switch (verified) {
 		case "community":
+		case "community_verified":
 			return eq(schema.places.communityVerified, true);
 		case "owner":
+		case "owner_verified":
 			return eq(schema.places.ownerVerified, true);
 		case "any":
 			return or(
@@ -100,8 +104,23 @@ function priceTierCondition(tier: PriceTier): SQL | undefined {
 
 function appendSharedPlaceFilters(
 	conditions: SQL[],
-	query: { category?: string; district?: string; verified?: VerifiedFilter },
+	query: {
+		q?: string;
+		category?: string;
+		district?: string;
+		verified?: VerifiedFilter;
+	},
 ): void {
+	if (query.q && query.q.trim().length > 0) {
+		const pattern = `%${query.q.trim()}%`;
+		const qCond = or(
+			ilike(schema.places.name, pattern),
+			ilike(schema.places.description, pattern),
+			ilike(schema.places.address, pattern),
+			ilike(schema.places.district, pattern),
+		);
+		if (qCond) conditions.push(qCond);
+	}
 	if (query.category) {
 		conditions.push(
 			UUID_RE.test(query.category)
@@ -198,6 +217,8 @@ function placeListColumns(distanceExpr: SQL<number | null>) {
 		id: schema.places.id,
 		slug: schema.places.slug,
 		name: schema.places.name,
+		description: schema.places.description,
+		openingHours: schema.places.openingHours,
 		address: schema.places.address,
 		district: schema.places.district,
 		priceRange: schema.places.priceRange,
@@ -225,6 +246,8 @@ type PlaceListRow = {
 	id: string;
 	slug: string;
 	name: string;
+	description: string | null;
+	openingHours: OpeningHours | null;
 	address: string | null;
 	district: string | null;
 	priceRange: string | null;
@@ -267,6 +290,8 @@ async function serializePlaceListRows(
 		id: r.id,
 		slug: r.slug,
 		name: r.name,
+		description: r.description,
+		openingHours: r.openingHours,
 		category: {
 			id: r.catId,
 			name: r.catName,
@@ -322,17 +347,6 @@ export async function listPlaces(
 	}
 
 	const conditions: SQL[] = [eq(schema.places.status, "published")];
-
-	if (query.q && query.q.trim().length > 0) {
-		const pattern = `%${query.q.trim()}%`;
-		const qCond = or(
-			ilike(schema.places.name, pattern),
-			ilike(schema.places.description, pattern),
-			ilike(schema.places.address, pattern),
-			ilike(schema.places.district, pattern),
-		);
-		if (qCond) conditions.push(qCond);
-	}
 
 	appendSharedPlaceFilters(conditions, query);
 
@@ -537,7 +551,7 @@ export async function getPlaceDetail(
 		(viewer?.role === "admin" ||
 			(viewer !== null && viewer.id === row.createdById));
 
-	const [photoRows, mediaUrls, bookmarkedIds] = await Promise.all([
+	const [photoRows, mediaUrls, bookmarkedIds, ratingRows] = await Promise.all([
 		db
 			.select({
 				id: schema.placePhotos.id,
@@ -554,7 +568,26 @@ export async function getPlaceDetail(
 			canSeeLegalityDoc ? row.legalityDocumentMediaId : null,
 		]),
 		fetchBookmarkedSet(viewer, [row.id]),
+		db
+			.select({
+				rating: schema.reviews.rating,
+				total: count(),
+			})
+			.from(schema.reviews)
+			.where(
+				and(
+					eq(schema.reviews.placeId, row.id),
+					eq(schema.reviews.status, "published"),
+				),
+			)
+			.groupBy(schema.reviews.rating),
 	]);
+
+	const ratingHistogram = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+	for (const item of ratingRows) {
+		const key = String(item.rating) as keyof typeof ratingHistogram;
+		if (key in ratingHistogram) ratingHistogram[key] = item.total;
+	}
 
 	const photos = await Promise.all(
 		photoRows.map(async (p) => ({
@@ -600,6 +633,7 @@ export async function getPlaceDetail(
 		ownerVerified: row.ownerVerified,
 		ratingAvg: row.ratingAvg,
 		reviewCount: row.reviewCount,
+		ratingHistogram,
 		exploreScore: row.exploreScore,
 		hiddenGemScore: row.hiddenGemScore,
 		views: row.viewsTotal,
@@ -609,6 +643,94 @@ export async function getPlaceDetail(
 		createdAt: row.createdAt.toISOString(),
 		updatedAt: row.updatedAt.toISOString(),
 	};
+}
+
+export async function listRecentActivity(
+	storage: Storage | undefined,
+	limit = 9,
+): Promise<ActivityItemType[]> {
+	const [reviewRows, placeRows] = await Promise.all([
+		db
+			.select({
+				id: schema.reviews.id,
+				placeId: schema.places.id,
+				placeSlug: schema.places.slug,
+				placeName: schema.places.name,
+				district: schema.places.district,
+				coverMediaId: schema.places.coverMediaId,
+				description: schema.places.description,
+				authorName: schema.users.name,
+				rating: schema.reviews.rating,
+				comment: schema.reviews.body,
+				createdAt: schema.reviews.createdAt,
+			})
+			.from(schema.reviews)
+			.innerJoin(schema.places, eq(schema.reviews.placeId, schema.places.id))
+			.leftJoin(schema.users, eq(schema.reviews.userId, schema.users.id))
+			.where(
+				and(
+					eq(schema.reviews.status, "published"),
+					eq(schema.places.status, "published"),
+				),
+			)
+			.orderBy(desc(schema.reviews.createdAt), asc(schema.reviews.id))
+			.limit(limit),
+		db
+			.select({
+				id: schema.places.id,
+				placeId: schema.places.id,
+				placeSlug: schema.places.slug,
+				placeName: schema.places.name,
+				district: schema.places.district,
+				coverMediaId: schema.places.coverMediaId,
+				description: schema.places.description,
+				authorName: schema.users.name,
+				createdAt: schema.places.createdAt,
+			})
+			.from(schema.places)
+			.leftJoin(schema.users, eq(schema.places.createdById, schema.users.id))
+			.where(eq(schema.places.status, "published"))
+			.orderBy(desc(schema.places.createdAt), asc(schema.places.id))
+			.limit(limit),
+	]);
+
+	const combined = [
+		...reviewRows.map((r) => ({ ...r, kind: "review" as const })),
+		...placeRows.map((p) => ({
+			...p,
+			kind: "place" as const,
+			rating: null as number | null,
+			comment: null as string | null,
+		})),
+	]
+		.sort(
+			(a, b) =>
+				b.createdAt.getTime() - a.createdAt.getTime() ||
+				a.id.localeCompare(b.id),
+		)
+		.slice(0, limit);
+
+	const coverUrls = await resolveMediaUrlMap(
+		storage,
+		combined.map((item) => item.coverMediaId),
+	);
+
+	return combined.map((item) => ({
+		id: item.id,
+		kind: item.kind,
+		placeId: item.placeId,
+		placeSlug: item.placeSlug,
+		placeName: item.placeName,
+		district: item.district,
+		coverUrl: item.coverMediaId
+			? (coverUrls.get(item.coverMediaId) ?? null)
+			: null,
+		description: item.description,
+		authorName: item.authorName ?? null,
+		rating: item.rating,
+		comment: item.comment,
+		createdAt: item.createdAt.toISOString(),
+	}));
 }
 
 export async function recordPlaceView(placeId: string): Promise<void> {

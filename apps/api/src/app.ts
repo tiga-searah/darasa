@@ -14,7 +14,7 @@ import { claimRoutes } from "./routes/claims";
 import { contributionRoutes } from "./routes/contributions";
 import { mediaRoutes } from "./routes/media";
 import { ownerRoutes } from "./routes/owner";
-import { placeRoutes } from "./routes/places";
+import { activityRoutes, placeRoutes } from "./routes/places";
 import { reviewRoutes } from "./routes/reviews";
 
 export type AppDeps = {
@@ -49,6 +49,7 @@ export const createApp = (deps: AppDeps = {}) => {
 		.use(mediaRoutes)
 		.use(categoryRoutes)
 		.use(placeRoutes)
+		.use(activityRoutes)
 		.use(bookmarkRoutes)
 		.use(contributionRoutes)
 		.use(reviewRoutes)

@@ -8,12 +8,12 @@ import { listPlaces } from "../places/service";
 
 export async function listBookmarks(
 	storage: Storage | undefined,
-	query: { page?: number; limit?: number },
+	query: { q?: string; page?: number; limit?: number },
 	user: SessionUser,
 ) {
 	return listPlaces(
 		storage,
-		{ page: query.page, limit: query.limit, onlyBookmarked: true },
+		{ q: query.q, page: query.page, limit: query.limit, onlyBookmarked: true },
 		user,
 	);
 }

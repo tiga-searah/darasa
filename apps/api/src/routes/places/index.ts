@@ -2,6 +2,8 @@ import { Elysia, t } from "elysia";
 import type { Storage } from "../../lib/ports";
 import { optionalAuth, requireAdmin, requireAuth } from "../../plugins/guard";
 import {
+	ActivityFeedResponse,
+	ActivityQuery,
 	AddPlacePhotosBody,
 	AddPlacePhotosResponse,
 	AdminUpdatePlaceBody,
@@ -20,6 +22,7 @@ import {
 	getPlaceDetail,
 	listHiddenGems,
 	listPlaces,
+	listRecentActivity,
 	recordPlaceView,
 	suggestPlaceUpdate,
 } from "./service";
@@ -27,6 +30,16 @@ import {
 const storageFrom = (ctx: unknown): Storage | undefined =>
 	(ctx as { deps?: { storage?: Storage } }).deps?.storage;
 
+export const activityRoutes = new Elysia().get(
+	"/activity",
+	{
+		query: ActivityQuery,
+		response: { 200: ActivityFeedResponse },
+	},
+	async (ctx) => ({
+		data: await listRecentActivity(storageFrom(ctx), ctx.query.limit),
+	}),
+);
 export const placeRoutes = new Elysia({ prefix: "/places" })
 	.post(
 		"/:id/view",
