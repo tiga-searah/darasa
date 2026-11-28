@@ -1,26 +1,22 @@
 import {
+	ArrowLeft,
 	CheckCircle2,
+	ChevronRight,
 	Clock,
 	Compass,
 	ExternalLink,
 	Lock,
 	MapPin,
 	Star,
+	Store,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { useMemo } from "react";
+import { Link, useSearchParams } from "react-router";
 import { OwnerProfileForm } from "~/components/owner/owner-profile-form";
 import { OwnerReviewsPanel } from "~/components/owner/owner-reviews-panel";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "~/components/ui/select";
 import { type PlaceWithMetrics, useDarasa } from "~/context/darasa-store";
 import type { BusinessClaim, ClaimStatus } from "~/lib/types";
 import type { Route } from "./+types/owner";
@@ -41,12 +37,6 @@ interface OwnerBusinessEntry {
 	approvalStatus: ClaimStatus;
 	claim?: BusinessClaim;
 }
-
-const APPROVAL_LABELS: Record<ClaimStatus, string> = {
-	approved: "Disetujui",
-	pending: "Menunggu",
-	rejected: "Ditolak",
-};
 
 function ApprovalStatusBadge({ status }: { status: ClaimStatus }) {
 	if (status === "approved") {
@@ -82,7 +72,8 @@ export default function OwnerDashboardPage() {
 		replyToReview,
 		switchDemoAccount,
 	} = useDarasa();
-	const businessSelectId = useId();
+	const [searchParams] = useSearchParams();
+	const requestedPlaceId = searchParams.get("placeId")?.trim() ?? "";
 
 	const ownerBusinesses = useMemo<OwnerBusinessEntry[]>(() => {
 		if (currentUser.role === "visitor") return [];
@@ -131,21 +122,13 @@ export default function OwnerDashboardPage() {
 		return entries;
 	}, [places, claims, currentUser]);
 
-	const [selectedPlaceId, setSelectedPlaceId] = useState<string>("");
-
-	useEffect(() => {
-		if (ownerBusinesses.length === 0) {
-			if (selectedPlaceId !== "") setSelectedPlaceId("");
-			return;
-		}
-		if (!ownerBusinesses.some((item) => item.place.id === selectedPlaceId)) {
-			setSelectedPlaceId(ownerBusinesses[0].place.id);
-		}
-	}, [ownerBusinesses, selectedPlaceId]);
-
-	const selectedEntry =
-		ownerBusinesses.find((item) => item.place.id === selectedPlaceId) ??
-		ownerBusinesses[0];
+	const selectedEntry = useMemo(
+		() =>
+			requestedPlaceId
+				? ownerBusinesses.find((item) => item.place.id === requestedPlaceId)
+				: undefined,
+		[ownerBusinesses, requestedPlaceId],
+	);
 
 	const hasAnyApproved = ownerBusinesses.some(
 		(item) => item.approvalStatus === "approved",
@@ -153,7 +136,7 @@ export default function OwnerDashboardPage() {
 
 	if (
 		(currentUser.role !== "owner" && ownerBusinesses.length === 0) ||
-		!selectedEntry
+		ownerBusinesses.length === 0
 	) {
 		return (
 			<div className="mx-auto max-w-lg py-12 pb-8">
@@ -190,6 +173,120 @@ export default function OwnerDashboardPage() {
 		);
 	}
 
+	if (!selectedEntry) {
+		return (
+			<div className="space-y-6 pb-8">
+				<header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
+					<div className="space-y-1">
+						<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
+							Usahamu
+						</h1>
+						<p className="max-w-2xl text-sm sm:text-base text-muted-foreground">
+							Pilih salah satu usaha untuk mengelola profil, memantau performa,
+							dan membalas ulasan pelanggan.
+						</p>
+					</div>
+
+					<Button asChild variant="outline" size="sm">
+						<Link to="/explore">
+							<Store className="size-4 text-primary" aria-hidden="true" />
+							Klaim Usaha Lain
+						</Link>
+					</Button>
+				</header>
+
+				<section aria-label="Daftar usahamu">
+					<ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+						{ownerBusinesses.map((entry) => {
+							const { place, approvalStatus } = entry;
+							const entryApproved =
+								approvalStatus === "approved" &&
+								(currentUser.role === "owner" || hasAnyApproved);
+
+							return (
+								<li key={place.id}>
+									<Link
+										to={`/owner?placeId=${encodeURIComponent(place.id)}`}
+										className="group flex h-full flex-col overflow-hidden rounded-[12px] border border-border bg-card transition-colors hover:border-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									>
+										<div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+											<img
+												src={place.photos[0] ?? "/images/megono-batang.svg"}
+												alt={`Foto ${place.name}`}
+												width={640}
+												height={400}
+												className="h-full w-full object-cover"
+											/>
+											<div className="absolute right-2.5 top-2.5">
+												<ApprovalStatusBadge status={approvalStatus} />
+											</div>
+										</div>
+
+										<div className="flex flex-1 flex-col justify-between gap-4 p-4">
+											<div className="space-y-2">
+												<div className="space-y-0.5">
+													<h2 className="text-base font-bold text-foreground line-clamp-2">
+														{place.name}
+													</h2>
+													<p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+														<MapPin
+															className="size-3.5 shrink-0 text-primary"
+															aria-hidden="true"
+														/>
+														<span className="truncate">
+															{place.category} · {place.district}
+														</span>
+													</p>
+												</div>
+
+												{entryApproved ? (
+													<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+														<span className="inline-flex items-center gap-1 font-semibold text-foreground">
+															<Star
+																className="size-3.5 fill-accent-yellow text-accent-yellow"
+																aria-hidden="true"
+															/>
+															{place.reviewCount > 0
+																? place.averageRating.toFixed(1)
+																: "Baru"}
+														</span>
+														<span>{place.reviewCount} ulasan</span>
+														<span aria-hidden="true">·</span>
+														<span>
+															{place.views.toLocaleString("id-ID")} dilihat
+														</span>
+													</div>
+												) : (
+													<p className="text-xs text-muted-foreground">
+														{approvalStatus === "rejected"
+															? "Pengajuan klaim belum disetujui admin."
+															: "Menunggu peninjauan klaim oleh admin."}
+													</p>
+												)}
+											</div>
+
+											<div className="flex items-center justify-between border-t border-border pt-3 text-xs font-semibold text-primary group-hover:text-primary-hover">
+												<span>
+													{entryApproved
+														? "Kelola Usaha"
+														: "Lihat Status Klaim"}
+												</span>
+												<ChevronRight
+													className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+													aria-hidden="true"
+												/>
+											</div>
+										</div>
+									</Link>
+								</li>
+							);
+						})}
+					</ul>
+				</section>
+			</div>
+		);
+	}
+
 	const ownedPlace = selectedEntry.place;
 	const isApproved =
 		selectedEntry.approvalStatus === "approved" &&
@@ -197,12 +294,25 @@ export default function OwnerDashboardPage() {
 
 	return (
 		<div className="space-y-6 pb-8">
-			<header className="space-y-4 border-b border-border pb-5">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div className="space-y-1">
-						<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
-							Usahamu
-						</h1>
+			<header className="space-y-3 border-b border-border pb-5">
+				<div>
+					<Link
+						to="/owner"
+						className="inline-flex min-h-[44px] items-center gap-2.5 rounded-[6px] text-base font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					>
+						<ArrowLeft className="size-5 shrink-0" aria-hidden="true" />
+						<span>Kembali ke Usahamu</span>
+					</Link>
+				</div>
+
+				<div className="flex flex-wrap items-start justify-between gap-3">
+					<div className="space-y-1.5">
+						<div className="flex flex-wrap items-center gap-2.5">
+							<h1 className="text-2xl sm:text-[30px] font-bold tracking-tight text-foreground leading-tight">
+								{ownedPlace.name}
+							</h1>
+							<ApprovalStatusBadge status={selectedEntry.approvalStatus} />
+						</div>
 						<p className="flex items-center gap-1.5 text-xs text-muted-foreground">
 							<MapPin className="size-3.5 text-primary" aria-hidden="true" />
 							<span>
@@ -217,25 +327,6 @@ export default function OwnerDashboardPage() {
 							<ExternalLink className="size-3.5" aria-hidden="true" />
 						</Link>
 					</Button>
-				</div>
-
-				<div className="flex flex-wrap items-center gap-2.5">
-					<div className="min-w-[220px] flex-1 sm:max-w-sm">
-						<Select value={ownedPlace.id} onValueChange={setSelectedPlaceId}>
-							<SelectTrigger id={businessSelectId} aria-label="Pilih usaha">
-								<SelectValue placeholder="Pilih usaha" />
-							</SelectTrigger>
-							<SelectContent>
-								{ownerBusinesses.map((entry) => (
-									<SelectItem key={entry.place.id} value={entry.place.id}>
-										{entry.place.name} · {APPROVAL_LABELS[entry.approvalStatus]}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					<ApprovalStatusBadge status={selectedEntry.approvalStatus} />
 				</div>
 			</header>
 
