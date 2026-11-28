@@ -355,4 +355,97 @@ describe("admin moderation", () => {
 			.where(eq(schema.anomalyFlags.id, otherAnom.id));
 		expect(untouched?.status).toBe("open");
 	});
+
+	test("GET /admin/places and GET /admin/anomalies support status=all, q, district, verified", async () => {
+		const admCookie = await adminCookie();
+		const app = freshApp({ storage: memoryStorage() });
+		const [cat] = await db
+			.insert(schema.categories)
+			.values({ name: "Warung", slug: "warung", sortOrder: 1 })
+			.returning();
+		const [p1, p2] = await db
+			.insert(schema.places)
+			.values([
+				{
+					slug: "warung-maju",
+					name: "Warung Maju",
+					address: "Jl. Merdeka 1",
+					district: "Batang",
+					categoryId: cat.id,
+					latitude: -6.91,
+					longitude: 109.73,
+					status: "pending",
+					communityVerified: true,
+				},
+				{
+					slug: "kedai-senja",
+					name: "Kedai Senja",
+					address: "Jl. Sudirman 2",
+					district: "Pekalongan",
+					categoryId: cat.id,
+					latitude: -6.92,
+					longitude: 109.74,
+					status: "published",
+					ownerVerified: true,
+				},
+			])
+			.returning();
+		await db.insert(schema.anomalyFlags).values([
+			{
+				placeId: p1.id,
+				kind: "review_burst",
+				metrics: {
+					zScore: 3,
+					mean: 1,
+					stdDev: 0.5,
+					windowDays: 7,
+					sampleSize: 5,
+				},
+				reason: "Sudden burst",
+				status: "open",
+			},
+			{
+				placeId: p2.id,
+				kind: "review_burst",
+				metrics: {
+					zScore: 4,
+					mean: 1,
+					stdDev: 0.5,
+					windowDays: 7,
+					sampleSize: 6,
+				},
+				reason: "Old dismissed",
+				status: "dismissed",
+			},
+		]);
+
+		const allPlaces = await app.handle(
+			new Request("http://test/api/admin/places?status=all", {
+				headers: { cookie: admCookie },
+			}),
+		);
+		expect(allPlaces.status).toBe(200);
+		expect((await json(allPlaces)).data).toHaveLength(2);
+
+		const filteredPlaces = await app.handle(
+			new Request(
+				"http://test/api/admin/places?status=all&q=Senja&district=Pekalongan&verified=owner",
+				{ headers: { cookie: admCookie } },
+			),
+		);
+		expect(filteredPlaces.status).toBe(200);
+		const fpBody = await json(filteredPlaces);
+		expect(fpBody.data).toHaveLength(1);
+		expect(fpBody.data[0].id).toBe(p2.id);
+
+		const allAnomalies = await app.handle(
+			new Request("http://test/api/admin/anomalies?status=all&q=burst", {
+				headers: { cookie: admCookie },
+			}),
+		);
+		expect(allAnomalies.status).toBe(200);
+		const aaBody = await json(allAnomalies);
+		expect(aaBody.data).toHaveLength(1);
+		expect(aaBody.data[0].place.id).toBe(p1.id);
+	});
 });

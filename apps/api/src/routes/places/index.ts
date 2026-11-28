@@ -12,6 +12,7 @@ import {
 	PaginatedPlacesResponse,
 	PlaceDetailResponse,
 	PlaceListQuery,
+	SuggestPlaceUpdateBody,
 } from "./model";
 import {
 	addPlacePhotos,

@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, gte, isNull, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNull,
+	or,
+	sql,
+} from "drizzle-orm";
 import { db } from "../../database";
 import { schema } from "../../database/schema";
 import type { Storage } from "../../lib/ports";

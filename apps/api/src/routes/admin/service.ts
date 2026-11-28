@@ -224,7 +224,16 @@ export async function listAnomalies(query: AdminAnomaliesQueryType) {
 	const offset = (page - 1) * limit;
 	const status = query.status ?? "open";
 
-	const conditions: SQL[] = [eq(schema.anomalyFlags.status, status)];
+	const conditions: SQL[] = [];
+	if (status !== "all") {
+		conditions.push(eq(schema.anomalyFlags.status, status));
+	}
+	if (query.q?.trim()) {
+		const q = `%${query.q.trim()}%`;
+		conditions.push(
+			or(ilike(schema.places.name, q), ilike(schema.anomalyFlags.reason, q))!,
+		);
+	}
 	if (query.kind) conditions.push(eq(schema.anomalyFlags.kind, query.kind));
 	if (query.placeId) {
 		conditions.push(eq(schema.anomalyFlags.placeId, query.placeId));
